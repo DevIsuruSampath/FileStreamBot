@@ -24,19 +24,17 @@ class LANG(object):
 """
 
     STREAM_TEXT = """
-<i><u>𝗬𝗼𝘂𝗿 𝗟𝗶𝗻𝗸 𝗚𝗲𝗻𝗲𝗿𝗮𝘁𝗲𝗱 !</u></i>\n
-<b>📂 Fɪʟᴇ ɴᴀᴍᴇ :</b> <b>{}</b>\n
-<b>📦 Fɪʟᴇ ꜱɪᴢᴇ :</b> <code>{}</code>\n
-<b>📥 Dᴏᴡɴʟᴏᴀᴅ :</b> <code>{}</code>\n
-<b>🖥 Wᴀᴛᴄʜ :</b> <code>{}</code>\n
-<b>🔗 Sʜᴀʀᴇ :</b> <code>{}</code>\n"""
+<b>FILE NAME :</b> <b>{}</b>\n
+<b>FILE SIZE:</b> <code>{}</code>\n
+<b>DOWNLOAD:</b> <code>{}</code>\n
+<b>WATCH:</b> <code>{}</code>\n
+<b>NOTE:</b> <i>LINK WON'T EXPIRE TILL I DELETE</i>\n"""
 
     STREAM_TEXT_X = """
-<i><u>𝗬𝗼𝘂𝗿 𝗟𝗶𝗻𝗸 𝗚𝗲𝗻𝗲𝗿𝗮𝘁𝗲𝗱 !</u></i>\n
-<b>📂 Fɪʟᴇ ɴᴀᴍᴇ :</b> <b>{}</b>\n
-<b>📦 Fɪʟᴇ ꜱɪᴢᴇ :</b> <code>{}</code>\n
-<b>📥 Dᴏᴡɴʟᴏᴀᴅ :</b> <code>{}</code>\n
-<b>🔗 Sʜᴀʀᴇ :</b> <code>{}</code>\n"""
+<b>FILE NAME :</b> <b>{}</b>\n
+<b>FILE SIZE:</b> <code>{}</code>\n
+<b>DOWNLOAD:</b> <code>{}</code>\n
+<b>NOTE:</b> <i>LINK WON'T EXPIRE TILL I DELETE</i>\n"""
 
 
     BAN_TEXT = "__Sᴏʀʀʏ Sɪʀ, Yᴏᴜ ᴀʀᴇ Bᴀɴɴᴇᴅ ᴛᴏ ᴜsᴇ ᴍᴇ.__\n\n**[Cᴏɴᴛᴀᴄᴛ Dᴇᴠᴇʟᴏᴘᴇʀ](tg://user?id={}) Tʜᴇʏ Wɪʟʟ Hᴇʟᴘ Yᴏᴜ**"
