@@ -27,6 +27,33 @@ async def sts(c: Client, m: Message):
                        , parse_mode=ParseMode.MARKDOWN, quote=True)
 
 
+@FileStream.on_message(filters.command("ads") & filters.private & filters.user(Telegram.OWNER_ID))
+async def ads_toggle(c: Client, m: Message):
+    if len(m.command) < 2:
+        await m.reply_text(
+            text="**Usage:** `/ads on` or `/ads off`",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+        return
+    action = m.command[1].lower()
+    if action not in {"on", "off"}:
+        await m.reply_text(
+            text="**Usage:** `/ads on` or `/ads off`",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+        return
+    new_state = action == "on"
+    await db.set_ads_state(new_state)
+    status = "enabled" if new_state else "disabled"
+    await m.reply_text(
+        text=f"**Ads are now {status}.**",
+        parse_mode=ParseMode.MARKDOWN,
+        quote=True
+    )
+
+
 @FileStream.on_message(filters.command("ban") & filters.private & filters.user(Telegram.OWNER_ID))
 async def sts(b, m: Message):
     id = m.text.split("/ban ")[-1]
@@ -155,6 +182,5 @@ async def sts(c: Client, m: Message):
         text=f"**Fɪʟᴇ Dᴇʟᴇᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ !** ",
         quote=True
     )
-
 
 

@@ -12,6 +12,7 @@ class Database:
         self.col = self.db.users
         self.black = self.db.blacklist
         self.file = self.db.file
+        self.settings = self.db.settings
 
 #---------------------[ NEW USER ]---------------------#
     def new_user(self, id):
@@ -132,3 +133,17 @@ class Database:
             await self.col.update_one({"id": id}, {"$inc": {"Links": -1}})
         elif operation == "+":
             await self.col.update_one({"id": id}, {"$inc": {"Links": 1}})
+
+# ---------------------[ ADS STATE ]---------------------#
+    async def get_ads_state(self):
+        settings = await self.settings.find_one({"_id": "bot_settings"})
+        if not settings:
+            return True
+        return settings.get("ads_state", True)
+
+    async def set_ads_state(self, state: bool):
+        await self.settings.update_one(
+            {"_id": "bot_settings"},
+            {"$set": {"ads_state": bool(state)}},
+            upsert=True
+        )
