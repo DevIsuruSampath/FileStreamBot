@@ -25,6 +25,10 @@ class Telegram:
     MODE = env.get("MODE", "primary")
     SECONDARY = True if MODE.lower() == "secondary" else False
     AUTH_USERS = list(set(int(x) for x in str(env.get("AUTH_USERS", "")).split()))
+    
+    # --- [ NEW: URL SHORTENER CONFIG ] ---
+    URL_SHORTENER_API_KEY = env.get('URL_SHORTENER_API_KEY', None)
+    URL_SHORTENER_SITE = env.get('URL_SHORTENER_SITE', None)
 
 class Server:
     PORT = int(env.get("PORT", 8080))
@@ -36,6 +40,3 @@ class Server:
     URL = "http{}://{}{}/".format(
         "s" if HAS_SSL else "", FQDN, "" if NO_PORT else ":" + str(PORT)
     )
-
-
-
