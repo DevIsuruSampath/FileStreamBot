@@ -17,12 +17,25 @@ from pyrogram.enums.parse_mode import ParseMode
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 broadcast_ids = {}
+
+# We create the ID list here
 ADMIN_IDS = list(set([Telegram.OWNER_ID] + Telegram.AUTH_USERS))
 
+# ---------------------[ NEW: CHECK YOUR ID ]---------------------#
+@FileStream.on_message(filters.command("id"))
+async def get_id(c: Client, m: Message):
+    await m.reply_text(f"Your User ID is: `{m.from_user.id}`\nOwner ID in Config: `{Telegram.OWNER_ID}`", quote=True)
 
 # ---------------------[ ADS TOGGLE COMMAND ]---------------------#
-@FileStream.on_message(filters.command("ads") & filters.private & filters.user(ADMIN_IDS))
+# I removed the user filter so the bot replies even if you are wrong, for debugging.
+@FileStream.on_message(filters.command("ads") & filters.private)
 async def ads_toggle(c: Client, m: Message):
+    # 1. Check if user is Admin
+    if m.from_user.id not in ADMIN_IDS:
+        await m.reply_text(f"⚠️ **Access Denied.**\nYour ID `{m.from_user.id}` is not in `OWNER_ID` or `AUTH_USERS`.", quote=True)
+        return
+
+    # 2. Process Command
     parts = m.text.split(maxsplit=1)
     if len(parts) < 2:
         status = await db.get_ads_status()
@@ -48,6 +61,7 @@ async def ads_toggle(c: Client, m: Message):
             quote=True
         )
 
+# ---------------------[ EXISTING COMMANDS ]---------------------#
 
 @FileStream.on_message(filters.command("status") & filters.private & filters.user(Telegram.OWNER_ID))
 async def sts(c: Client, m: Message):
