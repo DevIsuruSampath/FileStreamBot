@@ -18,13 +18,14 @@ from pyrogram import filters, Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums.parse_mode import ParseMode
 
-# Logger setup to catch errors
+# Initialize Logger
 logger = logging.getLogger(__name__)
 
+# Initialize Database
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 broadcast_ids = {}
 
-# Admin IDs setup
+# Admin IDs
 ADMIN_IDS = list(set([Telegram.OWNER_ID] + Telegram.AUTH_USERS))
 
 # Global StartTime for Uptime calculation
@@ -72,15 +73,21 @@ async def get_id(c: Client, m: Message):
 
 @FileStream.on_message(filters.command("ads") & filters.private)
 async def ads_toggle(c: Client, m: Message):
+    # Check if user is Admin
     if m.from_user.id not in ADMIN_IDS:
-        await m.reply_text(f"⚠️ **Access Denied.**", quote=True)
+        await m.reply_text(f"⚠️ **Access Denied.**\nYour ID `{m.from_user.id}` is not in `OWNER_ID` or `AUTH_USERS`.", quote=True)
         return
 
+    # Process Command
     parts = m.text.split(maxsplit=1)
     if len(parts) < 2:
         status = await db.get_ads_status()
         state = "ON" if status else "OFF"
-        await m.reply_text(f"**Ads are currently:** `{state}`\nUsage: `/ads on` or `/ads off`", parse_mode=ParseMode.MARKDOWN, quote=True)
+        await m.reply_text(
+            text=f"**Ads are currently:** `{state}`\nUsage: `/ads on` or `/ads off`",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
         return
 
     action = parts[1].strip().lower()
@@ -90,6 +97,8 @@ async def ads_toggle(c: Client, m: Message):
     elif action == "off":
         await db.update_ads_status(False)
         await m.reply_text(text="**❌ Ads have been disabled.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+    else:
+        await m.reply_text(text="Usage: `/ads on` or `/ads off`", parse_mode=ParseMode.MARKDOWN, quote=True)
 
 @FileStream.on_message(filters.command("status") & filters.private & filters.user(Telegram.OWNER_ID))
 async def sts(c: Client, m: Message):
@@ -114,6 +123,16 @@ async def ban_user(b, m: Message):
             await db.ban_user(user_id)
             await db.delete_user(user_id)
             await m.reply_text(text=f"`{user_id}`** is Banned**", parse_mode=ParseMode.MARKDOWN, quote=True)
+            if not str(user_id).startswith('-100'):
+                try:
+                    await b.send_message(
+                        chat_id=user_id,
+                        text="**You are Banned from using The Bot**",
+                        parse_mode=ParseMode.MARKDOWN,
+                        disable_web_page_preview=True
+                    )
+                except Exception:
+                    pass
         except Exception as e:
             await m.reply_text(text=f"**Error: {e}**", parse_mode=ParseMode.MARKDOWN, quote=True)
     else:
@@ -131,6 +150,16 @@ async def unban_user(b, m: Message):
         try:
             await db.unban_user(user_id)
             await m.reply_text(text=f"`{user_id}`** is Unbanned**", parse_mode=ParseMode.MARKDOWN, quote=True)
+            if not str(user_id).startswith('-100'):
+                try:
+                    await b.send_message(
+                        chat_id=user_id,
+                        text="**You are Unbanned. You can now use The Bot**",
+                        parse_mode=ParseMode.MARKDOWN,
+                        disable_web_page_preview=True
+                    )
+                except Exception:
+                    pass
         except Exception as e:
             await m.reply_text(text=f"**Error: {e}**", parse_mode=ParseMode.MARKDOWN, quote=True)
     else:
@@ -149,7 +178,9 @@ async def broadcast_(c, m):
     out = await m.reply_text(text="Broadcast initiated...")
     start_time = time.time()
     total_users = await db.total_users_count()
-    done, failed, success = 0, 0, 0
+    done = 0
+    failed = 0
+    success = 0
     
     broadcast_ids[broadcast_id] = dict(total=total_users, current=done, failed=failed, success=success)
     
@@ -165,7 +196,6 @@ async def broadcast_(c, m):
             done += 1
             if broadcast_ids.get(broadcast_id) is None: break
             
-            # Update status every 20 users to avoid FloodWait
             if done % 20 == 0:
                 try:
                     await out.edit_text(f"Broadcast Status\n\ncurrent: {done}\nfailed:{failed}\nsuccess: {success}")
@@ -193,34 +223,53 @@ async def del_file(c: Client, m: Message):
         await db.delete_one_file(file_info['_id'])
         await db.count_links(file_info['user_id'], "-")
         await m.reply_text(text=f"**File Deleted Successfully!**", quote=True)
+    except IndexError:
+        await m.reply_text("Usage: `/del file_id`", quote=True)
     except FIleNotFound:
         await m.reply_text(text=f"**File already deleted**", quote=True)
     except Exception as e:
         await m.reply_text(f"Error: {e}", quote=True)
 
+# ---------------------[ FIXED STATS COMMAND ]---------------------#
 @FileStream.on_message(filters.command("stats") & filters.user(Telegram.OWNER_ID))
 async def show_stats(client: Client, message: Message):
     try:
-        sys_uptime = get_readable_time(int(time.time() - psutil.boot_time()))
-        bot_uptime = get_readable_time(int(time.time() - StartTime))
+        sys_uptime = await asyncio.to_thread(psutil.boot_time)
+        sys_uptime_str = get_readable_time(int(time.time() - sys_uptime))
+        bot_uptime_str = get_readable_time(int(time.time() - StartTime))
         
-        cpu = psutil.cpu_percent()
-        ram = psutil.virtual_memory()
-        disk = psutil.disk_usage('.')
+        net_io_counters = await asyncio.to_thread(psutil.net_io_counters)
+        cpu_percent = await asyncio.to_thread(psutil.cpu_percent, interval=0.5)
+        cpu_cores = await asyncio.to_thread(psutil.cpu_count, logical=False)
+        cpu_freq = await asyncio.to_thread(psutil.cpu_freq)
+        cpu_freq_ghz = f"{cpu_freq.current / 1000:.2f}" if cpu_freq else "N/A"
         
-        text = (
-            f"**System Stats**\n"
-            f"**Uptime:** {sys_uptime} (Bot: {bot_uptime})\n"
-            f"**CPU:** {cpu}%\n"
-            f"**RAM:** {humanbytes(ram.used)} / {humanbytes(ram.total)}\n"
-            f"**Disk:** {humanbytes(disk.used)} / {humanbytes(disk.total)}"
+        ram_info = await asyncio.to_thread(psutil.virtual_memory)
+        ram_total = humanbytes(ram_info.total)
+        ram_used = humanbytes(ram_info.used)
+        ram_free = humanbytes(ram_info.free)
+
+        total_disk, used_disk, free_disk = await asyncio.to_thread(shutil.disk_usage, '.')
+        disk_percent = psutil.disk_usage('.').percent
+
+        stats_text_val = (
+            f"**System Statistics**\n\n"
+            f"**System Uptime:** {sys_uptime_str}\n"
+            f"**Bot Uptime:** {bot_uptime_str}\n\n"
+            f"**CPU:** {cpu_percent}% ({cpu_cores} Cores, {cpu_freq_ghz} GHz)\n"
+            f"**RAM:** {ram_used} / {ram_total} (Free: {ram_free})\n"
+            f"**Disk:** {humanbytes(used_disk)} / {humanbytes(total_disk)} ({disk_percent}%)\n\n"
+            f"**Upload:** {humanbytes(net_io_counters.bytes_sent)}\n"
+            f"**Download:** {humanbytes(net_io_counters.bytes_recv)}"
         )
-        
+
         await message.reply_text(
-            text=text,
+            text=stats_text_val,
             parse_mode=ParseMode.MARKDOWN,
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Close", callback_data="close_panel")]])
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("Close", callback_data="close_panel")]]
+            )
         )
     except Exception as e:
-        logger.error(f"Stats Error: {e}")
-        await message.reply_text("Stats Error")
+        logger.error(f"Error in show_stats: {e}", exc_info=True)
+        await message.reply_text(f"Error: {str(e)}")
