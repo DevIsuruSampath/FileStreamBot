@@ -14,7 +14,7 @@ from pyrogram import filters, Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums.parse_mode import ParseMode
 
-# Custom Imports (Assumed to exist based on your provided code)
+# Custom Imports
 from FileStream.utils.broadcast_helper import send_msg
 from FileStream.utils.database import Database
 from FileStream.bot import FileStream
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 broadcast_ids = {}
 
-# We create the ID list here
+# Create Admin List
 ADMIN_IDS = list(set([Telegram.OWNER_ID] + Telegram.AUTH_USERS))
 
 # Global StartTime for Uptime calculation
@@ -68,20 +68,24 @@ def get_readable_time(seconds: int) -> str:
     ping_time += ":".join(time_list)
     return ping_time
 
-# ---------------------[ NEW: CHECK YOUR ID ]---------------------#
+# ---------------------[ COMMANDS ]---------------------#
+
 @FileStream.on_message(filters.command("id"))
 async def get_id(c: Client, m: Message):
-    await m.reply_text(f"Your User ID is: `{m.from_user.id}`\nOwner ID in Config: `{Telegram.OWNER_ID}`", quote=True)
+    await m.reply_text(
+        f"Your User ID is: `{m.from_user.id}`\nOwner ID in Config: `{Telegram.OWNER_ID}`", 
+        quote=True
+    )
 
-# ---------------------[ ADS TOGGLE COMMAND ]---------------------#
 @FileStream.on_message(filters.command("ads") & filters.private)
 async def ads_toggle(c: Client, m: Message):
-    # 1. Check if user is Admin
     if m.from_user.id not in ADMIN_IDS:
-        await m.reply_text(f"⚠️ **Access Denied.**\nYour ID `{m.from_user.id}` is not in `OWNER_ID` or `AUTH_USERS`.", quote=True)
+        await m.reply_text(
+            f"⚠️ **Access Denied.**\nYour ID `{m.from_user.id}` is not in `OWNER_ID` or `AUTH_USERS`.", 
+            quote=True
+        )
         return
 
-    # 2. Process Command
     parts = m.text.split(maxsplit=1)
     if len(parts) < 2:
         status = await db.get_ads_status()
@@ -106,8 +110,6 @@ async def ads_toggle(c: Client, m: Message):
             parse_mode=ParseMode.MARKDOWN,
             quote=True
         )
-
-# ---------------------[ EXISTING COMMANDS ]---------------------#
 
 @FileStream.on_message(filters.command("status") & filters.private & filters.user(Telegram.OWNER_ID))
 async def sts(c: Client, m: Message):
@@ -141,12 +143,11 @@ async def ban_user(b, m: Message):
                         disable_web_page_preview=True
                     )
                 except Exception:
-                    pass # User blocked bot or other issue
+                    pass
         except Exception as e:
             await m.reply_text(text=f"**something went wrong: {e}** ", parse_mode=ParseMode.MARKDOWN, quote=True)
     else:
         await m.reply_text(text=f"`{user_id}`** is Already Banned** ", parse_mode=ParseMode.MARKDOWN, quote=True)
-
 
 @FileStream.on_message(filters.command("unban") & filters.private & filters.user(Telegram.OWNER_ID))
 async def unban_user(b, m: Message):
@@ -174,7 +175,6 @@ async def unban_user(b, m: Message):
             await m.reply_text(text=f"** something went wrong: {e}**", parse_mode=ParseMode.MARKDOWN, quote=True)
     else:
         await m.reply_text(text=f"`{user_id}`** is not Banned** ", parse_mode=ParseMode.MARKDOWN, quote=True)
-
 
 @FileStream.on_message(filters.command("broadcast") & filters.private & filters.user(Telegram.OWNER_ID) & filters.reply)
 async def broadcast_(c, m):
@@ -229,9 +229,8 @@ async def broadcast_(c, m):
                         success=success
                     )
                 )
-                # Reduced floodwait risk by ignoring update errors
                 try:
-                    if done % 20 == 0: # Only update every 20 users
+                    if done % 20 == 0:
                          await out.edit_text(f"Broadcast Status\n\ncurrent: {done}\nfailed:{failed}\nsuccess: {success}")
                 except:
                     pass
@@ -257,8 +256,8 @@ async def broadcast_(c, m):
             caption=f"broadcast completed in `{completed_in}`\n\nTotal users {total_users}.\nTotal done {done}, {success} success and {failed} failed.",
             quote=True
         )
-    os.remove('broadcast.txt')
-
+    if os.path.exists('broadcast.txt'):
+        os.remove('broadcast.txt')
 
 @FileStream.on_message(filters.command("del") & filters.private & filters.user(Telegram.OWNER_ID))
 async def del_file(c: Client, m: Message):
@@ -284,7 +283,6 @@ async def del_file(c: Client, m: Message):
         quote=True
     )
 
-# ---------------------[ FIXED STATS COMMAND ]---------------------#
 @FileStream.on_message(filters.command("stats") & filters.user(Telegram.OWNER_ID))
 async def show_stats(client: Client, message: Message):
     try:
