@@ -12,7 +12,7 @@ class Database:
         self.col = self.db.users
         self.black = self.db.blacklist
         self.file = self.db.file
-        self.settings = self.db.settings  # <--- Added Settings Collection
+        self.settings = self.db.settings  # <--- NEW COLLECTION
 
 #---------------------[ NEW USER ]---------------------#
     def new_user(self, id):
