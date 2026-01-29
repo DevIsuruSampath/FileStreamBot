@@ -6,7 +6,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from FileStream.utils.translation import LANG
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
-from FileStream.utils.shortener import get_short_link  # <--- IMPORT NEW FILE
+from FileStream.utils.shortener import shorten
 from FileStream.config import Telegram, Server
 from FileStream.bot import FileStream
 
@@ -90,9 +90,8 @@ async def gen_link(_id):
 
     # 2. Check Database for ADS Status
     if await db.get_ads_status():
-        # If Ads are True -> Shorten the links
-        page_link = await get_short_link(page_link)
-        stream_link = await get_short_link(stream_link)
+        page_link = await shorten(page_link)
+        stream_link = await shorten(stream_link)
 
     if "video" in mime_type:
         stream_text = LANG.STREAM_TEXT.format(file_name, file_size, stream_link, page_link)
@@ -128,9 +127,8 @@ async def gen_linkx(m:Message , _id, name: list):
     
     # 2. Check Database for ADS Status
     if await db.get_ads_status():
-        # If Ads are True -> Shorten the links
-        page_link = await get_short_link(page_link)
-        stream_link = await get_short_link(stream_link)
+        page_link = await shorten(page_link)
+        stream_link = await shorten(stream_link)
 
     if "video" in mime_type:
         stream_text= LANG.STREAM_TEXT.format(file_name, file_size, stream_link, page_link)
@@ -192,19 +190,19 @@ async def is_user_authorized(message):
 
     return True
 
-#---------------------[ USER EXIST ]---------------------#
+#---------------------[ USER EXIST (FIXED) ]---------------------#
 
 async def is_user_exist(bot, message):
-    if not bool(await db.get_user(message.from_user.id)):
-        await db.add_user(message.from_user.id)
+    # Only Log if db.add_user returns TRUE (meaning it was a new insertion)
+    if await db.add_user(message.from_user.id):
         await bot.send_message(
             Telegram.ULOG_CHANNEL,
             f"**#NᴇᴡUsᴇʀ**\n**⬩ ᴜsᴇʀ ɴᴀᴍᴇ :** [{message.from_user.first_name}](tg://user?id={message.from_user.id})\n**⬩ ᴜsᴇʀ ɪᴅ :** `{message.from_user.id}`"
         )
 
 async def is_channel_exist(bot, message):
-    if not bool(await db.get_user(message.chat.id)):
-        await db.add_user(message.chat.id)
+    # Using the same logic for channels
+    if await db.add_user(message.chat.id):
         members = await bot.get_chat_members_count(message.chat.id)
         await bot.send_message(
             Telegram.ULOG_CHANNEL,
