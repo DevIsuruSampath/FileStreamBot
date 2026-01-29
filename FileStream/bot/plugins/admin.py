@@ -10,13 +10,43 @@ from FileStream.utils.broadcast_helper import send_msg
 from FileStream.utils.database import Database
 from FileStream.bot import FileStream
 from FileStream.server.exceptions import FIleNotFound
-from FileStream.config import Telegram, Server
+from FileStream.config import Telegram
 from pyrogram import filters, Client
 from pyrogram.types import Message
 from pyrogram.enums.parse_mode import ParseMode
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 broadcast_ids = {}
+ADMIN_IDS = list(set([Telegram.OWNER_ID] + Telegram.AUTH_USERS))
+
+
+# ---------------------[ ADS TOGGLE COMMAND ]---------------------#
+@FileStream.on_message(filters.command("ads") & filters.private & filters.user(ADMIN_IDS))
+async def ads_toggle(c: Client, m: Message):
+    parts = m.text.split(maxsplit=1)
+    if len(parts) < 2:
+        status = await db.get_ads_status()
+        state = "ON" if status else "OFF"
+        await m.reply_text(
+            text=f"**Ads are currently:** `{state}`\nUsage: `/ads on` or `/ads off`",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+        return
+
+    action = parts[1].strip().lower()
+    if action == "on":
+        await db.update_ads_status(True)
+        await m.reply_text(text="**✅ Ads have been enabled.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+    elif action == "off":
+        await db.update_ads_status(False)
+        await m.reply_text(text="**❌ Ads have been disabled.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+    else:
+        await m.reply_text(
+            text="Usage: `/ads on` or `/ads off`",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
 
 
 @FileStream.on_message(filters.command("status") & filters.private & filters.user(Telegram.OWNER_ID))
@@ -28,7 +58,7 @@ async def sts(c: Client, m: Message):
 
 
 @FileStream.on_message(filters.command("ban") & filters.private & filters.user(Telegram.OWNER_ID))
-async def sts(b, m: Message):
+async def ban_user(b, m: Message):
     id = m.text.split("/ban ")[-1]
     if not await db.is_user_banned(int(id)):
         try:
@@ -38,7 +68,7 @@ async def sts(b, m: Message):
             if not str(id).startswith('-100'):
                 await b.send_message(
                     chat_id=id,
-                    text="**Your Banned to Use The Bot**",
+                    text="**You are Banned from using The Bot**",
                     parse_mode=ParseMode.MARKDOWN,
                     disable_web_page_preview=True
                 )
@@ -49,7 +79,7 @@ async def sts(b, m: Message):
 
 
 @FileStream.on_message(filters.command("unban") & filters.private & filters.user(Telegram.OWNER_ID))
-async def sts(b, m: Message):
+async def unban_user(b, m: Message):
     id = m.text.split("/unban ")[-1]
     if await db.is_user_banned(int(id)):
         try:
@@ -58,7 +88,7 @@ async def sts(b, m: Message):
             if not str(id).startswith('-100'):
                 await b.send_message(
                     chat_id=id,
-                    text="**Your Unbanned now Use can use The Bot**",
+                    text="**You are Unbanned. You can now use The Bot**",
                     parse_mode=ParseMode.MARKDOWN,
                     disable_web_page_preview=True
                 )
@@ -139,7 +169,7 @@ async def broadcast_(c, m):
 
 
 @FileStream.on_message(filters.command("del") & filters.private & filters.user(Telegram.OWNER_ID))
-async def sts(c: Client, m: Message):
+async def del_file(c: Client, m: Message):
     file_id = m.text.split(" ")[-1]
     try:
         file_info = await db.get_file(file_id)
@@ -155,6 +185,3 @@ async def sts(c: Client, m: Message):
         text=f"**Fɪʟᴇ Dᴇʟᴇᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ !** ",
         quote=True
     )
-
-
-
