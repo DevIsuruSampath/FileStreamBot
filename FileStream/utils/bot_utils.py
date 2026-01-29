@@ -1,16 +1,14 @@
+import asyncio
+from typing import Union
 from pyrogram.errors import UserNotParticipant, FloodWait
 from pyrogram.enums.parse_mode import ParseMode
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from FileStream.utils.translation import LANG
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
+from FileStream.utils.shortener import get_short_link  # <--- IMPORT NEW FILE
 from FileStream.config import Telegram, Server
 from FileStream.bot import FileStream
-import asyncio
-from typing import (
-    Union
-)
-
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
@@ -85,9 +83,16 @@ async def gen_link(_id):
     file_size = humanbytes(file_info['file_size'])
     mime_type = file_info['mime_type']
 
+    # 1. Base Links (Normal)
     page_link = f"{Server.URL}watch/{_id}"
     stream_link = f"{Server.URL}dl/{_id}"
     file_link = f"https://t.me/{FileStream.username}?start=file_{_id}"
+
+    # 2. Check Database for ADS Status
+    if await db.get_ads_status():
+        # If Ads are True -> Shorten the links
+        page_link = await get_short_link(page_link)
+        stream_link = await get_short_link(stream_link)
 
     if "video" in mime_type:
         stream_text = LANG.STREAM_TEXT.format(file_name, file_size, stream_link, page_link)
@@ -117,9 +122,15 @@ async def gen_linkx(m:Message , _id, name: list):
     mime_type = file_info['mime_type']
     file_size = humanbytes(file_info['file_size'])
 
+    # 1. Base Links (Normal)
     page_link = f"{Server.URL}watch/{_id}"
     stream_link = f"{Server.URL}dl/{_id}"
-    file_link = f"https://t.me/{FileStream.username}?start=file_{_id}"
+    
+    # 2. Check Database for ADS Status
+    if await db.get_ads_status():
+        # If Ads are True -> Shorten the links
+        page_link = await get_short_link(page_link)
+        stream_link = await get_short_link(stream_link)
 
     if "video" in mime_type:
         stream_text= LANG.STREAM_TEXT.format(file_name, file_size, stream_link, page_link)
