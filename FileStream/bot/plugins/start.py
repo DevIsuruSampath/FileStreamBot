@@ -18,6 +18,18 @@ db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 async def start(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
+
+    # ---------------------[ ADS CHECK START ]---------------------#
+    if await db.get_ads_status():
+        # You can replace the text below with your Ad or Channel Link
+        await message.reply_text(
+            text="<b>⚠️ Notice:</b>\n\nThis bot is currently in <b>Ad Mode / Maintenance</b>.\nPlease contact the admin for access.",
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True
+        )
+        return  # Stops the user from getting the file if Ads are ON
+    # ---------------------[ ADS CHECK END ]---------------------#
+
     usr_cmd = message.text.split("_")[-1]
 
     if usr_cmd == "/start":
@@ -82,7 +94,7 @@ async def start(bot: Client, message: Message):
             await message.reply_text(f"**Invalid Command**")
 
 @FileStream.on_message(filters.private & filters.command(["about"]))
-async def start(bot, message):
+async def about(bot, message):
     if not await verify_user(bot, message):
         return
     if Telegram.START_PIC:
@@ -145,5 +157,3 @@ async def my_files(bot: Client, message: Message):
     await message.reply_photo(photo=Telegram.FILE_PIC,
                               caption="Total files: {}".format(total_files),
                               reply_markup=InlineKeyboardMarkup(file_list))
-
-
