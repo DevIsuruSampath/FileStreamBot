@@ -7,10 +7,12 @@ from FileStream.utils.translation import LANG, BUTTON
 from FileStream.utils.bot_utils import gen_link
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
+from FileStream.utils.shortener import shorten  # <--- NEW IMPORT
 from FileStream.server.exceptions import FIleNotFound
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.file_id import FileId, FileType, PHOTO_TYPES
 from pyrogram.enums.parse_mode import ParseMode
+
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
 #---------------------[ START CMD ]---------------------#
@@ -61,6 +63,7 @@ async def cb_data(bot, update: CallbackQuery):
 
     elif usr_cmd[0] == "mainstream":
         _id = usr_cmd[1]
+        # gen_link from bot_utils handles Ads/Shortener internally
         reply_markup, stream_text = await gen_link(_id=_id)
         await update.message.edit_text(
             text=stream_text,
@@ -85,7 +88,6 @@ async def cb_data(bot, update: CallbackQuery):
         await update.message.reply_cached_media(myfile['file_id'], caption=f'**{file_name}**')
     else:
         await update.message.delete()
-
 
 
     #---------------------[ MY FILES FUNC ]---------------------#
@@ -134,8 +136,16 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     else:
         file_type = "Unknown"
 
+    # --- [ START ADS LOGIC ] ---
     page_link = f"{Server.URL}watch/{myfile_info['_id']}"
     stream_link = f"{Server.URL}dl/{myfile_info['_id']}"
+
+    # Check database status and Shorten if enabled
+    if await db.get_ads_status():
+        page_link = await shorten(page_link)
+        stream_link = await shorten(stream_link)
+    # --- [ END ADS LOGIC ] ---
+
     if "video" in file_type.lower():
         MYFILES_BUTTONS = InlineKeyboardMarkup(
             [
@@ -158,6 +168,7 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     TiMe = myfile_info['time']
     if type(TiMe) == float:
         date = datetime.datetime.fromtimestamp(TiMe)
+    
     await update.edit_message_caption(
         caption="**File Name :** `{}`\n**File Size :** `{}`\n**File Type :** `{}`\n**Created On :** `{}`".format(myfile_info['file_name'],
                                                                                                                     humanbytes(int(myfile_info['file_size'])),
@@ -195,4 +206,3 @@ async def delete_user_filex(_id, update:CallbackQuery):
             caption= "**Fɪʟᴇ Dᴇʟᴇᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ !**\n\n",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data=f"close")]])
         )
-
