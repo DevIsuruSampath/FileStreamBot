@@ -12,6 +12,7 @@ class Database:
         self.col = self.db.users
         self.black = self.db.blacklist
         self.file = self.db.file
+        self.settings = self.db.settings  # <--- Added Settings Collection
 
 #---------------------[ NEW USER ]---------------------#
     def new_user(self, id):
@@ -115,20 +116,23 @@ class Database:
 # ---------------------[ UPDATE FILES ]---------------------#
     async def update_file_ids(self, _id, file_ids: dict):
         await self.file.update_one({"_id": ObjectId(_id)}, {"$set": {"file_ids": file_ids}})
-
-# ---------------------[ PAID SYS ]---------------------#
-#     async def link_available(self, id):
-#         user = await self.col.find_one({"id": id})
-#         if user.get("Plan") == "Plus":
-#             return "Plus"
-#         elif user.get("Plan") == "Free":
-#             files = await self.file.count_documents({"user_id": id})
-#             if files < 11:
-#                 return True
-#             return False
         
     async def count_links(self, id, operation: str):
         if operation == "-":
             await self.col.update_one({"id": id}, {"$inc": {"Links": -1}})
         elif operation == "+":
             await self.col.update_one({"id": id}, {"$inc": {"Links": 1}})
+
+# ---------------------[ ADS SETTINGS ]---------------------#
+    async def update_ads_status(self, status: bool):
+        await self.settings.update_one(
+            {"_id": "ads"},
+            {"$set": {"status": bool(status)}},
+            upsert=True
+        )
+
+    async def get_ads_status(self):
+        settings = await self.settings.find_one({"_id": "ads"})
+        if not settings:
+            return False
+        return bool(settings.get("status", False))
