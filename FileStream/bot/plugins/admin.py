@@ -18,16 +18,15 @@ from pyrogram.enums.parse_mode import ParseMode
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 broadcast_ids = {}
 
-# We create the ID list here
+# Create Admin List
 ADMIN_IDS = list(set([Telegram.OWNER_ID] + Telegram.AUTH_USERS))
 
-# ---------------------[ NEW: CHECK YOUR ID ]---------------------#
+# ---------------------[ CHECK YOUR ID ]---------------------#
 @FileStream.on_message(filters.command("id"))
 async def get_id(c: Client, m: Message):
     await m.reply_text(f"Your User ID is: `{m.from_user.id}`\nOwner ID in Config: `{Telegram.OWNER_ID}`", quote=True)
 
 # ---------------------[ ADS TOGGLE COMMAND ]---------------------#
-# I removed the user filter so the bot replies even if you are wrong, for debugging.
 @FileStream.on_message(filters.command("ads") & filters.private)
 async def ads_toggle(c: Client, m: Message):
     # 1. Check if user is Admin
@@ -36,8 +35,7 @@ async def ads_toggle(c: Client, m: Message):
         return
 
     # 2. Process Command
-    parts = m.text.split(maxsplit=1)
-    if len(parts) < 2:
+    if len(m.command) < 2:
         status = await db.get_ads_status()
         state = "ON" if status else "OFF"
         await m.reply_text(
@@ -47,7 +45,7 @@ async def ads_toggle(c: Client, m: Message):
         )
         return
 
-    action = parts[1].strip().lower()
+    action = m.command[1].strip().lower()
     if action == "on":
         await db.update_ads_status(True)
         await m.reply_text(text="**✅ Ads have been enabled.**", parse_mode=ParseMode.MARKDOWN, quote=True)
@@ -61,8 +59,7 @@ async def ads_toggle(c: Client, m: Message):
             quote=True
         )
 
-# ---------------------[ EXISTING COMMANDS ]---------------------#
-
+# ---------------------[ STATUS COMMAND ]---------------------#
 @FileStream.on_message(filters.command("status") & filters.private & filters.user(Telegram.OWNER_ID))
 async def sts(c: Client, m: Message):
     await m.reply_text(text=f"""**Total Users in DB:** `{await db.total_users_count()}`
@@ -70,48 +67,75 @@ async def sts(c: Client, m: Message):
 **Total Links Generated: ** `{await db.total_files()}`"""
                        , parse_mode=ParseMode.MARKDOWN, quote=True)
 
-
+# ---------------------[ BAN USER ]---------------------#
 @FileStream.on_message(filters.command("ban") & filters.private & filters.user(Telegram.OWNER_ID))
-async def ban_user(b, m: Message):
-    id = m.text.split("/ban ")[-1]
-    if not await db.is_user_banned(int(id)):
+async def ban_user(b: Client, m: Message):
+    if len(m.command) < 2:
+        await m.reply_text("**Usage:** `/ban [User_ID]`", quote=True)
+        return
+    
+    try:
+        target_id = int(m.command[1])
+    except ValueError:
+        await m.reply_text("**Error:** User ID must be a number.", quote=True)
+        return
+
+    if not await db.is_user_banned(target_id):
         try:
-            await db.ban_user(int(id))
-            await db.delete_user(int(id))
-            await m.reply_text(text=f"`{id}`** is Banned** ", parse_mode=ParseMode.MARKDOWN, quote=True)
-            if not str(id).startswith('-100'):
-                await b.send_message(
-                    chat_id=id,
-                    text="**You are Banned from using The Bot**",
-                    parse_mode=ParseMode.MARKDOWN,
-                    disable_web_page_preview=True
-                )
+            await db.ban_user(target_id)
+            await db.delete_user(target_id)
+            await m.reply_text(text=f"`{target_id}`** is Banned** ", parse_mode=ParseMode.MARKDOWN, quote=True)
+            
+            # Try to notify the user if possible
+            if not str(target_id).startswith('-100'):
+                try:
+                    await b.send_message(
+                        chat_id=target_id,
+                        text="**You have been Banned from using this Bot**",
+                        parse_mode=ParseMode.MARKDOWN,
+                        disable_web_page_preview=True
+                    )
+                except:
+                    pass
         except Exception as e:
-            await m.reply_text(text=f"**something went wrong: {e}** ", parse_mode=ParseMode.MARKDOWN, quote=True)
+            await m.reply_text(text=f"**Something went wrong: {e}** ", parse_mode=ParseMode.MARKDOWN, quote=True)
     else:
-        await m.reply_text(text=f"`{id}`** is Already Banned** ", parse_mode=ParseMode.MARKDOWN, quote=True)
+        await m.reply_text(text=f"`{target_id}`** is Already Banned** ", parse_mode=ParseMode.MARKDOWN, quote=True)
 
-
+# ---------------------[ UNBAN USER ]---------------------#
 @FileStream.on_message(filters.command("unban") & filters.private & filters.user(Telegram.OWNER_ID))
-async def unban_user(b, m: Message):
-    id = m.text.split("/unban ")[-1]
-    if await db.is_user_banned(int(id)):
+async def unban_user(b: Client, m: Message):
+    if len(m.command) < 2:
+        await m.reply_text("**Usage:** `/unban [User_ID]`", quote=True)
+        return
+
+    try:
+        target_id = int(m.command[1])
+    except ValueError:
+        await m.reply_text("**Error:** User ID must be a number.", quote=True)
+        return
+
+    if await db.is_user_banned(target_id):
         try:
-            await db.unban_user(int(id))
-            await m.reply_text(text=f"`{id}`** is Unbanned** ", parse_mode=ParseMode.MARKDOWN, quote=True)
-            if not str(id).startswith('-100'):
-                await b.send_message(
-                    chat_id=id,
-                    text="**You are Unbanned. You can now use The Bot**",
-                    parse_mode=ParseMode.MARKDOWN,
-                    disable_web_page_preview=True
-                )
+            await db.unban_user(target_id)
+            await m.reply_text(text=f"`{target_id}`** is Unbanned** ", parse_mode=ParseMode.MARKDOWN, quote=True)
+            
+            if not str(target_id).startswith('-100'):
+                try:
+                    await b.send_message(
+                        chat_id=target_id,
+                        text="**You have been Unbanned. You can now use the Bot.**",
+                        parse_mode=ParseMode.MARKDOWN,
+                        disable_web_page_preview=True
+                    )
+                except:
+                    pass
         except Exception as e:
-            await m.reply_text(text=f"** something went wrong: {e}**", parse_mode=ParseMode.MARKDOWN, quote=True)
+            await m.reply_text(text=f"**Something went wrong: {e}**", parse_mode=ParseMode.MARKDOWN, quote=True)
     else:
-        await m.reply_text(text=f"`{id}`** is not Banned** ", parse_mode=ParseMode.MARKDOWN, quote=True)
+        await m.reply_text(text=f"`{target_id}`** is not Banned** ", parse_mode=ParseMode.MARKDOWN, quote=True)
 
-
+# ---------------------[ BROADCAST ]---------------------#
 @FileStream.on_message(filters.command("broadcast") & filters.private & filters.user(Telegram.OWNER_ID) & filters.reply)
 async def broadcast_(c, m):
     all_users = await db.get_all_users()
@@ -181,21 +205,26 @@ async def broadcast_(c, m):
         )
     os.remove('broadcast.txt')
 
-
+# ---------------------[ DELETE FILE ]---------------------#
 @FileStream.on_message(filters.command("del") & filters.private & filters.user(Telegram.OWNER_ID))
 async def del_file(c: Client, m: Message):
-    file_id = m.text.split(" ")[-1]
+    if len(m.command) < 2:
+        await m.reply_text("**Usage:** `/del [File_ID]`", quote=True)
+        return
+
+    file_id = m.command[1]
     try:
         file_info = await db.get_file(file_id)
     except FIleNotFound:
         await m.reply_text(
-            text=f"**ꜰɪʟᴇ ᴀʟʀᴇᴀᴅʏ ᴅᴇʟᴇᴛᴇᴅ**",
+            text=f"**File already deleted or not found.**",
             quote=True
         )
         return
+        
     await db.delete_one_file(file_info['_id'])
     await db.count_links(file_info['user_id'], "-")
     await m.reply_text(
-        text=f"**Fɪʟᴇ Dᴇʟᴇᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ !** ",
+        text=f"**File Deleted Successfully!** ",
         quote=True
     )
