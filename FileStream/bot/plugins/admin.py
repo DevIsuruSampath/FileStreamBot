@@ -85,7 +85,7 @@ async def ads_toggle(c: Client, m: Message):
             quote=True
         )
 
-# ---------------------[ STATUS COMMAND (UPDATED) ]---------------------#
+# ---------------------[ STATUS COMMAND (FIXED) ]---------------------#
 @FileStream.on_message(filters.command("status") & filters.private & filters.user(Telegram.OWNER_ID))
 async def sts(c: Client, m: Message):
     # 1. Calculate Uptime
@@ -107,10 +107,10 @@ async def sts(c: Client, m: Message):
     disk_total = humanbytes(disk.total)
     disk_percent = f"{int((disk.used / disk.total) * 100)}%"
     
-    # 5. Network Usage
-    net = psutil.net_io_counters()
-    upload = humanbytes(net.bytes_sent)
-    download = humanbytes(net.bytes_recv)
+    # 5. Network Usage (FIXED VARIABLE NAMES)
+    net_io_counters = psutil.net_io_counters()
+    upload = humanbytes(net_io_counters.bytes_sent)
+    download = humanbytes(net_io_counters.bytes_recv)
 
     # 6. DB Stats
     total_users = await db.total_users_count()
