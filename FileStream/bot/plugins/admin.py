@@ -1,25 +1,53 @@
 import os
 import time
+import math
+import shutil
+import psutil
 import string
 import random
 import asyncio
 import aiofiles
 import datetime
+from pyrogram import filters, Client
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.enums.parse_mode import ParseMode
 
 from FileStream.utils.broadcast_helper import send_msg
 from FileStream.utils.database import Database
 from FileStream.bot import FileStream
 from FileStream.server.exceptions import FIleNotFound
 from FileStream.config import Telegram
-from pyrogram import filters, Client
-from pyrogram.types import Message
-from pyrogram.enums.parse_mode import ParseMode
+from FileStream.utils.human_readable import humanbytes
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 broadcast_ids = {}
 
+# Record Bot Start Time
+BOT_START_TIME = time.time()
+
 # Create Admin List
 ADMIN_IDS = list(set([Telegram.OWNER_ID] + Telegram.AUTH_USERS))
+
+# ---------------------[ HELPER FUNCTIONS ]---------------------#
+def get_readable_time(seconds: int) -> str:
+    count = 0
+    ping_time = ""
+    time_list = []
+    time_suffix_list = ["s", "m", "h", "days"]
+    while count < 4:
+        count += 1
+        remainder, result = divmod(seconds, 60) if count < 3 else divmod(seconds, 24)
+        if seconds == 0 and remainder == 0:
+            break
+        time_list.append(int(result))
+        seconds = int(remainder)
+    for x in range(len(time_list)):
+        time_list[x] = str(time_list[x]) + time_suffix_list[x]
+    if len(time_list) == 4:
+        ping_time += time_list.pop() + ", "
+    time_list.reverse()
+    ping_time += ":".join(time_list)
+    return ping_time
 
 # ---------------------[ CHECK YOUR ID ]---------------------#
 @FileStream.on_message(filters.command("id"))
@@ -29,12 +57,10 @@ async def get_id(c: Client, m: Message):
 # ---------------------[ ADS TOGGLE COMMAND ]---------------------#
 @FileStream.on_message(filters.command("ads") & filters.private)
 async def ads_toggle(c: Client, m: Message):
-    # 1. Check if user is Admin
     if m.from_user.id not in ADMIN_IDS:
         await m.reply_text(f"⚠️ **Access Denied.**\nYour ID `{m.from_user.id}` is not in `OWNER_ID` or `AUTH_USERS`.", quote=True)
         return
 
-    # 2. Process Command
     if len(m.command) < 2:
         status = await db.get_ads_status()
         state = "ON" if status else "OFF"
@@ -59,13 +85,62 @@ async def ads_toggle(c: Client, m: Message):
             quote=True
         )
 
-# ---------------------[ STATUS COMMAND ]---------------------#
+# ---------------------[ STATUS COMMAND (UPDATED) ]---------------------#
 @FileStream.on_message(filters.command("status") & filters.private & filters.user(Telegram.OWNER_ID))
 async def sts(c: Client, m: Message):
-    await m.reply_text(text=f"""**Total Users in DB:** `{await db.total_users_count()}`
-**Banned Users in DB:** `{await db.total_banned_users_count()}`
-**Total Links Generated: ** `{await db.total_files()}`"""
-                       , parse_mode=ParseMode.MARKDOWN, quote=True)
+    # 1. Calculate Uptime
+    bot_uptime = get_readable_time(int(time.time() - BOT_START_TIME))
+    sys_uptime = get_readable_time(int(time.time() - psutil.boot_time()))
+
+    # 2. CPU Usage
+    cpu_usage = psutil.cpu_percent(interval=0.5)
+    
+    # 3. RAM Usage
+    mem = psutil.virtual_memory()
+    ram_used = humanbytes(mem.used)
+    ram_total = humanbytes(mem.total)
+    ram_free = humanbytes(mem.available)
+    
+    # 4. Disk Usage
+    disk = shutil.disk_usage("/")
+    disk_used = humanbytes(disk.used)
+    disk_total = humanbytes(disk.total)
+    disk_percent = f"{int((disk.used / disk.total) * 100)}%"
+    
+    # 5. Network Usage
+    net = psutil.net_io_counters()
+    upload = humanbytes(net.bytes_sent)
+    download = humanbytes(net.bytes_recv)
+
+    # 6. DB Stats
+    total_users = await db.total_users_count()
+    banned_users = await db.total_banned_users_count()
+    total_files = await db.total_files()
+
+    stats_text = f"""<b>📊 System Statistics</b>
+
+<b>System Uptime:</b> {sys_uptime}
+<b>Bot Uptime:</b> {bot_uptime}
+
+<b>CPU:</b> {cpu_usage}%
+<b>RAM:</b> {ram_used} / {ram_total} (Free: {ram_free})
+<b>Disk:</b> {disk_used} / {disk_total} ({disk_percent})
+
+<b>Upload:</b> {upload}
+<b>Download:</b> {download}
+
+<b>-----------------------</b>
+
+<b>Total Users in DB:</b> {total_users}
+<b>Banned Users in DB:</b> {banned_users}
+<b>Total Links Generated:</b> {total_files}"""
+
+    await m.reply_text(
+        text=stats_text,
+        parse_mode=ParseMode.HTML,
+        quote=True,
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")]])
+    )
 
 # ---------------------[ BAN USER ]---------------------#
 @FileStream.on_message(filters.command("ban") & filters.private & filters.user(Telegram.OWNER_ID))
@@ -85,8 +160,6 @@ async def ban_user(b: Client, m: Message):
             await db.ban_user(target_id)
             await db.delete_user(target_id)
             await m.reply_text(text=f"`{target_id}`** is Banned** ", parse_mode=ParseMode.MARKDOWN, quote=True)
-            
-            # Try to notify the user if possible
             if not str(target_id).startswith('-100'):
                 try:
                     await b.send_message(
@@ -119,7 +192,6 @@ async def unban_user(b: Client, m: Message):
         try:
             await db.unban_user(target_id)
             await m.reply_text(text=f"`{target_id}`** is Unbanned** ", parse_mode=ParseMode.MARKDOWN, quote=True)
-            
             if not str(target_id).startswith('-100'):
                 try:
                     await b.send_message(
