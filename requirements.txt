@@ -8,4 +8,6 @@ dnspython
 requests
 jinja2
 cloudscraper
+psutil
+
 
