@@ -84,18 +84,19 @@ def get_media_file_size(m):
     return getattr(media, "file_size", "None")
 
 
-def get_name(media_msg: Message | FileId) -> str:
+def get_name(media_msg: Message | FileId | None) -> str:
+    file_name = ""
+
     if isinstance(media_msg, Message):
         media = get_media_from_message(media_msg)
-        file_name = getattr(media, "file_name", "")
-
+        file_name = getattr(media, "file_name", "") if media else ""
     elif isinstance(media_msg, FileId):
         file_name = getattr(media_msg, "file_name", "")
 
     if not file_name:
-        if isinstance(media_msg, Message) and media_msg.media:
+        if isinstance(media_msg, Message) and getattr(media_msg, "media", None):
             media_type = media_msg.media.value
-        elif media_msg.file_type:
+        elif hasattr(media_msg, "file_type") and media_msg.file_type:
             media_type = media_msg.file_type.name.lower()
         else:
             media_type = "file"
