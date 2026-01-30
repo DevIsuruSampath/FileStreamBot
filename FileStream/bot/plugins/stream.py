@@ -68,7 +68,6 @@ async def channel_receive_handler(bot: Client, message: Message):
     try:
         inserted_id = await db.add_file(get_file_info(message))
         await get_file_ids(False, inserted_id, multi_clients, message)
-        reply_markup, stream_link = await gen_link(_id=inserted_id)
         await bot.edit_message_reply_markup(
             chat_id=message.chat.id,
             message_id=message.id,
