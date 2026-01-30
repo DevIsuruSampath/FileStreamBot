@@ -133,6 +133,8 @@ async def media_streamer(request: web.Request, db_id: str):
     file_name = utils.get_name(file_id)
     # Basic header safety
     file_name = file_name.replace('"', '').replace('\n', ' ').replace('\r', ' ')
+    if len(file_name) > 150:
+        file_name = file_name[:150]
 
     if not mime_type:
         mime_type = mimetypes.guess_type(file_name)[0] or "application/octet-stream"
