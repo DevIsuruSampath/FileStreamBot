@@ -181,7 +181,7 @@ class ShortenerSystem:
 
         try:
             # Run with timeout to prevent blocking the executor
-            return await asyncio.wait_for(
+            result = await asyncio.wait_for(
                 asyncio.get_running_loop().run_in_executor(
                     None,
                     self.plugin.shorten,
@@ -190,6 +190,7 @@ class ShortenerSystem:
                 ),
                 timeout=10.0
             )
+            return result or url
         except asyncio.TimeoutError:
             logger.error("Shortener request timed out")
             return url
