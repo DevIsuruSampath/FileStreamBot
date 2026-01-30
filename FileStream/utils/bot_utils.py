@@ -81,7 +81,7 @@ async def is_user_joined(bot, message: Message):
 
 async def gen_link(_id):
     file_info = await db.get_file(_id)
-    file_name = file_info['file_name']
+    file_name = file_info.get('file_name') or "file"
     file_size = humanbytes(file_info['file_size'])
     mime_type = (file_info.get('mime_type') or "").lower()
     safe_name = html.escape(file_name)
@@ -120,7 +120,7 @@ async def gen_link(_id):
 
 async def gen_linkx(m:Message , _id, name: list):
     file_info = await db.get_file(_id)
-    file_name = file_info['file_name']
+    file_name = file_info.get('file_name') or "file"
     mime_type = (file_info.get('mime_type') or "").lower()
     file_size = humanbytes(file_info['file_size'])
     safe_name = html.escape(file_name)
