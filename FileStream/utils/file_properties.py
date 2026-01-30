@@ -60,6 +60,8 @@ async def get_file_ids(client: Client | bool, db_id: str, multi_clients, message
 
 
 def get_media_from_message(message: "Message") -> Any:
+    if message is None:
+        return None
     media_types = (
         "audio",
         "document",
@@ -74,6 +76,7 @@ def get_media_from_message(message: "Message") -> Any:
         media = getattr(message, attr, None)
         if media:
             return media
+    return None
 
 
 def get_media_file_size(m):
