@@ -72,6 +72,11 @@ if __name__ == "__main__":
     except Exception as err:
         logging.error(traceback.format_exc())
     finally:
-        loop.run_until_complete(cleanup())
+        # Check if the loop is still running/connectable before cleanup
+        try:
+            if FileStream.is_connected:
+                loop.run_until_complete(cleanup())
+        except Exception:
+            pass
         loop.stop()
         print("------------------------ Stopped Services ------------------------")
