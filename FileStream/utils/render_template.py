@@ -22,10 +22,14 @@ async def render_page(db_id):
 
     # Fallback to Content-Length when size is missing/zero
     if not file_data.get('file_size'):
-        async with aiohttp.ClientSession() as s:
-            async with s.head(src) as u:
-                length = u.headers.get('Content-Length')
-                file_size = humanbytes(int(length)) if length else file_size
+        try:
+            timeout = aiohttp.ClientTimeout(total=5)
+            async with aiohttp.ClientSession(timeout=timeout) as s:
+                async with s.head(src) as u:
+                    length = u.headers.get('Content-Length')
+                    file_size = humanbytes(int(length)) if length else file_size
+        except Exception:
+            pass
 
     with open(template_file) as f:
         env = jinja2.Environment(autoescape=True)
