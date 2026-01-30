@@ -34,7 +34,7 @@ class ByteStreamer:
         returns ths properties in a FIleId class.
         """
         logging.debug("Before calling get_file_ids")
-        file_id = await get_file_ids(self.client, db_id, multi_clients, Message)
+        file_id = await get_file_ids(self.client, db_id, multi_clients, None)
         logging.debug(f"Generated file ID and Unique ID for file with ID {db_id}")
         self.cached_file_ids[db_id] = file_id
         logging.debug(f"Cached media file with ID {db_id}")
