@@ -121,10 +121,13 @@ async def media_streamer(request: web.Request, db_id: str):
 
     mime_type = file_id.mime_type
     file_name = utils.get_name(file_id)
+
+    if not mime_type:
+        mime_type = mimetypes.guess_type(file_name)[0] or "application/octet-stream"
     
     # Use "inline" for media to allow in-browser playback
     # Use "attachment" for everything else to force download
-    if mime_type and ("video" in mime_type or "audio" in mime_type or "image" in mime_type):
+    if "video" in mime_type or "audio" in mime_type or "image" in mime_type:
         disposition = "inline"
     else:
         disposition = "attachment"
