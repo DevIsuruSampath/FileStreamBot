@@ -14,6 +14,14 @@ import asyncio
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
+async def delete_later(filex, message, delay=3600):
+    await asyncio.sleep(delay)
+    try:
+        await filex.delete()
+        await message.delete()
+    except Exception:
+        pass
+
 @FileStream.on_message(filters.command('start') & filters.private)
 async def start(bot: Client, message: Message):
     if not await verify_user(bot, message):
@@ -80,12 +88,7 @@ async def start(bot: Client, message: Message):
                 file_id = file_check['file_id']
                 file_name = file_check['file_name']
                 filex = await message.reply_cached_media(file_id=file_id, caption=f'**{file_name}**')
-                await asyncio.sleep(3600)
-                try:
-                    await filex.delete()
-                    await message.delete()
-                except Exception:
-                    pass
+                asyncio.create_task(delete_later(filex, message))
 
             except FileNotFound as e:
                 await message.reply_text("**File Not Found**")
