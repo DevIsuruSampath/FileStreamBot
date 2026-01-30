@@ -90,6 +90,8 @@ async def gen_link(_id):
     file_size = humanbytes(file_info['file_size'])
     mime_type = (file_info.get('mime_type') or "").lower()
     safe_name = html.escape(file_name)
+    if len(safe_name) > 200:
+        safe_name = safe_name[:200] + "…"
 
     # 1. Base Links (Normal)
     page_link = f"{Server.URL}watch/{_id}"
@@ -132,6 +134,8 @@ async def gen_linkx(m:Message , _id, name: list):
     mime_type = (file_info.get('mime_type') or "").lower()
     file_size = humanbytes(file_info['file_size'])
     safe_name = html.escape(file_name)
+    if len(safe_name) > 200:
+        safe_name = safe_name[:200] + "…"
 
     # 1. Base Links (Normal)
     page_link = f"{Server.URL}watch/{_id}"
