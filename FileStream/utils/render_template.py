@@ -33,7 +33,7 @@ async def render_page(db_id):
         except Exception:
             pass
 
-    with open(template_file) as f:
+    with open(template_file, encoding="utf-8") as f:
         template = env.from_string(f.read())
 
     return template.render(
