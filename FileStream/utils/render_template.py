@@ -22,7 +22,8 @@ async def render_page(db_id):
                 file_size = humanbytes(int(length)) if length else file_size
 
     with open(template_file) as f:
-        template = jinja2.Template(f.read())
+        env = jinja2.Environment(autoescape=True)
+        template = env.from_string(f.read())
 
     return template.render(
         file_name=file_name,
