@@ -1,3 +1,4 @@
+import os
 import aiohttp
 import jinja2
 import urllib.parse
@@ -12,10 +13,11 @@ async def render_page(db_id):
     file_size = humanbytes(file_data['file_size'])
     file_name = file_data['file_name'].replace("_", " ")
 
+    base_dir = os.path.dirname(os.path.dirname(__file__))  # FileStream/
     if str((file_data['mime_type']).split('/')[0].strip()) == 'video':
-        template_file = "FileStream/template/play.html"
+        template_file = os.path.join(base_dir, "template", "play.html")
     else:
-        template_file = "FileStream/template/dl.html"
+        template_file = os.path.join(base_dir, "template", "dl.html")
         async with aiohttp.ClientSession() as s:
             async with s.get(src) as u:
                 length = u.headers.get('Content-Length')
