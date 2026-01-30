@@ -136,6 +136,10 @@ async def media_streamer(request: web.Request, db_id: str):
     if len(file_name) > 150:
         file_name = file_name[:150]
 
+    # RFC 5987 filename* fallback for non-ASCII names
+    from urllib.parse import quote
+    encoded_name = quote(file_name)
+
     if not mime_type:
         mime_type = mimetypes.guess_type(file_name)[0] or "application/octet-stream"
     
@@ -149,7 +153,7 @@ async def media_streamer(request: web.Request, db_id: str):
     headers = {
         "Content-Type": f"{mime_type}",
         "Content-Length": str(req_length),
-        "Content-Disposition": f'{disposition}; filename="{file_name}"',
+        "Content-Disposition": f"{disposition}; filename=\"{file_name}\"; filename*=UTF-8''{encoded_name}",
         "Accept-Ranges": "bytes",
     }
     
