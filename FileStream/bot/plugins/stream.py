@@ -1,7 +1,7 @@
 
 import asyncio
 from FileStream.bot import FileStream, multi_clients
-from FileStream.utils.bot_utils import is_user_banned, is_user_exist, is_user_joined, gen_link, is_channel_banned, is_channel_exist, is_user_authorized
+from FileStream.utils.bot_utils import verify_user, gen_link, is_channel_banned, is_channel_exist
 from FileStream.utils.database import Database
 from FileStream.utils.file_properties import get_file_ids, get_file_info
 from FileStream.config import Telegram
@@ -25,15 +25,8 @@ db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
     group=4,
 )
 async def private_receive_handler(bot: Client, message: Message):
-    if not await is_user_authorized(message):
+    if not await verify_user(bot, message):
         return
-    if await is_user_banned(message):
-        return
-
-    await is_user_exist(bot, message)
-    if Telegram.FORCE_SUB:
-        if not await is_user_joined(bot, message):
-            return
     try:
         inserted_id = await db.add_file(get_file_info(message))
         await get_file_ids(False, inserted_id, multi_clients, message)
@@ -48,9 +41,10 @@ async def private_receive_handler(bot: Client, message: Message):
     except FloodWait as e:
         print(f"Sleeping for {str(e.value)}s")
         await asyncio.sleep(e.value)
-        await bot.send_message(chat_id=Telegram.ULOG_CHANNEL,
-                               text=f"Gᴏᴛ FʟᴏᴏᴅWᴀɪᴛ ᴏғ {str(e.value)}s ғʀᴏᴍ [{message.from_user.first_name}](tg://user?id={message.from_user.id})\n\n**ᴜsᴇʀ ɪᴅ :** `{str(message.from_user.id)}`",
-                               disable_web_page_preview=True, parse_mode=ParseMode.MARKDOWN)
+        if Telegram.ULOG_CHANNEL:
+            await bot.send_message(chat_id=Telegram.ULOG_CHANNEL,
+                                   text=f"Gᴏᴛ FʟᴏᴏᴅWᴀɪᴛ ᴏғ {str(e.value)}s ғʀᴏᴍ [{message.from_user.first_name}](tg://user?id={message.from_user.id})\n\n**ᴜsᴇʀ ɪᴅ :** `{str(message.from_user.id)}`",
+                                   disable_web_page_preview=True, parse_mode=ParseMode.MARKDOWN)
 
 
 @FileStream.on_message(
