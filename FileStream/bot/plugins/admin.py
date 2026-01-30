@@ -26,7 +26,7 @@ broadcast_ids = {}
 BOT_START_TIME = time.time()
 
 # Create Admin List
-ADMIN_IDS = list(set([Telegram.OWNER_ID] + Telegram.AUTH_USERS))
+ADMIN_IDS = list(set([Telegram.OWNER_ID] + (Telegram.AUTH_USERS or [])))
 
 # ---------------------[ HELPER FUNCTIONS ]---------------------#
 def get_readable_time(seconds: int) -> str:
