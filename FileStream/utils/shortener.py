@@ -33,7 +33,7 @@ class GPLinksPlugin(ShortenerPlugin):
         # GPlinks API: https://gplinks.in/api?api=API_KEY&url=URL
         target = f"https://gplinks.in/api?api={api_key}&url={quote(url)}"
         try:
-            response = self.session.get(target)
+            response = self.session.get(target, timeout=10)
             if response.status_code == 200:
                 data = response.json()
                 if data.get("status") == "success":
@@ -54,7 +54,7 @@ class ShrinkMePlugin(ShortenerPlugin):
         # ShrinkMe API: https://shrinkme.io/api?api=API_KEY&url=URL
         target = f"https://shrinkme.io/api?api={api_key}&url={quote(url)}"
         try:
-            response = self.session.get(target)
+            response = self.session.get(target, timeout=10)
             if response.status_code == 200:
                 data = response.json()
                 if data.get("status") == "success":
@@ -75,7 +75,7 @@ class OuoIoPlugin(ShortenerPlugin):
         # Ouo API is different: http://ouo.io/api/KEY?s=URL
         target = f"http://ouo.io/api/{api_key}?s={quote(url)}"
         try:
-            response = self.session.get(target)
+            response = self.session.get(target, timeout=10)
             if response.status_code == 200:
                 return response.text.strip()
         except Exception as e:
@@ -113,7 +113,7 @@ class GenericShortenerPlugin(ShortenerPlugin):
             domain_clean = parsed.netloc or parsed.path
             target_url = f"https://{domain_clean}/api?api={api_key}&url={quote(url)}"
 
-            response = self.session.get(target_url)
+            response = self.session.get(target_url, timeout=10)
             if response.status_code == 200:
                 data = response.json()
                 # Check for common success keys
