@@ -1,5 +1,6 @@
 import asyncio
 import math
+import html
 from typing import Union
 from pyrogram.errors import UserNotParticipant, FloodWait
 from pyrogram.enums.parse_mode import ParseMode
@@ -83,6 +84,7 @@ async def gen_link(_id):
     file_name = file_info['file_name']
     file_size = humanbytes(file_info['file_size'])
     mime_type = (file_info.get('mime_type') or "").lower()
+    safe_name = html.escape(file_name)
 
     # 1. Base Links (Normal)
     page_link = f"{Server.URL}watch/{_id}"
@@ -95,7 +97,7 @@ async def gen_link(_id):
         stream_link = await shorten(stream_link)
 
     if "video" in mime_type:
-        stream_text = LANG.STREAM_TEXT.format(file_name, file_size, stream_link, page_link)
+        stream_text = LANG.STREAM_TEXT.format(safe_name, file_size, stream_link, page_link)
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("sᴛʀᴇᴀᴍ", url=page_link), InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)],
@@ -104,7 +106,7 @@ async def gen_link(_id):
             ]
         )
     else:
-        stream_text = LANG.STREAM_TEXT_X.format(file_name, file_size, stream_link)
+        stream_text = LANG.STREAM_TEXT_X.format(safe_name, file_size, stream_link)
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)],
@@ -121,6 +123,7 @@ async def gen_linkx(m:Message , _id, name: list):
     file_name = file_info['file_name']
     mime_type = (file_info.get('mime_type') or "").lower()
     file_size = humanbytes(file_info['file_size'])
+    safe_name = html.escape(file_name)
 
     # 1. Base Links (Normal)
     page_link = f"{Server.URL}watch/{_id}"
@@ -132,14 +135,14 @@ async def gen_linkx(m:Message , _id, name: list):
         stream_link = await shorten(stream_link)
 
     if "video" in mime_type:
-        stream_text= LANG.STREAM_TEXT.format(file_name, file_size, stream_link, page_link)
+        stream_text= LANG.STREAM_TEXT.format(safe_name, file_size, stream_link, page_link)
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("sᴛʀᴇᴀᴍ", url=page_link), InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)]
             ]
         )
     else:
-        stream_text= LANG.STREAM_TEXT_X.format(file_name, file_size, stream_link)
+        stream_text= LANG.STREAM_TEXT_X.format(safe_name, file_size, stream_link)
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)]
