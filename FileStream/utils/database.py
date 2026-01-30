@@ -118,7 +118,10 @@ class Database:
 
 # ---------------------[ DELETE FILES ]---------------------#
     async def delete_one_file(self, _id):
-        await self.file.delete_one({'_id': ObjectId(_id)})
+        try:
+            await self.file.delete_one({'_id': ObjectId(_id)})
+        except InvalidId:
+            return
 
 # ---------------------[ UPDATE FILES ]---------------------#
     async def update_file_ids(self, _id, file_ids: dict):
