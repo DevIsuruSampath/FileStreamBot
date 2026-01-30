@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from os import environ
 from ..config import Telegram
 from pyrogram import Client
@@ -7,14 +8,15 @@ from . import multi_clients, work_loads, FileStream
 
 
 async def initialize_clients():
-    all_tokens = dict(
-        (c + 1, t)
-        for c, (_, t) in enumerate(
-            filter(
-                lambda n: n[0].startswith("MULTI_TOKEN"), sorted(environ.items())
-            )
-        )
-    )
+    tokens = []
+    for k, v in environ.items():
+        if k.startswith("MULTI_TOKEN"):
+            m = re.search(r"\d+", k)
+            idx = int(m.group()) if m else 0
+            tokens.append((idx, v))
+    tokens.sort(key=lambda x: x[0])
+
+    all_tokens = dict((i + 1, t) for i, (_, t) in enumerate(tokens))
     if not all_tokens:
         multi_clients[0] = FileStream
         work_loads[0] = 0
