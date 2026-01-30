@@ -5,6 +5,8 @@ import urllib.parse
 from FileStream.config import Telegram, Server
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
+
+env = jinja2.Environment(autoescape=True)
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
 async def render_page(db_id):
@@ -32,7 +34,6 @@ async def render_page(db_id):
             pass
 
     with open(template_file) as f:
-        env = jinja2.Environment(autoescape=True)
         template = env.from_string(f.read())
 
     return template.render(
