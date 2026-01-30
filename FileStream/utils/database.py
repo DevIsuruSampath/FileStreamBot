@@ -24,8 +24,13 @@ class Database:
 
 # ---------------------[ ADD USER ]---------------------#
     async def add_user(self, id):
+        # Return True only if a new user was inserted
+        existing = await self.get_user(id)
+        if existing:
+            return False
         user = self.new_user(id)
         await self.col.insert_one(user)
+        return True
 
 # ---------------------[ GET USER ]---------------------#
     async def get_user(self, id):
