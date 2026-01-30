@@ -116,9 +116,11 @@ async def media_streamer(request: web.Request, db_id: str):
 
     req_length = until_bytes - from_bytes + 1
     part_count = math.ceil(until_bytes / chunk_size) - math.floor(offset / chunk_size)
-    body = tg_connect.yield_file(
-        file_id, index, offset, first_part_cut, last_part_cut, part_count, chunk_size
-    )
+    body = None
+    if request.method != "HEAD":
+        body = tg_connect.yield_file(
+            file_id, index, offset, first_part_cut, last_part_cut, part_count, chunk_size
+        )
 
     mime_type = file_id.mime_type
     file_name = utils.get_name(file_id)
