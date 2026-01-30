@@ -118,6 +118,10 @@ def get_file_info(message):
         user_idx = message.from_user.id
     else:
         user_idx = message.chat.id
+
+    if not getattr(media, "file_id", None):
+        # No valid media found
+        return None
     return {
         "user_id": user_idx,
         "file_id": getattr(media, "file_id", ""),

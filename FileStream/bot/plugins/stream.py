@@ -28,7 +28,10 @@ async def private_receive_handler(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
     try:
-        inserted_id = await db.add_file(get_file_info(message))
+        info = get_file_info(message)
+        if not info:
+            return
+        inserted_id = await db.add_file(info)
         await get_file_ids(False, inserted_id, multi_clients, message)
         reply_markup, stream_text = await gen_link(_id=inserted_id)
         await message.reply_text(
@@ -66,7 +69,10 @@ async def channel_receive_handler(bot: Client, message: Message):
     await is_channel_exist(bot, message)
 
     try:
-        inserted_id = await db.add_file(get_file_info(message))
+        info = get_file_info(message)
+        if not info:
+            return
+        inserted_id = await db.add_file(info)
         await get_file_ids(False, inserted_id, multi_clients, message)
         await bot.edit_message_reply_markup(
             chat_id=message.chat.id,
