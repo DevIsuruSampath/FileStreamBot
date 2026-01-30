@@ -1,4 +1,5 @@
 from os import environ as env
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -49,7 +50,9 @@ class Server:
     PING_INTERVAL = int(env.get("PING_INTERVAL", "1200"))
     HAS_SSL = str(env.get("HAS_SSL", "0")).lower() in ("1", "true", "t", "yes", "y")
     NO_PORT = str(env.get("NO_PORT", "0")).lower() in ("1", "true", "t", "yes", "y")
-    FQDN = str(env.get("FQDN", BIND_ADDRESS))
+    _raw_fqdn = str(env.get("FQDN", BIND_ADDRESS))
+    parsed = urlparse(_raw_fqdn if "://" in _raw_fqdn else f"//{_raw_fqdn}")
+    FQDN = parsed.netloc or parsed.path
     URL = "http{}://{}{}/".format(
         "s" if HAS_SSL else "", FQDN, "" if NO_PORT else ":" + str(PORT)
     )
