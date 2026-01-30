@@ -24,14 +24,15 @@ async def get_invite_link(bot, chat_id: Union[str, int]):
         return await get_invite_link(bot, chat_id)
 
 async def is_user_joined(bot, message: Message):
-    if Telegram.FORCE_SUB_ID and Telegram.FORCE_SUB_ID.startswith("-100"):
-        channel_chat_id = int(Telegram.FORCE_SUB_ID)    # When id startswith with -100
-    elif Telegram.FORCE_SUB_ID and (not Telegram.FORCE_SUB_ID.startswith("-100")):
-        # If numeric string, cast to int; otherwise treat as username
-        if str(Telegram.FORCE_SUB_ID).lstrip('-').isdigit():
-            channel_chat_id = int(Telegram.FORCE_SUB_ID)
+    if Telegram.FORCE_SUB_ID:
+        # Strip @ if provided
+        fsid = str(Telegram.FORCE_SUB_ID).lstrip("@").strip()
+        if fsid.startswith("-100") and fsid.lstrip("-").isdigit():
+            channel_chat_id = int(fsid)
+        elif fsid.lstrip('-').isdigit():
+            channel_chat_id = int(fsid)
         else:
-            channel_chat_id = Telegram.FORCE_SUB_ID     # When id not startswith -100
+            channel_chat_id = fsid
     else:
         return 200
     try:
