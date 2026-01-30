@@ -217,19 +217,21 @@ async def is_user_authorized(message):
 async def is_user_exist(bot, message):
     # Only Log if db.add_user returns TRUE (meaning it was a new insertion)
     if await db.add_user(message.from_user.id):
-        await bot.send_message(
-            Telegram.ULOG_CHANNEL,
-            f"**#NᴇᴡUsᴇʀ**\n**⬩ ᴜsᴇʀ ɴᴀᴍᴇ :** [{message.from_user.first_name}](tg://user?id={message.from_user.id})\n**⬩ ᴜsᴇʀ ɪᴅ :** `{message.from_user.id}`"
-        )
+        if Telegram.ULOG_CHANNEL:
+            await bot.send_message(
+                Telegram.ULOG_CHANNEL,
+                f"**#NᴇᴡUsᴇʀ**\n**⬩ ᴜsᴇʀ ɴᴀᴍᴇ :** [{message.from_user.first_name}](tg://user?id={message.from_user.id})\n**⬩ ᴜsᴇʀ ɪᴅ :** `{message.from_user.id}`"
+            )
 
 async def is_channel_exist(bot, message):
     # Using the same logic for channels
     if await db.add_user(message.chat.id):
-        members = await bot.get_chat_members_count(message.chat.id)
-        await bot.send_message(
-            Telegram.ULOG_CHANNEL,
-            f"**#NᴇᴡCʜᴀɴɴᴇʟ** \n**⬩ ᴄʜᴀᴛ ɴᴀᴍᴇ :** `{message.chat.title}`\n**⬩ ᴄʜᴀᴛ ɪᴅ :** `{message.chat.id}`\n**⬩ ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀs :** `{members}`"
-        )
+        if Telegram.ULOG_CHANNEL:
+            members = await bot.get_chat_members_count(message.chat.id)
+            await bot.send_message(
+                Telegram.ULOG_CHANNEL,
+                f"**#NᴇᴡCʜᴀɴɴᴇʟ** \n**⬩ ᴄʜᴀᴛ ɴᴀᴍᴇ :** `{message.chat.title}`\n**⬩ ᴄʜᴀᴛ ɪᴅ :** `{message.chat.id}`\n**⬩ ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀs :** `{members}`"
+            )
 
 async def verify_user(bot, message):
     if not await is_user_authorized(message):
