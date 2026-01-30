@@ -125,10 +125,13 @@ class Database:
         await self.file.update_one({"_id": ObjectId(_id)}, {"$set": {"file_ids": file_ids}})
         
     async def count_links(self, id, operation: str):
+        update = {"$setOnInsert": {"join_date": time.time()}}
         if operation == "-":
-            await self.col.update_one({"id": id}, {"$inc": {"Links": -1}}, upsert=True)
+            update["$inc"] = {"Links": -1}
+            await self.col.update_one({"id": id}, update, upsert=True)
         elif operation == "+":
-            await self.col.update_one({"id": id}, {"$inc": {"Links": 1}}, upsert=True)
+            update["$inc"] = {"Links": 1}
+            await self.col.update_one({"id": id}, update, upsert=True)
 
 # ---------------------[ ADS SETTINGS ]---------------------#
     async def update_ads_status(self, status: bool):
