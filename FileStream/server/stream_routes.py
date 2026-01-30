@@ -89,8 +89,15 @@ async def media_streamer(request: web.Request, db_id: str):
         # Standard parsing for "bytes=START-END"
         try:
             from_bytes, until_bytes = range_header.replace("bytes=", "").split("-")
-            from_bytes = int(from_bytes)
-            until_bytes = int(until_bytes) if until_bytes else file_size - 1
+
+            # Suffix range support: bytes=-500 (last 500 bytes)
+            if from_bytes == "" and until_bytes:
+                length = int(until_bytes)
+                from_bytes = max(file_size - length, 0)
+                until_bytes = file_size - 1
+            else:
+                from_bytes = int(from_bytes)
+                until_bytes = int(until_bytes) if until_bytes else file_size - 1
         except ValueError:
             # Invalid range header -> treat as full content
             range_header = None
