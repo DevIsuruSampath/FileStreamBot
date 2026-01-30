@@ -16,7 +16,7 @@ class ShortenerPlugin(ABC):
     @abstractmethod
     def matches(cls, domain: str) -> bool:
         pass
-    
+
     @abstractmethod
     def shorten(self, url: str, api_key: str) -> str:
         pass
@@ -26,7 +26,7 @@ class GPLinksPlugin(ShortenerPlugin):
     @classmethod
     def matches(cls, domain: str) -> bool:
         return "gplinks" in domain.lower()
-    
+
     def shorten(self, url: str, api_key: str) -> str:
         if not self.session:
             return url
@@ -47,7 +47,7 @@ class ShrinkMePlugin(ShortenerPlugin):
     @classmethod
     def matches(cls, domain: str) -> bool:
         return "shrinkme" in domain.lower()
-    
+
     def shorten(self, url: str, api_key: str) -> str:
         if not self.session:
             return url
@@ -68,7 +68,7 @@ class OuoIoPlugin(ShortenerPlugin):
     @classmethod
     def matches(cls, domain: str) -> bool:
         return "ouo.io" in domain.lower() or "ouo.press" in domain.lower()
-    
+
     def shorten(self, url: str, api_key: str) -> str:
         if not self.session:
             return url
@@ -87,7 +87,7 @@ class LinkvertisePlugin(ShortenerPlugin):
     @classmethod
     def matches(cls, domain: str) -> bool:
         return "linkvertise" in domain.lower()
-    
+
     def shorten(self, url: str, api_key: str) -> str:
         encoded_url = quote(b64encode(url.encode("utf-8")))
         # Returns one of the dynamic domains
@@ -103,7 +103,7 @@ class GenericShortenerPlugin(ShortenerPlugin):
     @classmethod
     def matches(cls, domain: str) -> bool:
         return True
-    
+
     def shorten(self, url: str, api_key: str) -> str:
         if not self.session:
             return url
@@ -111,7 +111,7 @@ class GenericShortenerPlugin(ShortenerPlugin):
             # Standard Shortener API format: https://SITE/api?api=KEY&url=URL
             domain_clean = self.domain.replace("https://", "").replace("http://", "")
             target_url = f"https://{domain_clean}/api?api={api_key}&url={quote(url)}"
-            
+
             response = self.session.get(target_url)
             if response.status_code == 200:
                 data = response.json()
@@ -130,7 +130,7 @@ class ShortenerSystem:
         self.session = None
         self.plugin = None
         self.ready = False
-    
+
     def _get_plugin_class(self, domain: str):
         # Check specific plugins first (exclude Generic from this loop)
         for plugin_class in ShortenerPlugin.__subclasses__():
@@ -138,20 +138,20 @@ class ShortenerSystem:
                 return plugin_class
         # Default to Generic if no specific match found
         return GenericShortenerPlugin
-    
+
     async def initialize(self) -> bool:
         if self.ready:
             return True
-        
+
         site = getattr(Telegram, "URL_SHORTENER_SITE", "")
         api_key = getattr(Telegram, "URL_SHORTENER_API_KEY", "")
-        
+
         if not (site and api_key):
             if not getattr(self, "_warned", False):
                 logger.warning("Shortener Config missing in config.py")
                 self._warned = True
             return False
-        
+
         try:
             # Initialize cloudscraper in a separate thread to avoid blocking
             self.session = await asyncio.get_running_loop().run_in_executor(
@@ -162,7 +162,7 @@ class ShortenerSystem:
                     delay=1
                 )
             )
-            
+
             plugin_class = self._get_plugin_class(site)
             self.plugin = plugin_class()
             self.plugin.session = self.session
@@ -173,20 +173,26 @@ class ShortenerSystem:
         except Exception as e:
             logger.error(f"Failed to initialize ShortenerSystem: {e}")
             return False
-    
+
     async def short_url(self, url: str) -> str:
         if not self.ready:
             if not await self.initialize():
                 return url
-        
+
         try:
-            # Run the synchronous shorten method in a thread
-            return await asyncio.get_running_loop().run_in_executor(
-                None, 
-                self.plugin.shorten, 
-                url, 
-                Telegram.URL_SHORTENER_API_KEY
+            # Run with timeout to prevent blocking the executor
+            return await asyncio.wait_for(
+                asyncio.get_running_loop().run_in_executor(
+                    None,
+                    self.plugin.shorten,
+                    url,
+                    Telegram.URL_SHORTENER_API_KEY
+                ),
+                timeout=10.0
             )
+        except asyncio.TimeoutError:
+            logger.error("Shortener request timed out")
+            return url
         except Exception as e:
             logger.error(f"Error shortening URL: {e}")
             return url
