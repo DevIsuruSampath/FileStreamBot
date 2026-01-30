@@ -92,7 +92,8 @@ async def media_streamer(request: web.Request, db_id: str):
             from_bytes = int(from_bytes)
             until_bytes = int(until_bytes) if until_bytes else file_size - 1
         except ValueError:
-            # Fallback or invalid range
+            # Invalid range header -> treat as full content
+            range_header = None
             from_bytes = 0
             until_bytes = file_size - 1
     else:
