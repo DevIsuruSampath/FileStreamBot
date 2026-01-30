@@ -96,8 +96,11 @@ async def gen_link(_id):
         page_link = await shorten(page_link)
         stream_link = await shorten(stream_link)
 
+    safe_stream = html.escape(stream_link)
+    safe_page = html.escape(page_link)
+
     if "video" in mime_type:
-        stream_text = LANG.STREAM_TEXT.format(safe_name, file_size, stream_link, page_link)
+        stream_text = LANG.STREAM_TEXT.format(safe_name, file_size, safe_stream, safe_page)
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("sᴛʀᴇᴀᴍ", url=page_link), InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)],
@@ -106,7 +109,7 @@ async def gen_link(_id):
             ]
         )
     else:
-        stream_text = LANG.STREAM_TEXT_X.format(safe_name, file_size, stream_link)
+        stream_text = LANG.STREAM_TEXT_X.format(safe_name, file_size, safe_stream)
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)],
@@ -134,15 +137,18 @@ async def gen_linkx(m:Message , _id, name: list):
         page_link = await shorten(page_link)
         stream_link = await shorten(stream_link)
 
+    safe_stream = html.escape(stream_link)
+    safe_page = html.escape(page_link)
+
     if "video" in mime_type:
-        stream_text= LANG.STREAM_TEXT.format(safe_name, file_size, stream_link, page_link)
+        stream_text= LANG.STREAM_TEXT.format(safe_name, file_size, safe_stream, safe_page)
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("sᴛʀᴇᴀᴍ", url=page_link), InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)]
             ]
         )
     else:
-        stream_text= LANG.STREAM_TEXT_X.format(safe_name, file_size, stream_link)
+        stream_text= LANG.STREAM_TEXT_X.format(safe_name, file_size, safe_stream)
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)]
