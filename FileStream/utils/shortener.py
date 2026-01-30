@@ -4,7 +4,7 @@ import cloudscraper
 from abc import ABC, abstractmethod
 from base64 import b64encode
 from random import random, choice
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from functools import partial
 from FileStream.config import Telegram
 
@@ -109,7 +109,8 @@ class GenericShortenerPlugin(ShortenerPlugin):
             return url
         try:
             # Standard Shortener API format: https://SITE/api?api=KEY&url=URL
-            domain_clean = self.domain.replace("https://", "").replace("http://", "")
+            parsed = urlparse(self.domain if "://" in self.domain else f"https://{self.domain}")
+            domain_clean = parsed.netloc or parsed.path
             target_url = f"https://{domain_clean}/api?api={api_key}&url={quote(url)}"
 
             response = self.session.get(target_url)
