@@ -8,7 +8,7 @@ class Telegram:
     API_HASH = str(env.get("API_HASH"))
     BOT_TOKEN = str(env.get("BOT_TOKEN"))
     OWNER_ID = int(env.get('OWNER_ID', '7978482443'))
-    WORKERS = int(env.get("WORKERS", "6"))
+    WORKERS = int(env.get("WORKERS", env.get("BOT_WORKERS", "6")))
     DATABASE_URL = str(env.get('DATABASE_URL'))
     UPDATES_CHANNEL = str(env.get('UPDATES_CHANNEL', "Telegram"))
     SESSION_NAME = str(env.get('SESSION_NAME', 'FileStream'))
