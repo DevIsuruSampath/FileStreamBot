@@ -230,7 +230,8 @@ async def broadcast_(c, m):
         failed=failed,
         success=success
     )
-    async with aiofiles.open('broadcast.txt', 'w') as broadcast_log_file:
+    log_file = f"broadcast_{broadcast_id}.txt"
+    async with aiofiles.open(log_file, 'w') as broadcast_log_file:
         async for user in all_users:
             sts, msg = await send_msg(
                 user_id=int(user['id']),
@@ -271,11 +272,12 @@ async def broadcast_(c, m):
         )
     else:
         await m.reply_document(
-            document='broadcast.txt',
+            document=log_file,
             caption=f"broadcast completed in `{completed_in}`\n\nTotal users {total_users}.\nTotal done {done}, {success} success and {failed} failed.",
             quote=True
         )
-    os.remove('broadcast.txt')
+    if os.path.exists(log_file):
+        os.remove(log_file)
 
 # ---------------------[ DELETE FILE ]---------------------#
 @FileStream.on_message(filters.command("del") & filters.private & filters.user(Telegram.OWNER_ID))
