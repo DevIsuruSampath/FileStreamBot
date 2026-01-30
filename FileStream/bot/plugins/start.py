@@ -32,7 +32,7 @@ async def start(bot: Client, message: Message):
             return
     # --------------------------------------------------------#
 
-    usr_cmd = message.text.split(" ", 1)[-1]
+    usr_cmd = message.text.split(" ", 1)[-1].strip()
 
     if usr_cmd == "/start":
         if Telegram.START_PIC:
