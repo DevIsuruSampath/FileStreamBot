@@ -30,7 +30,14 @@ class Telegram:
 
     MODE = env.get("MODE", "primary")
     SECONDARY = True if MODE.lower() == "secondary" else False
-    AUTH_USERS = list(set(int(x) for x in str(env.get("AUTH_USERS", "")).split()))
+    _auth_raw = str(env.get("AUTH_USERS", "")).split()
+    AUTH_USERS = []
+    for x in _auth_raw:
+        try:
+            AUTH_USERS.append(int(x))
+        except Exception:
+            pass
+    AUTH_USERS = list(set(AUTH_USERS))
 
     # --- [ NEW: URL SHORTENER CONFIG ] ---
     URL_SHORTENER_API_KEY = env.get('URL_SHORTENER_API_KEY', None)
