@@ -75,9 +75,11 @@ class Database:
 # ---------------------[ ADD FILE TO DB ]---------------------#
     async def add_file(self, file_info):
         file_info["time"] = time.time()
-        fetch_old = await self.get_file_by_fileuniqueid(file_info["user_id"], file_info["file_unique_id"])
-        if fetch_old:
-            return fetch_old["_id"]
+        file_unique_id = file_info.get("file_unique_id")
+        if file_unique_id:
+            fetch_old = await self.get_file_by_fileuniqueid(file_info["user_id"], file_unique_id)
+            if fetch_old:
+                return fetch_old["_id"]
         await self.count_links(file_info["user_id"], "+")
         return (await self.file.insert_one(file_info)).inserted_id
 
