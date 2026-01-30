@@ -3,7 +3,8 @@ from aiohttp import web
 from .stream_routes import routes
 
 def web_server():
-    web_app = web.Application(client_max_size=30000000)
+    # 100MB max upload/download by default (override as needed)
+    web_app = web.Application(client_max_size=100 * 1024 * 1024)
     web_app.add_routes(routes)
 
     # -----------------[ STATIC FILES SETUP ]----------------- #
