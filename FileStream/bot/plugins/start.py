@@ -3,7 +3,7 @@ import math
 from FileStream import __version__
 from FileStream.bot import FileStream
 from FileStream.server.exceptions import FIleNotFound
-from FileStream.utils.bot_utils import gen_linkx, verify_user
+from FileStream.utils.bot_utils import gen_linkx, verify_user, gen_file_list_button
 from FileStream.config import Telegram
 from FileStream.utils.database import Database
 from FileStream.utils.translation import LANG, BUTTON
@@ -138,24 +138,13 @@ async def help_handler(bot, message):
 async def my_files(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
-    user_files, total_files = await db.find_files(message.from_user.id, [1, 10])
+    
+    file_list, total_files = await gen_file_list_button(1, message.from_user.id)
 
-    file_list = []
-    async for x in user_files:
-        file_list.append([InlineKeyboardButton(x["file_name"], callback_data=f"myfile_{x['_id']}_{1}")])
-    if total_files > 10:
-        file_list.append(
-            [
-                InlineKeyboardButton("◄", callback_data="N/A"),
-                InlineKeyboardButton(f"1/{math.ceil(total_files / 10)}", callback_data="N/A"),
-                InlineKeyboardButton("►", callback_data="userfiles_2")
-            ],
-        )
-    if not file_list:
-        file_list.append(
-            [InlineKeyboardButton("ᴇᴍᴘᴛʏ", callback_data="N/A")],
-        )
-    file_list.append([InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")])
-    await message.reply_photo(photo=Telegram.FILE_PIC,
-                              caption="Total files: {}".format(total_files),
-                              reply_markup=InlineKeyboardMarkup(file_list))
+    if Telegram.FILE_PIC:
+        await message.reply_photo(photo=Telegram.FILE_PIC,
+                                  caption="Total files: {}".format(total_files),
+                                  reply_markup=InlineKeyboardMarkup(file_list))
+    else:
+        await message.reply_text(text="Total files: {}".format(total_files),
+                                 reply_markup=InlineKeyboardMarkup(file_list))
