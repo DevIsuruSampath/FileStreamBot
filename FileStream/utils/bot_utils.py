@@ -15,13 +15,14 @@ from FileStream.bot import FileStream
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
 async def get_invite_link(bot, chat_id: Union[str, int]):
-    try:
-        invite_link = await bot.create_chat_invite_link(chat_id=chat_id)
-        return invite_link
-    except FloodWait as e:
-        print(f"Sleep of {e.value}s caused by FloodWait ...")
-        await asyncio.sleep(e.value)
-        return await get_invite_link(bot, chat_id)
+    while True:
+        try:
+            invite_link = await bot.create_chat_invite_link(chat_id=chat_id)
+            return invite_link
+        except FloodWait as e:
+            print(f"Sleep of {e.value}s caused by FloodWait ...")
+            await asyncio.sleep(e.value)
+            continue
 
 async def is_user_joined(bot, message: Message):
     if Telegram.FORCE_SUB_ID:
