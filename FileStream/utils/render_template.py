@@ -14,7 +14,8 @@ async def render_page(db_id):
     file_name = file_data['file_name'].replace("_", " ")
 
     base_dir = os.path.dirname(os.path.dirname(__file__))  # FileStream/
-    if str((file_data['mime_type']).split('/')[0].strip()) == 'video':
+    mime_type = (file_data.get('mime_type') or '').split('/')[0].strip()
+    if str(mime_type) == 'video':
         template_file = os.path.join(base_dir, "template", "play.html")
     else:
         template_file = os.path.join(base_dir, "template", "dl.html")
