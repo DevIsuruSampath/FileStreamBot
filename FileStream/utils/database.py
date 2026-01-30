@@ -119,9 +119,9 @@ class Database:
         
     async def count_links(self, id, operation: str):
         if operation == "-":
-            await self.col.update_one({"id": id}, {"$inc": {"Links": -1}})
+            await self.col.update_one({"id": id}, {"$inc": {"Links": -1}}, upsert=True)
         elif operation == "+":
-            await self.col.update_one({"id": id}, {"$inc": {"Links": 1}})
+            await self.col.update_one({"id": id}, {"$inc": {"Links": 1}}, upsert=True)
 
 # ---------------------[ ADS SETTINGS ]---------------------#
     async def update_ads_status(self, status: bool):
