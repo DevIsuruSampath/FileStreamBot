@@ -53,6 +53,7 @@ class Server:
     _raw_fqdn = str(env.get("FQDN", BIND_ADDRESS))
     parsed = urlparse(_raw_fqdn if "://" in _raw_fqdn else f"//{_raw_fqdn}")
     FQDN = parsed.netloc or parsed.path
+    has_port = parsed.port is not None
     URL = "http{}://{}{}/".format(
-        "s" if HAS_SSL else "", FQDN, "" if NO_PORT else ":" + str(PORT)
+        "s" if HAS_SSL else "", FQDN, "" if (NO_PORT or has_port) else ":" + str(PORT)
     )
