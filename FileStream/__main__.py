@@ -6,6 +6,7 @@ import logging.handlers as handlers
 from FileStream.config import Telegram, Server
 from aiohttp import web
 from pyrogram import idle
+from pyrogram.errors import FloodWait
 
 from FileStream.bot import FileStream
 from FileStream.server import web_server
@@ -36,7 +37,14 @@ async def start_services():
     print("-------------------- Initializing Telegram Bot --------------------")
 
 
-    await FileStream.start()
+    while True:
+        try:
+            await FileStream.start()
+            break
+        except FloodWait as e:
+            print(f"FloodWait during startup: sleeping {e.value}s")
+            await asyncio.sleep(e.value + 1)
+
     bot_info = await FileStream.get_me()
     FileStream.id = bot_info.id
     FileStream.username = bot_info.username
