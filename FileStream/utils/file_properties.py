@@ -117,10 +117,21 @@ def get_file_info(message):
 
 async def update_file_id(msg_id, multi_clients):
     file_ids = {}
-    for client_id, client in multi_clients.items():
-        log_msg = await client.get_messages(Telegram.FLOG_CHANNEL, msg_id)
-        media = get_media_from_message(log_msg)
-        file_ids[str(client.id)] = getattr(media, "file_id", "")
+    
+    async def get_id(client):
+        try:
+            log_msg = await client.get_messages(Telegram.FLOG_CHANNEL, msg_id)
+            media = get_media_from_message(log_msg)
+            return str(client.id), getattr(media, "file_id", "")
+        except Exception:
+            return str(client.id), ""
+
+    # Run concurrently for speed
+    tasks = [get_id(client) for client in multi_clients.values()]
+    results = await asyncio.gather(*tasks)
+    
+    for client_id, file_id in results:
+        file_ids[client_id] = file_id
 
     return file_ids
 
