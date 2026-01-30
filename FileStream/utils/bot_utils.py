@@ -176,7 +176,11 @@ async def gen_file_list_button(file_list_no: int, user_id: int):
 
     file_list=[]
     async for x in user_files:
-        file_list.append([InlineKeyboardButton(x["file_name"], callback_data=f"myfile_{x['_id']}_{file_list_no}")])
+        name = x.get("file_name") or "file"
+        # Prevent overly long button labels
+        if len(name) > 50:
+            name = name[:50] + "…"
+        file_list.append([InlineKeyboardButton(name, callback_data=f"myfile_{x['_id']}_{file_list_no}")])
     if total_files > 10:
         file_list.append(
                 [InlineKeyboardButton("◄", callback_data="{}".format("userfiles_"+str(file_list_no-1) if file_list_no > 1 else 'N/A')),
