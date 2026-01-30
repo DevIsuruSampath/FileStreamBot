@@ -23,7 +23,7 @@ async def render_page(db_id):
     # Fallback to Content-Length when size is missing/zero
     if not file_data.get('file_size'):
         async with aiohttp.ClientSession() as s:
-            async with s.get(src) as u:
+            async with s.head(src) as u:
                 length = u.headers.get('Content-Length')
                 file_size = humanbytes(int(length)) if length else file_size
 
