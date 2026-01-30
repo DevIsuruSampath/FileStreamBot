@@ -15,6 +15,12 @@ from pyrogram.enums.parse_mode import ParseMode
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
+async def edit_message(update: CallbackQuery, text: str, reply_markup=None):
+    if getattr(update.message, "photo", None) or getattr(update.message, "caption", None):
+        await update.message.edit_caption(caption=text, reply_markup=reply_markup)
+    else:
+        await update.message.edit_text(text=text, reply_markup=reply_markup)
+
 #---------------------[ START CMD ]---------------------#
 @FileStream.on_callback_query()
 async def cb_data(bot, update: CallbackQuery):
@@ -45,18 +51,20 @@ async def cb_data(bot, update: CallbackQuery):
     elif usr_cmd[0] == "close":
         await update.message.delete()
     elif usr_cmd[0] == "msgdelete":
-        await update.message.edit_caption(
-        caption= "**Cᴏɴғɪʀᴍ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜᴇ Fɪʟᴇ**\n\n",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("ʏᴇs", callback_data=f"msgdelyes_{usr_cmd[1]}_{usr_cmd[2]}"), InlineKeyboardButton("ɴᴏ", callback_data=f"myfile_{usr_cmd[1]}_{usr_cmd[2]}")]])
-    )
+        await edit_message(
+            update,
+            "**Cᴏɴғɪʀᴍ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜᴇ Fɪʟᴇ**\n\n",
+            InlineKeyboardMarkup([[InlineKeyboardButton("ʏᴇs", callback_data=f"msgdelyes_{usr_cmd[1]}_{usr_cmd[2]}"), InlineKeyboardButton("ɴᴏ", callback_data=f"myfile_{usr_cmd[1]}_{usr_cmd[2]}")]])
+        )
     elif usr_cmd[0] == "msgdelyes":
         await delete_user_file(usr_cmd[1], int(usr_cmd[2]), update)
         return
     elif usr_cmd[0] == "msgdelpvt":
-        await update.message.edit_caption(
-        caption= "**Cᴏɴғɪʀᴍ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜᴇ Fɪʟᴇ**\n\n",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("ʏᴇs", callback_data=f"msgdelpvtyes_{usr_cmd[1]}"), InlineKeyboardButton("ɴᴏ", callback_data=f"mainstream_{usr_cmd[1]}")]])
-    )
+        await edit_message(
+            update,
+            "**Cᴏɴғɪʀᴍ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜᴇ Fɪʟᴇ**\n\n",
+            InlineKeyboardMarkup([[InlineKeyboardButton("ʏᴇs", callback_data=f"msgdelpvtyes_{usr_cmd[1]}"), InlineKeyboardButton("ɴᴏ", callback_data=f"mainstream_{usr_cmd[1]}")]])
+        )
     elif usr_cmd[0] == "msgdelpvtyes":
         await delete_user_filex(usr_cmd[1], update)
         return
@@ -74,10 +82,7 @@ async def cb_data(bot, update: CallbackQuery):
 
     elif usr_cmd[0] == "userfiles":
         file_list, total_files = await gen_file_list_button(int(usr_cmd[1]), update.from_user.id)
-        await update.message.edit_caption(
-            caption="Total files: {}".format(total_files),
-            reply_markup=InlineKeyboardMarkup(file_list)
-            )
+        await edit_message(update, "Total files: {}".format(total_files), InlineKeyboardMarkup(file_list))
     elif usr_cmd[0] == "myfile":
         await gen_file_menu(usr_cmd[1], usr_cmd[2], update)
         return
@@ -152,12 +157,14 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     else:
         readable_time = TiMe
 
-    await update.edit_message_caption(
-        caption="**File Name :** `{}`\n**File Size :** `{}`\n**File Type :** `{}`\n**Created On :** `{}`".format(myfile_info['file_name'],
-                                                                                                                    humanbytes(int(myfile_info['file_size'])),
-                                                                                                                    file_type,
-                                                                                                                    readable_time),
-                                                                                                                    reply_markup=MYFILES_BUTTONS )
+    await edit_message(
+        update,
+        "**File Name :** `{}`\n**File Size :** `{}`\n**File Type :** `{}`\n**Created On :** `{}`".format(myfile_info['file_name'],
+                                                                                                        humanbytes(int(myfile_info['file_size'])),
+                                                                                                        file_type,
+                                                                                                        readable_time),
+        MYFILES_BUTTONS
+    )
 
 
 async def delete_user_file(_id, file_list_no: int, update:CallbackQuery):
@@ -170,10 +177,14 @@ async def delete_user_file(_id, file_list_no: int, update:CallbackQuery):
 
     await db.delete_one_file(myfile_info['_id'])
     await db.count_links(update.from_user.id, "-")
-    await update.message.edit_caption(
-            caption= "**Fɪʟᴇ Dᴇʟᴇᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ !**" + update.message.caption.replace("Cᴏɴғɪʀᴍ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜᴇ Fɪʟᴇ", ""),
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("ʙᴀᴄᴋ", callback_data=f"userfiles_1")]])
-        )
+    caption = "**Fɪʟᴇ Dᴇʟᴇᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ !**"
+    if update.message.caption:
+        caption += update.message.caption.replace("Cᴏɴғɪʀᴍ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜᴇ Fɪʟᴇ", "")
+    await edit_message(
+        update,
+        caption,
+        InlineKeyboardMarkup([[InlineKeyboardButton("ʙᴀᴄᴋ", callback_data=f"userfiles_1")]])
+    )
 
 async def delete_user_filex(_id, update:CallbackQuery):
 
@@ -185,7 +196,8 @@ async def delete_user_filex(_id, update:CallbackQuery):
 
     await db.delete_one_file(myfile_info['_id'])
     await db.count_links(update.from_user.id, "-")
-    await update.message.edit_caption(
-            caption= "**Fɪʟᴇ Dᴇʟᴇᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ !**\n\n",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data=f"close")]])
-        )
+    await edit_message(
+        update,
+        "**Fɪʟᴇ Dᴇʟᴇᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ !**\n\n",
+        InlineKeyboardMarkup([[InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data=f"close")]])
+    )
