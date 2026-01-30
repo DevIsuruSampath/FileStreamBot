@@ -4,10 +4,10 @@ from FileStream import __version__
 from FileStream.bot import FileStream
 from FileStream.config import Telegram, Server
 from FileStream.utils.translation import LANG, BUTTON
-from FileStream.utils.bot_utils import gen_link
+from FileStream.utils.bot_utils import gen_link, gen_file_list_button
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
-from FileStream.utils.shortener import shorten  # <--- NEW IMPORT
+from FileStream.utils.shortener import shorten
 from FileStream.server.exceptions import FIleNotFound
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.file_id import FileId, FileType, PHOTO_TYPES
@@ -91,26 +91,6 @@ async def cb_data(bot, update: CallbackQuery):
 
 
     #---------------------[ MY FILES FUNC ]---------------------#
-
-async def gen_file_list_button(file_list_no: int, user_id: int):
-
-    file_range=[file_list_no*10-10+1, file_list_no*10]
-    user_files, total_files=await db.find_files(user_id, file_range)
-
-    file_list=[]
-    async for x in user_files:
-        file_list.append([InlineKeyboardButton(x["file_name"], callback_data=f"myfile_{x['_id']}_{file_list_no}")])
-    if total_files > 10:
-        file_list.append(
-                [InlineKeyboardButton("◄", callback_data="{}".format("userfiles_"+str(file_list_no-1) if file_list_no > 1 else 'N/A')),
-                 InlineKeyboardButton(f"{file_list_no}/{math.ceil(total_files/10)}", callback_data="N/A"),
-                 InlineKeyboardButton("►", callback_data="{}".format("userfiles_"+str(file_list_no+1) if total_files > file_list_no*10 else 'N/A'))]
-        )
-    if not file_list:
-        file_list.append(
-                [InlineKeyboardButton("ᴇᴍᴘᴛʏ", callback_data="N/A")])
-    file_list.append([InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")])
-    return file_list, total_files
 
 async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     try:
