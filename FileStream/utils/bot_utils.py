@@ -218,7 +218,11 @@ async def verify_user(bot, message):
 
     await is_user_exist(bot, message)
 
-    if Telegram.FORCE_SUB:
+    # Allow authorized users (and Owner) to bypass Force Sub
+    user_id = message.from_user.id
+    is_auth = (user_id == Telegram.OWNER_ID) or (user_id in Telegram.AUTH_USERS)
+
+    if Telegram.FORCE_SUB and not is_auth:
         if not await is_user_joined(bot, message):
             return False
 
