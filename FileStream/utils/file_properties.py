@@ -40,7 +40,16 @@ async def get_file_ids(client: Client | bool, db_id: str, multi_clients, message
 
     logging.debug("Middle of get_file_ids")
     if not file_id_info.get(str(client.id)):
+        # Try to refresh missing/empty file_id for this client
+        log_msg = await send_file(FileStream, db_id, file_info['file_id'], message, file_name=file_info.get('file_name'))
+        msg = await client.get_messages(Telegram.FLOG_CHANNEL, log_msg.id)
+        media = get_media_from_message(msg)
+        file_id_info[str(client.id)] = getattr(media, "file_id", "")
+        await db.update_file_ids(db_id, file_id_info)
+
+    if not file_id_info.get(str(client.id)):
         raise FileNotFound
+
     file_id = FileId.decode(file_id_info[str(client.id)])
     setattr(file_id, "file_size", file_info['file_size'])
     setattr(file_id, "mime_type", file_info['mime_type'])
