@@ -18,7 +18,8 @@ async def render_page(db_id):
         template_file = "FileStream/template/dl.html"
         async with aiohttp.ClientSession() as s:
             async with s.get(src) as u:
-                file_size = humanbytes(int(u.headers.get('Content-Length')))
+                length = u.headers.get('Content-Length')
+                file_size = humanbytes(int(length)) if length else file_size
 
     with open(template_file) as f:
         template = jinja2.Template(f.read())
