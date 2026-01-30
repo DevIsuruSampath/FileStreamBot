@@ -2,7 +2,7 @@ import logging
 import math
 from FileStream import __version__
 from FileStream.bot import FileStream
-from FileStream.server.exceptions import FIleNotFound
+from FileStream.server.exceptions import FileNotFound
 from FileStream.utils.bot_utils import gen_linkx, verify_user, gen_file_list_button
 from FileStream.config import Telegram
 from FileStream.utils.database import Database
@@ -65,7 +65,7 @@ async def start(bot: Client, message: Message):
                         quote=True
                     )
 
-            except FIleNotFound as e:
+            except FileNotFound as e:
                 await message.reply_text("File Not Found")
             except Exception as e:
                 await message.reply_text("Something Went Wrong")
@@ -86,7 +86,7 @@ async def start(bot: Client, message: Message):
                     except Exception:
                         pass
 
-            except FIleNotFound as e:
+            except FileNotFound as e:
                 await message.reply_text("**File Not Found**")
             except Exception as e:
                 await message.reply_text("Something Went Wrong")

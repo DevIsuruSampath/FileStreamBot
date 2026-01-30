@@ -7,7 +7,7 @@ from aiohttp import web
 from aiohttp.http_exceptions import BadStatusLine
 from FileStream.bot import multi_clients, work_loads, FileStream
 from FileStream.config import Telegram, Server
-from FileStream.server.exceptions import FIleNotFound, InvalidHash
+from FileStream.server.exceptions import FileNotFound, InvalidHash
 from FileStream import utils, StartTime, __version__
 from FileStream.utils.render_template import render_page
 
@@ -38,7 +38,7 @@ async def watch_handler(request: web.Request):
         return web.Response(text=await render_page(path), content_type='text/html')
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
-    except FIleNotFound as e:
+    except FileNotFound as e:
         raise web.HTTPNotFound(text=e.message)
     except (AttributeError, BadStatusLine, ConnectionResetError):
         pass
@@ -50,7 +50,7 @@ async def dl_handler(request: web.Request):
         return await media_streamer(request, path)
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
-    except FIleNotFound as e:
+    except FileNotFound as e:
         raise web.HTTPNotFound(text=e.message)
     except (AttributeError, BadStatusLine, ConnectionResetError):
         pass

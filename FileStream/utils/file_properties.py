@@ -10,7 +10,7 @@ from pyrogram.file_id import FileId
 from FileStream.bot import FileStream
 from FileStream.utils.database import Database
 from FileStream.config import Telegram, Server
-from FileStream.server.exceptions import FIleNotFound
+from FileStream.server.exceptions import FileNotFound
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
@@ -39,7 +39,7 @@ async def get_file_ids(client: Client | bool, db_id: str, multi_clients, message
 
     logging.debug("Middle of get_file_ids")
     if not file_id_info.get(str(client.id)):
-        raise FIleNotFound
+        raise FileNotFound
     file_id = FileId.decode(file_id_info[str(client.id)])
     setattr(file_id, "file_size", file_info['file_size'])
     setattr(file_id, "mime_type", file_info['mime_type'])

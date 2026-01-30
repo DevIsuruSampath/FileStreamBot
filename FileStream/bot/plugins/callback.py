@@ -8,7 +8,7 @@ from FileStream.utils.bot_utils import gen_link, gen_file_list_button
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.shortener import shorten
-from FileStream.server.exceptions import FIleNotFound
+from FileStream.server.exceptions import FileNotFound
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.file_id import FileId, FileType, PHOTO_TYPES
 from pyrogram.enums.parse_mode import ParseMode
@@ -95,7 +95,7 @@ async def cb_data(bot, update: CallbackQuery):
 async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     try:
         myfile_info=await db.get_file(_id)
-    except FIleNotFound:
+    except FileNotFound:
         await update.answer("File Not Found")
         return
 
@@ -164,7 +164,7 @@ async def delete_user_file(_id, file_list_no: int, update:CallbackQuery):
 
     try:
         myfile_info=await db.get_file(_id)
-    except FIleNotFound:
+    except FileNotFound:
         await update.answer("File Already Deleted")
         return
 
@@ -179,7 +179,7 @@ async def delete_user_filex(_id, update:CallbackQuery):
 
     try:
         myfile_info=await db.get_file(_id)
-    except FIleNotFound:
+    except FileNotFound:
         await update.answer("File Already Deleted")
         return
 

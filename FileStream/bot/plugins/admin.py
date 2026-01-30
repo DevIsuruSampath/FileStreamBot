@@ -15,7 +15,7 @@ from pyrogram.enums.parse_mode import ParseMode
 from FileStream.utils.broadcast_helper import send_msg
 from FileStream.utils.database import Database
 from FileStream.bot import FileStream
-from FileStream.server.exceptions import FIleNotFound
+from FileStream.server.exceptions import FileNotFound
 from FileStream.config import Telegram
 from FileStream.utils.human_readable import humanbytes
 
@@ -289,7 +289,7 @@ async def del_file(c: Client, m: Message):
     file_id = m.command[1]
     try:
         file_info = await db.get_file(file_id)
-    except FIleNotFound:
+    except FileNotFound:
         await m.reply_text(
             text=f"**File already deleted or not found.**",
             quote=True

@@ -3,7 +3,7 @@ import time
 import motor.motor_asyncio
 from bson.objectid import ObjectId
 from bson.errors import InvalidId
-from FileStream.server.exceptions import FIleNotFound
+from FileStream.server.exceptions import FileNotFound
 
 class Database:
     def __init__(self, uri, database_name):
@@ -94,10 +94,10 @@ class Database:
         try:
             file_info=await self.file.find_one({"_id": ObjectId(_id)})
             if not file_info:
-                raise FIleNotFound
+                raise FileNotFound
             return file_info
         except InvalidId:
-            raise FIleNotFound
+            raise FileNotFound
     
     async def get_file_by_fileuniqueid(self, id, file_unique_id, many=False):
         if many:
