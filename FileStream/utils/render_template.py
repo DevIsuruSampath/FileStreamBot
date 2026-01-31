@@ -14,6 +14,9 @@ async def render_page(db_id):
     src = urllib.parse.urljoin(Server.URL, f'dl/{file_data["_id"]}')
     file_size = humanbytes(file_data.get('file_size') or 0)
     file_name = (file_data.get('file_name') or 'file').replace("_", " ")
+    file_name = file_name.replace("\n", " ").replace("\r", " ")
+    if len(file_name) > 150:
+        file_name = file_name[:150] + "…"
 
     base_dir = os.path.dirname(os.path.dirname(__file__))  # FileStream/
     mime_type = (file_data.get('mime_type') or '').split('/')[0].strip()
