@@ -129,7 +129,7 @@ async def media_streamer(request: web.Request, db_id: str):
             file_id, index, offset, first_part_cut, last_part_cut, part_count, chunk_size
         )
 
-    mime_type = file_id.mime_type
+    mime_type = (file_id.mime_type or "").strip()
     file_name = utils.get_name(file_id)
     # Basic header safety
     file_name = file_name.replace('"', '').replace('\n', ' ').replace('\r', ' ')
@@ -142,7 +142,9 @@ async def media_streamer(request: web.Request, db_id: str):
 
     if not mime_type:
         mime_type = mimetypes.guess_type(file_name)[0] or "application/octet-stream"
-    
+
+    mime_type = (mime_type or "application/octet-stream").lower()
+
     # Use "inline" for media to allow in-browser playback
     # Use "attachment" for everything else to force download
     if "video" in mime_type or "audio" in mime_type or "image" in mime_type:
