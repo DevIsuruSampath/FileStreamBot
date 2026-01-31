@@ -256,7 +256,13 @@ async def is_channel_exist(bot, message):
     # Using the same logic for channels
     if await db.add_user(message.chat.id):
         if Telegram.ULOG_CHANNEL:
-            members = await bot.get_chat_members_count(message.chat.id)
+            members = "N/A"
+            try:
+                members = await bot.get_chat_members_count(message.chat.id)
+            except FloodWait as e:
+                await asyncio.sleep(e.value)
+            except Exception:
+                pass
             await bot.send_message(
                 Telegram.ULOG_CHANNEL,
                 f"**#NᴇᴡCʜᴀɴɴᴇʟ** \n**⬩ ᴄʜᴀᴛ ɴᴀᴍᴇ :** `{message.chat.title}`\n**⬩ ᴄʜᴀᴛ ɪᴅ :** `{message.chat.id}`\n**⬩ ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀs :** `{members}`"
