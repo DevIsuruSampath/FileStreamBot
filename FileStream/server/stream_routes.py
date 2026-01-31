@@ -41,7 +41,7 @@ async def watch_handler(request: web.Request):
     except FileNotFound as e:
         raise web.HTTPNotFound(text=e.message)
     except (AttributeError, BadStatusLine, ConnectionResetError):
-        pass
+        raise web.HTTPServiceUnavailable(text="Service Unavailable")
 
 @routes.get("/dl/{path}", allow_head=True)
 async def dl_handler(request: web.Request):
@@ -53,7 +53,7 @@ async def dl_handler(request: web.Request):
     except FileNotFound as e:
         raise web.HTTPNotFound(text=e.message)
     except (AttributeError, BadStatusLine, ConnectionResetError):
-        pass
+        raise web.HTTPServiceUnavailable(text="Service Unavailable")
     except Exception as e:
         traceback.print_exc()
         logging.critical(e.with_traceback(None))
