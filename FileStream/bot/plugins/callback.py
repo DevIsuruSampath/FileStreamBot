@@ -127,7 +127,9 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
 
     # Check database status and Shorten if enabled
     if await db.get_ads_status():
-        page_link = await shorten(page_link)
+        # Only shorten links that will actually be shown
+        if "video" in file_type.lower():
+            page_link = await shorten(page_link)
         stream_link = await shorten(stream_link)
     # --- [ END ADS LOGIC ] ---
 
