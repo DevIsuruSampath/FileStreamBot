@@ -85,10 +85,13 @@ class Database:
 
 # ---------------------[ FIND FILE IN DB ]---------------------#
     async def find_files(self, user_id, range):
-        user_files=self.file.find({"user_id": user_id})
-        user_files.skip(range[0] - 1)
-        user_files.limit(range[1] - range[0] + 1)
-        user_files.sort('_id', pymongo.DESCENDING)
+        start, end = range
+        user_files = (
+            self.file.find({"user_id": user_id})
+            .sort('_id', pymongo.DESCENDING)
+            .skip(start - 1)
+            .limit(end - start + 1)
+        )
         total_files = await self.file.count_documents({"user_id": user_id})
         return user_files, total_files
 
