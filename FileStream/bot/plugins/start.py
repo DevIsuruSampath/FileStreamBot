@@ -91,13 +91,13 @@ async def start(bot: Client, message: Message):
                 asyncio.create_task(delete_later(filex, message))
 
             except FileNotFound as e:
-                await message.reply_text("**File Not Found**")
+                await message.reply_text("**File Not Found**", parse_mode=ParseMode.MARKDOWN)
             except Exception as e:
                 await message.reply_text("Something Went Wrong")
                 logging.error(e)
 
         else:
-            await message.reply_text(f"**Invalid Command**")
+            await message.reply_text("**Invalid Command**", parse_mode=ParseMode.MARKDOWN)
 
 @FileStream.on_message(filters.private & filters.command(["about"]))
 async def about(bot, message):
