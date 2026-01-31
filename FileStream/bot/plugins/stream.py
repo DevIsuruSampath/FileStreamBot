@@ -1,5 +1,6 @@
 
 import asyncio
+import traceback
 from FileStream.bot import FileStream, multi_clients
 from FileStream.utils.bot_utils import verify_user, gen_link, is_channel_banned, is_channel_exist
 from FileStream.utils.database import Database
@@ -48,6 +49,15 @@ async def private_receive_handler(bot: Client, message: Message):
             await bot.send_message(chat_id=Telegram.ULOG_CHANNEL,
                                    text=f"Gᴏᴛ FʟᴏᴏᴅWᴀɪᴛ ᴏғ {str(e.value)}s ғʀᴏᴍ [{message.from_user.first_name}](tg://user?id={message.from_user.id})\n\n**ᴜsᴇʀ ɪᴅ :** `{str(message.from_user.id)}`",
                                    disable_web_page_preview=True, parse_mode=ParseMode.MARKDOWN)
+    except Exception as e:
+        if Telegram.ULOG_CHANNEL:
+            await bot.send_message(
+                chat_id=Telegram.ULOG_CHANNEL,
+                text=f"**#EʀʀᴏʀTʀᴀᴄᴋᴇʙᴀᴄᴋ:** `{e}`",
+                disable_web_page_preview=True,
+                parse_mode=ParseMode.MARKDOWN,
+            )
+        print(f"Error in private_receive_handler: {e}\n{traceback.format_exc()}")
 
 
 @FileStream.on_message(
