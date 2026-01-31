@@ -17,9 +17,9 @@ db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
 async def edit_message(update: CallbackQuery, text: str, reply_markup=None):
     if getattr(update.message, "photo", None) or getattr(update.message, "caption", None):
-        await update.message.edit_caption(caption=text, reply_markup=reply_markup)
+        await update.message.edit_caption(caption=text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
     else:
-        await update.message.edit_text(text=text, reply_markup=reply_markup)
+        await update.message.edit_text(text=text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
 
 #---------------------[ START CMD ]---------------------#
 @FileStream.on_callback_query()
@@ -29,19 +29,22 @@ async def cb_data(bot, update: CallbackQuery):
         await update.message.edit_text(
             text=LANG.START_TEXT.format(update.from_user.mention, FileStream.username),
             disable_web_page_preview=True,
-            reply_markup=BUTTON.START_BUTTONS
+            reply_markup=BUTTON.START_BUTTONS,
+            parse_mode=ParseMode.HTML
         )
     elif usr_cmd[0] == "help":
         await update.message.edit_text(
             text=LANG.HELP_TEXT.format(Telegram.OWNER_ID),
             disable_web_page_preview=True,
-            reply_markup=BUTTON.HELP_BUTTONS
+            reply_markup=BUTTON.HELP_BUTTONS,
+            parse_mode=ParseMode.HTML
         )
     elif usr_cmd[0] == "about":
         await update.message.edit_text(
             text=LANG.ABOUT_TEXT.format(FileStream.fname, __version__),
             disable_web_page_preview=True,
-            reply_markup=BUTTON.ABOUT_BUTTONS
+            reply_markup=BUTTON.ABOUT_BUTTONS,
+            parse_mode=ParseMode.HTML
         )
 
     #---------------------[ MY FILES CMD ]---------------------#
