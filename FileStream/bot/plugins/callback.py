@@ -57,7 +57,10 @@ async def cb_data(bot, update: CallbackQuery):
     elif usr_cmd[0] == "N/A":
         await update.answer("N/A", True)
     elif usr_cmd[0] == "close":
-        await update.message.delete()
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
     elif usr_cmd[0] == "msgdelete":
         await edit_message(
             update,
@@ -100,7 +103,10 @@ async def cb_data(bot, update: CallbackQuery):
         await update.answer(f"Sending File {file_name}")
         await update.message.reply_cached_media(myfile['file_id'], caption=f'**{file_name}**')
     else:
-        await update.message.delete()
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
 
 
     #---------------------[ MY FILES FUNC ]---------------------#
