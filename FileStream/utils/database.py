@@ -128,12 +128,14 @@ class Database:
         await self.file.update_one({"_id": ObjectId(_id)}, {"$set": {"file_ids": file_ids}})
         
     async def count_links(self, id, operation: str):
-        update = {"$setOnInsert": {"join_date": time.time()}}
         if operation == "-":
-            update["$inc"] = {"Links": -1}
-            await self.col.update_one({"id": id}, update, upsert=True)
+            # Prevent negative counts and avoid creating a new user on decrement
+            await self.col.update_one(
+                {"id": id, "Links": {"$gt": 0}},
+                {"$inc": {"Links": -1}},
+            )
         elif operation == "+":
-            update["$inc"] = {"Links": 1}
+            update = {"$setOnInsert": {"join_date": time.time()}, "$inc": {"Links": 1}}
             await self.col.update_one({"id": id}, update, upsert=True)
 
 # ---------------------[ ADS SETTINGS ]---------------------#
