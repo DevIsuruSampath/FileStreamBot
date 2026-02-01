@@ -1,7 +1,7 @@
 import asyncio
 import time
 from pyrogram import filters, Client
-from pyrogram.types import Message
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums.parse_mode import ParseMode
 
 from FileStream.bot import FileStream
@@ -36,7 +36,10 @@ async def start_batch(_: Client, message: Message):
         "Send /done when finished.\n"
         "Use /cancel to discard.",
         parse_mode=ParseMode.MARKDOWN,
-        quote=True
+        quote=True,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Done", callback_data="batch_done"), InlineKeyboardButton("❌ Cancel", callback_data="batch_cancel")]
+        ])
     )
 
 
@@ -67,6 +70,16 @@ async def collect_batch_file(_: Client, message: Message):
     )
 
     message.stop_propagation()
+
+
+@FileStream.on_callback_query(filters.regex(r"^batch_(done|cancel)$"))
+async def batch_callback(_: Client, callback_query):
+    action = callback_query.data.split("_", 1)[1]
+    if action == "done":
+        await finish_batch(_, callback_query.message)
+    else:
+        await cancel_batch(_, callback_query.message)
+    await callback_query.answer()
 
 
 @FileStream.on_message(filters.command("done") & filters.private)
