@@ -59,7 +59,16 @@ async def collect_batch_file(_: Client, message: Message):
         return
 
     inserted_id = await db.add_file(info)
-    batch_sessions[user_id].append(str(inserted_id))
+    item_id = str(inserted_id)
+    if item_id in batch_sessions[user_id]:
+        await message.reply_text(
+            f"⚠️ Already added **{info.get('file_name', 'file')}**.",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+        return
+
+    batch_sessions[user_id].append(item_id)
 
     await message.reply_text(
         f"✅ Added **{info.get('file_name', 'file')}** "
