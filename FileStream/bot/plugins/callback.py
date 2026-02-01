@@ -1,5 +1,6 @@
 import datetime
 import math
+import os
 from FileStream import __version__
 from FileStream.bot import FileStream
 from FileStream.config import Telegram, Server
@@ -135,6 +136,12 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     else:
         file_type = "Unknown"
 
+    file_name = (myfile_info.get("file_name") or "").lower()
+    ext = os.path.splitext(file_name)[1]
+    video_ext = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpeg", ".mpg"}
+    audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
+    is_streamable = file_type in ("Video", "Audio") or ext in video_ext or ext in audio_ext
+
     # --- [ START ADS LOGIC ] ---
     page_link = f"{Server.URL}watch/{myfile_info['_id']}"
     stream_link = f"{Server.URL}dl/{myfile_info['_id']}"
@@ -142,12 +149,12 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     # Check database status and Shorten if enabled
     if await db.get_ads_status():
         # Only shorten links that will actually be shown
-        if "video" in file_type.lower():
+        if is_streamable:
             page_link = await shorten(page_link)
         stream_link = await shorten(stream_link)
     # --- [ END ADS LOGIC ] ---
 
-    if "video" in file_type.lower():
+    if is_streamable:
         MYFILES_BUTTONS = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("sᴛʀᴇᴀᴍ", url=page_link), InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)],
