@@ -67,6 +67,14 @@ async def render_playlist(playlist_id: str):
             file_name = file_name[:150] + "…"
         mime = (file_data.get("mime_type") or "").lower()
         kind = "video" if mime.startswith("video/") else "audio" if mime.startswith("audio/") else "other"
+        ext = os.path.splitext(file_name)[1].lower()
+        video_ext = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpeg", ".mpg"}
+        audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
+        if kind == "other":
+            if ext in video_ext:
+                kind = "video"
+            elif ext in audio_ext:
+                kind = "audio"
         playable = kind in ("video", "audio")
         files.append({
             "id": str(file_data.get("_id")),
