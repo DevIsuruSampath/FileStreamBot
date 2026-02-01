@@ -20,6 +20,10 @@ from FileStream.config import Telegram
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.speedtest import run_speedtest, format_speedtest, MSG_SPEEDTEST_START, MSG_SPEEDTEST_ERROR
 
+speedtest_lock = asyncio.Lock()
+_last_speedtest_at = 0
+SPEEDTEST_COOLDOWN = 60
+
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 broadcast_ids = {}
 
@@ -154,23 +158,37 @@ async def speedtest_cmd(c: Client, m: Message):
         await m.reply_text("⚠️ **Access Denied.**", quote=True)
         return
 
-    msg = await m.reply_text(MSG_SPEEDTEST_START, quote=True)
-    try:
-        result = await run_speedtest(retries=2, delay=3)
-        text = format_speedtest(result)
-        share_url = result.get("share") if isinstance(result, dict) else None
+    global _last_speedtest_at
+    now = time.time()
+    if now - _last_speedtest_at < SPEEDTEST_COOLDOWN:
+        wait = int(SPEEDTEST_COOLDOWN - (now - _last_speedtest_at))
+        await m.reply_text(f"Please wait {wait}s before running another speed test.", quote=True)
+        return
 
-        if share_url:
-            try:
-                await m.reply_photo(share_url, caption=text, quote=True)
-                await msg.delete()
-                return
-            except Exception:
-                pass
+    if speedtest_lock.locked():
+        await m.reply_text("Speedtest already running. Please wait...", quote=True)
+        return
 
-        await msg.edit_text(text)
-    except Exception:
-        await msg.edit_text(MSG_SPEEDTEST_ERROR)
+    _last_speedtest_at = now
+
+    async with speedtest_lock:
+        msg = await m.reply_text(MSG_SPEEDTEST_START, quote=True)
+        try:
+            result = await run_speedtest(retries=2, delay=3)
+            text = format_speedtest(result)
+            share_url = result.get("share") if isinstance(result, dict) else None
+
+            if share_url:
+                try:
+                    await m.reply_photo(share_url, caption=text, quote=True)
+                    await msg.delete()
+                    return
+                except Exception:
+                    pass
+
+            await msg.edit_text(text)
+        except Exception:
+            await msg.edit_text(MSG_SPEEDTEST_ERROR)
 
 
 @FileStream.on_message(filters.command("ban") & filters.private & filters.user(Telegram.OWNER_ID))

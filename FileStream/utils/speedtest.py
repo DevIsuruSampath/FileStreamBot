@@ -36,10 +36,27 @@ RESULT_TEMPLATE = (
 
 
 def _run_speedtest():
-    st = speedtest.Speedtest()
-    st.get_best_server()
-    st.download()
-    st.upload(pre_allocate=False)
+    st = speedtest.Speedtest(secure=True, timeout=10)
+
+    try:
+        st.get_servers([])
+    except Exception:
+        pass
+
+    try:
+        st.get_best_server()
+    except Exception:
+        # Fallback: pick any available server if best lookup fails
+        if getattr(st, "servers", None):
+            for servers in st.servers.values():
+                if servers:
+                    st.best = servers[0]
+                    break
+        if not getattr(st, "best", None):
+            raise
+
+    st.download(threads=4)
+    st.upload(pre_allocate=False, threads=4)
 
     # Sharing can be flaky; wrap safely
     share_url = None
