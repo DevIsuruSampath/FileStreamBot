@@ -18,6 +18,7 @@ from FileStream.bot import FileStream
 from FileStream.server.exceptions import FileNotFound
 from FileStream.config import Telegram
 from FileStream.utils.human_readable import humanbytes
+from FileStream.utils.speedtest import run_speedtest, format_speedtest, MSG_SPEEDTEST_START, MSG_SPEEDTEST_ERROR
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 broadcast_ids = {}
@@ -147,6 +148,21 @@ async def sts(c: Client, m: Message):
     )
 
 # ---------------------[ BAN USER ]---------------------#
+@FileStream.on_message(filters.command("speedtest") & filters.private)
+async def speedtest_cmd(c: Client, m: Message):
+    if m.from_user.id not in ADMIN_IDS:
+        await m.reply_text("⚠️ **Access Denied.**", quote=True)
+        return
+
+    msg = await m.reply_text(MSG_SPEEDTEST_START, quote=True)
+    try:
+        result = await run_speedtest()
+        text = format_speedtest(result)
+        await msg.edit_text(text)
+    except Exception:
+        await msg.edit_text(MSG_SPEEDTEST_ERROR)
+
+
 @FileStream.on_message(filters.command("ban") & filters.private & filters.user(Telegram.OWNER_ID))
 async def ban_user(b: Client, m: Message):
     if len(m.command) < 2:
