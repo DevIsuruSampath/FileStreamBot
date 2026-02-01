@@ -75,10 +75,11 @@ async def collect_batch_file(_: Client, message: Message):
 @FileStream.on_callback_query(filters.regex(r"^batch_(done|cancel)$"))
 async def batch_callback(_: Client, callback_query):
     action = callback_query.data.split("_", 1)[1]
+    user_id = callback_query.from_user.id
     if action == "done":
-        await finish_batch(_, callback_query.message)
+        await finish_batch(_, callback_query.message, user_id=user_id)
     else:
-        await cancel_batch(_, callback_query.message)
+        await cancel_batch(_, callback_query.message, user_id=user_id)
     await callback_query.answer()
     try:
         await callback_query.message.delete()
@@ -87,8 +88,8 @@ async def batch_callback(_: Client, callback_query):
 
 
 @FileStream.on_message(filters.command("done") & filters.private)
-async def finish_batch(_: Client, message: Message):
-    user_id = message.from_user.id
+async def finish_batch(_: Client, message: Message, user_id: int | None = None):
+    user_id = user_id or message.from_user.id
     file_list = batch_sessions.get(user_id)
 
     if not file_list:
@@ -112,8 +113,8 @@ async def finish_batch(_: Client, message: Message):
 
 
 @FileStream.on_message(filters.command("cancel") & filters.private)
-async def cancel_batch(_: Client, message: Message):
-    user_id = message.from_user.id
+async def cancel_batch(_: Client, message: Message, user_id: int | None = None):
+    user_id = user_id or message.from_user.id
     if user_id in batch_sessions:
         batch_sessions.pop(user_id, None)
         await message.reply_text(
