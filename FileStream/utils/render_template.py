@@ -15,7 +15,8 @@ async def render_page(db_id):
     file_data=await db.get_file(db_id)
     src = urllib.parse.urljoin(Server.URL, f'dl/{file_data["_id"]}')
     file_size = humanbytes(file_data.get('file_size') or 0)
-    file_name = (file_data.get('file_name') or 'file').replace("_", " ")
+    raw_name = (file_data.get('file_name') or 'file')
+    file_name = raw_name.replace("_", " ")
     file_name = file_name.replace("\n", " ").replace("\r", " ")
     if len(file_name) > 150:
         file_name = file_name[:150] + "…"
@@ -23,7 +24,7 @@ async def render_page(db_id):
     base_dir = os.path.dirname(os.path.dirname(__file__))  # FileStream/
     mime_type = (file_data.get('mime_type') or '').lower()
     primary = mime_type.split('/')[0].strip() if mime_type else ""
-    ext = os.path.splitext(file_name)[1].lower()
+    ext = os.path.splitext(raw_name)[1].lower()
     video_ext = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpeg", ".mpg"}
     audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
 
@@ -66,13 +67,14 @@ async def render_playlist(playlist_id: str):
             file_data = await db.get_file(fid)
         except Exception:
             continue
-        file_name = (file_data.get("file_name") or "file").replace("_", " ")
+        raw_name = (file_data.get("file_name") or "file")
+        file_name = raw_name.replace("_", " ")
         file_name = file_name.replace("\n", " ").replace("\r", " ")
         if len(file_name) > 150:
             file_name = file_name[:150] + "…"
         mime = (file_data.get("mime_type") or "").lower()
         kind = "video" if mime.startswith("video/") else "audio" if mime.startswith("audio/") else "other"
-        ext = os.path.splitext(file_name)[1].lower()
+        ext = os.path.splitext(raw_name)[1].lower()
         video_ext = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpeg", ".mpg"}
         audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
         if kind == "other":
