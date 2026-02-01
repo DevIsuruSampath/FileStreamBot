@@ -277,10 +277,13 @@ async def is_channel_exist(bot, message):
                 await asyncio.sleep(e.value)
             except Exception:
                 pass
-            await bot.send_message(
-                Telegram.ULOG_CHANNEL,
-                f"**#NᴇᴡCʜᴀɴɴᴇʟ** \n**⬩ ᴄʜᴀᴛ ɴᴀᴍᴇ :** `{message.chat.title}`\n**⬩ ᴄʜᴀᴛ ɪᴅ :** `{message.chat.id}`\n**⬩ ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀs :** `{members}`"
-            )
+            try:
+                await bot.send_message(
+                    Telegram.ULOG_CHANNEL,
+                    f"**#NᴇᴡCʜᴀɴɴᴇʟ** \n**⬩ ᴄʜᴀᴛ ɴᴀᴍᴇ :** `{message.chat.title}`\n**⬩ ᴄʜᴀᴛ ɪᴅ :** `{message.chat.id}`\n**⬩ ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀs :** `{members}`"
+                )
+            except Exception:
+                pass
 
 async def verify_user(bot, message):
     if not await is_user_authorized(message):
