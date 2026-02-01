@@ -9,7 +9,7 @@ from FileStream.bot import multi_clients, work_loads, FileStream
 from FileStream.config import Telegram, Server
 from FileStream.server.exceptions import FileNotFound, InvalidHash
 from FileStream import utils, StartTime, __version__
-from FileStream.utils.render_template import render_page
+from FileStream.utils.render_template import render_page, render_playlist
 
 routes = web.RouteTableDef()
 
@@ -38,6 +38,16 @@ async def watch_handler(request: web.Request):
         return web.Response(text=await render_page(path), content_type='text/html')
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
+    except FileNotFound as e:
+        raise web.HTTPNotFound(text=e.message)
+    except (AttributeError, BadStatusLine, ConnectionResetError):
+        raise web.HTTPServiceUnavailable(text="Service Unavailable")
+
+@routes.get("/playlist/{playlist_id}", allow_head=True)
+async def playlist_handler(request: web.Request):
+    try:
+        playlist_id = request.match_info["playlist_id"]
+        return web.Response(text=await render_playlist(playlist_id), content_type='text/html')
     except FileNotFound as e:
         raise web.HTTPNotFound(text=e.message)
     except (AttributeError, BadStatusLine, ConnectionResetError):

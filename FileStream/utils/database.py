@@ -13,6 +13,7 @@ class Database:
         self.black = self.db.blacklist
         self.file = self.db.file
         self.settings = self.db.settings  # <--- NEW COLLECTION
+        self.playlists = self.db.playlists
 
 #---------------------[ NEW USER ]---------------------#
     def new_user(self, id):
@@ -154,3 +155,25 @@ class Database:
         if not settings:
             return False
         return bool(settings.get("status", False))
+
+# ---------------------[ PLAYLISTS ]---------------------#
+    async def create_playlist(self, user_id: int, file_list: list[str]):
+        import secrets
+        playlist_id = secrets.token_urlsafe(8).replace("-", "").replace("_", "")
+        while await self.playlists.find_one({"_id": playlist_id}):
+            playlist_id = secrets.token_urlsafe(8).replace("-", "").replace("_", "")
+
+        doc = {
+            "_id": playlist_id,
+            "user_id": int(user_id),
+            "files": file_list,
+            "created_at": time.time(),
+        }
+        await self.playlists.insert_one(doc)
+        return playlist_id
+
+    async def get_playlist(self, playlist_id: str):
+        playlist = await self.playlists.find_one({"_id": str(playlist_id)})
+        if not playlist:
+            raise FileNotFound
+        return playlist

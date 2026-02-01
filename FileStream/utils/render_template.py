@@ -1,10 +1,12 @@
 import os
+import json
 import aiohttp
 import jinja2
 import urllib.parse
 from FileStream.config import Telegram, Server
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
+from FileStream.server.exceptions import FileNotFound
 
 env = jinja2.Environment(autoescape=True)
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
@@ -43,4 +45,41 @@ async def render_page(db_id):
         file_name=file_name,
         file_url=src,
         file_size=file_size
+    )
+
+
+async def render_playlist(playlist_id: str):
+    playlist = await db.get_playlist(playlist_id)
+    files = []
+    for fid in playlist.get("files", []):
+        try:
+            file_data = await db.get_file(fid)
+        except Exception:
+            continue
+        file_name = (file_data.get("file_name") or "file").replace("_", " ")
+        file_name = file_name.replace("\n", " ").replace("\r", " ")
+        if len(file_name) > 150:
+            file_name = file_name[:150] + "…"
+        files.append({
+            "id": str(file_data.get("_id")),
+            "name": file_name,
+            "size": humanbytes(file_data.get("file_size") or 0),
+            "mime": (file_data.get("mime_type") or "").lower(),
+            "url": urllib.parse.urljoin(Server.URL, f"dl/{file_data['_id']}")
+        })
+
+    if not files:
+        raise FileNotFound
+
+    base_dir = os.path.dirname(os.path.dirname(__file__))  # FileStream/
+    template_file = os.path.join(base_dir, "template", "playlist.html")
+
+    with open(template_file, encoding="utf-8") as f:
+        template = env.from_string(f.read())
+
+    return template.render(
+        playlist_id=str(playlist_id),
+        playlist_json=json.dumps(files),
+        files=files,
+        count=len(files)
     )
