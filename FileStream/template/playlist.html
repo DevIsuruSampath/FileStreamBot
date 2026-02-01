@@ -90,7 +90,10 @@
                 el.classList.remove('active-item');
             });
             const active = document.querySelector(`.playlist-item[data-index="${index}"]`);
-            if (active) active.classList.add('active-item');
+            if (active) {
+                active.classList.add('active-item');
+                try { active.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+            }
         }
 
         function updateHeader(item) {
