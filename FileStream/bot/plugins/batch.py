@@ -64,6 +64,10 @@ async def collect_batch_file(bot: Client, message: Message):
         return
 
     inserted_id = await db.add_file(info)
+    try:
+        await get_file_ids(False, inserted_id, multi_clients, message)
+    except Exception:
+        pass
     item_id = str(inserted_id)
     if item_id in batch_sessions[user_id]:
         await message.reply_text(
