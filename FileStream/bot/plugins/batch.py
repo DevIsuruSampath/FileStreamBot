@@ -16,6 +16,7 @@ db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
 # In-memory batch sessions: {user_id: [file_db_ids...]}
 batch_sessions: dict[int, list[str]] = {}
+MAX_BATCH_ITEMS = 100
 
 
 @FileStream.on_message(filters.command("batch") & filters.private)
@@ -57,6 +58,14 @@ async def collect_batch_file(bot: Client, message: Message):
         return
     user_id = message.from_user.id
     if user_id not in batch_sessions:
+        return
+
+    if len(batch_sessions[user_id]) >= MAX_BATCH_ITEMS:
+        await message.reply_text(
+            f"Batch limit reached (**{MAX_BATCH_ITEMS}**). Send /done to finish.",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
         return
 
     info = get_file_info(message)
