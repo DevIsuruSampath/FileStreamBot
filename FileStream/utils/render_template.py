@@ -27,6 +27,7 @@ async def render_page(db_id):
     video_ext = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpeg", ".mpg"}
     audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
 
+    is_audio = primary == "audio" or ext in audio_ext
     if primary in ("video", "audio") or ext in video_ext or ext in audio_ext:
         template_file = os.path.join(base_dir, "template", "play.html")
     else:
@@ -46,10 +47,14 @@ async def render_page(db_id):
     with open(template_file, encoding="utf-8") as f:
         template = env.from_string(f.read())
 
+    resolved_mime = mime_type or ("audio/mpeg" if is_audio else "video/mp4")
+
     return template.render(
         file_name=file_name,
         file_url=src,
-        file_size=file_size
+        file_size=file_size,
+        mime_type=resolved_mime,
+        is_audio=is_audio,
     )
 
 

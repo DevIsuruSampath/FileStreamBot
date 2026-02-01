@@ -40,9 +40,15 @@
     <main class="max-w-7xl mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6 lg:gap-8">
         <div class="lg:w-3/4">
             <div class="relative aspect-video bg-black rounded-2xl mb-4 shadow-2xl">
+                {% if is_audio %}
+                <audio id="player" controls>
+                    <source src="{{file_url}}" type="{{ mime_type }}" />
+                </audio>
+                {% else %}
                 <video id="player" playsinline controls>
-                    <source src="{{file_url}}" type="video/mp4" />
+                    <source src="{{file_url}}" type="{{ mime_type }}" />
                 </video>
+                {% endif %}
             </div>
             <div class="space-y-3">
                 <h1 class="text-xl md:text-3xl font-bold text-white break-all leading-snug">
