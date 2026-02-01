@@ -258,10 +258,13 @@ async def is_user_exist(bot, message):
     # Only Log if db.add_user returns TRUE (meaning it was a new insertion)
     if await db.add_user(message.from_user.id):
         if Telegram.ULOG_CHANNEL:
-            await bot.send_message(
-                Telegram.ULOG_CHANNEL,
-                f"**#NᴇᴡUsᴇʀ**\n**⬩ ᴜsᴇʀ ɴᴀᴍᴇ :** [{message.from_user.first_name}](tg://user?id={message.from_user.id})\n**⬩ ᴜsᴇʀ ɪᴅ :** `{message.from_user.id}`"
-            )
+            try:
+                await bot.send_message(
+                    Telegram.ULOG_CHANNEL,
+                    f"**#NᴇᴡUsᴇʀ**\n**⬩ ᴜsᴇʀ ɴᴀᴍᴇ :** [{message.from_user.first_name}](tg://user?id={message.from_user.id})\n**⬩ ᴜsᴇʀ ɪᴅ :** `{message.from_user.id}`"
+                )
+            except Exception:
+                pass
 
 async def is_channel_exist(bot, message):
     # Using the same logic for channels
