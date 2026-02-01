@@ -39,7 +39,17 @@ def _run_speedtest():
     st.get_best_server()
     st.download()
     st.upload(pre_allocate=False)
-    return st.results.dict()
+
+    share_url = None
+    try:
+        share_url = st.results.share()
+    except Exception:
+        share_url = None
+
+    results = st.results.dict()
+    if share_url:
+        results["share"] = share_url
+    return results
 
 
 async def run_speedtest():

@@ -158,6 +158,16 @@ async def speedtest_cmd(c: Client, m: Message):
     try:
         result = await run_speedtest()
         text = format_speedtest(result)
+        share_url = result.get("share") if isinstance(result, dict) else None
+
+        if share_url:
+            try:
+                await m.reply_photo(share_url, caption=text, quote=True)
+                await msg.delete()
+                return
+            except Exception:
+                pass
+
         await msg.edit_text(text)
     except Exception:
         await msg.edit_text(MSG_SPEEDTEST_ERROR)
