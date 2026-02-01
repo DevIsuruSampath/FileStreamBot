@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import time
 import speedtest
 
 from FileStream.utils.human_readable import humanbytes
@@ -40,6 +41,7 @@ def _run_speedtest():
     st.download()
     st.upload(pre_allocate=False)
 
+    # Sharing can be flaky; wrap safely
     share_url = None
     try:
         share_url = st.results.share()
@@ -52,9 +54,17 @@ def _run_speedtest():
     return results
 
 
-async def run_speedtest():
+async def run_speedtest(retries: int = 2, delay: int = 3):
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, _run_speedtest)
+    last_error = None
+    for _ in range(retries + 1):
+        try:
+            return await loop.run_in_executor(None, _run_speedtest)
+        except Exception as e:
+            last_error = e
+            await asyncio.sleep(delay)
+            continue
+    raise last_error
 
 
 def format_speedtest(result: dict) -> str:

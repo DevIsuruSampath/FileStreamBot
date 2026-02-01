@@ -156,7 +156,7 @@ async def speedtest_cmd(c: Client, m: Message):
 
     msg = await m.reply_text(MSG_SPEEDTEST_START, quote=True)
     try:
-        result = await run_speedtest()
+        result = await run_speedtest(retries=2, delay=3)
         text = format_speedtest(result)
         share_url = result.get("share") if isinstance(result, dict) else None
 
