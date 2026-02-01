@@ -62,7 +62,11 @@ async def render_page(db_id):
 async def render_playlist(playlist_id: str):
     playlist = await db.get_playlist(playlist_id)
     files = []
+    seen = set()
     for fid in playlist.get("files", []):
+        if fid in seen:
+            continue
+        seen.add(fid)
         try:
             file_data = await db.get_file(fid)
         except Exception:
