@@ -1,6 +1,7 @@
 import asyncio
 import math
 import html
+import os
 from typing import Union
 from pyrogram.errors import UserNotParticipant, FloodWait
 from pyrogram.enums.parse_mode import ParseMode
@@ -90,6 +91,11 @@ async def gen_link(_id):
     file_name = file_info.get('file_name') or "file"
     file_size = humanbytes(file_info['file_size'])
     mime_type = (file_info.get('mime_type') or "").lower()
+    ext = os.path.splitext(file_name)[1].lower()
+    video_ext = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpeg", ".mpg"}
+    audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
+    is_streamable = ("video" in mime_type or "audio" in mime_type or ext in video_ext or ext in audio_ext)
+
     safe_name = html.escape(file_name)
     if len(safe_name) > 200:
         safe_name = safe_name[:200] + "…"
@@ -109,7 +115,7 @@ async def gen_link(_id):
     safe_stream = html.escape(stream_link)
     safe_page = html.escape(page_link)
 
-    if "video" in mime_type:
+    if is_streamable:
         stream_text = LANG.STREAM_TEXT.format(safe_name, file_size, safe_stream, safe_page)
         reply_markup = InlineKeyboardMarkup(
             [
@@ -136,6 +142,11 @@ async def gen_linkx(m:Message , _id, name: list):
     file_name = file_info.get('file_name') or "file"
     mime_type = (file_info.get('mime_type') or "").lower()
     file_size = humanbytes(file_info['file_size'])
+    ext = os.path.splitext(file_name)[1].lower()
+    video_ext = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpeg", ".mpg"}
+    audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
+    is_streamable = ("video" in mime_type or "audio" in mime_type or ext in video_ext or ext in audio_ext)
+
     safe_name = html.escape(file_name)
     if len(safe_name) > 200:
         safe_name = safe_name[:200] + "…"
@@ -154,7 +165,7 @@ async def gen_linkx(m:Message , _id, name: list):
     safe_stream = html.escape(stream_link)
     safe_page = html.escape(page_link)
 
-    if "video" in mime_type:
+    if is_streamable:
         stream_text= LANG.STREAM_TEXT.format(safe_name, file_size, safe_stream, safe_page)
         reply_markup = InlineKeyboardMarkup(
             [
