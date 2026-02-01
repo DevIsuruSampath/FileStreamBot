@@ -131,9 +131,7 @@ async def cancel_batch(_: Client, message: Message, user_id: int | None = None):
             parse_mode=ParseMode.MARKDOWN,
             quote=True
         )
-    else:
-        await message.reply_text(
-            "No active batch to cancel.",
-            parse_mode=ParseMode.MARKDOWN,
-            quote=True
-        )
+        return
+
+    # If no active batch, stay silent
+    return
