@@ -108,7 +108,7 @@ async def gen_link(_id):
     # 2. Check Database for ADS Status
     if await db.get_ads_status():
         # Only shorten links that will actually be shown
-        if "video" in mime_type:
+        if is_streamable:
             page_link = await shorten(page_link)
         stream_link = await shorten(stream_link)
 
@@ -158,7 +158,7 @@ async def gen_linkx(m:Message , _id, name: list):
     # 2. Check Database for ADS Status
     if await db.get_ads_status():
         # Only shorten links that will actually be shown
-        if "video" in mime_type:
+        if is_streamable:
             page_link = await shorten(page_link)
         stream_link = await shorten(stream_link)
 
