@@ -20,11 +20,21 @@ batch_sessions: dict[int, list[str]] = {}
 @FileStream.on_message(filters.command("batch") & filters.private)
 async def start_batch(_: Client, message: Message):
     user_id = message.from_user.id
+    if user_id in batch_sessions and batch_sessions[user_id]:
+        await message.reply_text(
+            f"Batch already active with **{len(batch_sessions[user_id])}** files.\n"
+            "Use /done to finish or /cancel to discard.",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+        return
+
     batch_sessions[user_id] = []
     await message.reply_text(
         "**Batch mode started.**\n"
         "Forward video/document files one by one.\n"
-        "Send /done when finished.",
+        "Send /done when finished.\n"
+        "Use /cancel to discard.",
         parse_mode=ParseMode.MARKDOWN,
         quote=True
     )
@@ -82,3 +92,21 @@ async def finish_batch(_: Client, message: Message):
         disable_web_page_preview=True,
         quote=True
     )
+
+
+@FileStream.on_message(filters.command("cancel") & filters.private)
+async def cancel_batch(_: Client, message: Message):
+    user_id = message.from_user.id
+    if user_id in batch_sessions:
+        batch_sessions.pop(user_id, None)
+        await message.reply_text(
+            "Batch discarded.",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+    else:
+        await message.reply_text(
+            "No active batch to cancel.",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )

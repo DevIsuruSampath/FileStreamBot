@@ -13,6 +13,10 @@
         .plyr { border-radius: 12px; overflow: hidden; box-shadow: 0 0 40px rgba(79, 70, 229, 0.15); border: 1px solid rgba(255,255,255,0.05); }
         :root { --plyr-color-main: #4f46e5; }
         .active-item { background: rgba(79, 70, 229, 0.15); border-color: rgba(79, 70, 229, 0.4); }
+        .btn { display:inline-flex; align-items:center; justify-content:center; padding:0.375rem 0.75rem; border-radius:0.5rem; font-size:0.75rem; font-weight:600; }
+        .btn-play { background: rgba(79, 70, 229, 0.2); color: #c7d2fe; border: 1px solid rgba(79, 70, 229, 0.35); }
+        .btn-download { background: rgba(255,255,255,0.08); color: #e5e7eb; border: 1px solid rgba(255,255,255,0.12); }
+        .btn-disabled { opacity: .5; cursor: not-allowed; }
     </style>
 </head>
 <body class="text-gray-300 antialiased">
@@ -37,6 +41,10 @@
             <div class="space-y-2">
                 <h1 id="currentTitle" class="text-xl md:text-2xl font-bold text-white break-all leading-snug"></h1>
                 <div class="text-sm text-gray-400" id="currentMeta"></div>
+                <div class="flex gap-2 pt-2">
+                    <button id="playBtn" class="btn btn-play">Play</button>
+                    <a id="downloadBtn" class="btn btn-download" href="#" download>Download</a>
+                </div>
             </div>
         </div>
 
@@ -48,9 +56,13 @@
                 </div>
                 <ul id="playlist" class="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
                     {% for f in files %}
-                    <li class="playlist-item border border-white/5 rounded-xl p-3 cursor-pointer hover:bg-white/5" data-index="{{ loop.index0 }}">
+                    <li class="playlist-item border border-white/5 rounded-xl p-3" data-index="{{ loop.index0 }}" data-playable="{{ '1' if f.playable else '0' }}">
                         <div class="text-sm text-white font-medium break-all">{{ f.name }}</div>
                         <div class="text-xs text-gray-400">{{ f.size }}</div>
+                        <div class="mt-2 flex gap-2">
+                            <button class="btn btn-play play-item {{ '' if f.playable else 'btn-disabled' }}" {{ '' if f.playable else 'disabled' }} data-index="{{ loop.index0 }}">Play</button>
+                            <a class="btn btn-download" href="{{ f.url }}" download>Download</a>
+                        </div>
                     </li>
                     {% endfor %}
                 </ul>
@@ -63,6 +75,8 @@
         const listEl = document.getElementById('playlist');
         const titleEl = document.getElementById('currentTitle');
         const metaEl = document.getElementById('currentMeta');
+        const playBtn = document.getElementById('playBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
 
         const player = new Plyr('#player', {
             controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen'],
@@ -79,36 +93,75 @@
             if (active) active.classList.add('active-item');
         }
 
+        function updateHeader(item) {
+            titleEl.textContent = item.name;
+            metaEl.textContent = item.size || '';
+            downloadBtn.href = item.url;
+            if (item.playable) {
+                playBtn.classList.remove('btn-disabled');
+                playBtn.disabled = false;
+            } else {
+                playBtn.classList.add('btn-disabled');
+                playBtn.disabled = true;
+            }
+        }
+
         function loadVideo(index, autoPlay = true) {
             if (!playlist[index]) return;
-            currentIndex = index;
             const item = playlist[index];
+            currentIndex = index;
+            setActive(index);
+            updateHeader(item);
+
+            if (!item.playable) return;
+
             player.source = {
                 type: 'video',
                 title: item.name,
                 sources: [{ src: item.url, type: item.mime || 'video/mp4' }]
             };
-            titleEl.textContent = item.name;
-            metaEl.textContent = item.size || '';
-            setActive(index);
+
             if (autoPlay) player.play();
         }
 
+        function nextPlayable(startIdx) {
+            for (let i = startIdx; i < playlist.length; i++) {
+                if (playlist[i].playable) return i;
+            }
+            return -1;
+        }
+
         listEl.addEventListener('click', (e) => {
-            const target = e.target.closest('.playlist-item');
-            if (!target) return;
-            const index = parseInt(target.dataset.index, 10);
-            loadVideo(index);
+            // Ignore download link clicks
+            if (e.target.closest('a')) return;
+
+            const playButton = e.target.closest('.play-item');
+            if (playButton) {
+                const index = parseInt(playButton.dataset.index, 10);
+                loadVideo(index);
+                return;
+            }
+
+            const item = e.target.closest('.playlist-item');
+            if (item) {
+                const index = parseInt(item.dataset.index, 10);
+                loadVideo(index);
+            }
+        });
+
+        playBtn.addEventListener('click', () => {
+            loadVideo(currentIndex);
         });
 
         player.on('ended', () => {
-            const next = currentIndex + 1;
-            if (playlist[next]) loadVideo(next);
+            const next = nextPlayable(currentIndex + 1);
+            if (next !== -1) loadVideo(next);
         });
 
-        // Init first item
+        // Init first item (prefer first playable)
         if (playlist.length > 0) {
-            loadVideo(0, false);
+            const firstPlayable = nextPlayable(0);
+            loadVideo(firstPlayable !== -1 ? firstPlayable : 0, false);
         }
     </script>
 </body>

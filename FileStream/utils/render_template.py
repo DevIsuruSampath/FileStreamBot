@@ -60,11 +60,16 @@ async def render_playlist(playlist_id: str):
         file_name = file_name.replace("\n", " ").replace("\r", " ")
         if len(file_name) > 150:
             file_name = file_name[:150] + "…"
+        mime = (file_data.get("mime_type") or "").lower()
+        kind = "video" if mime.startswith("video/") else "audio" if mime.startswith("audio/") else "other"
+        playable = kind in ("video", "audio")
         files.append({
             "id": str(file_data.get("_id")),
             "name": file_name,
             "size": humanbytes(file_data.get("file_size") or 0),
-            "mime": (file_data.get("mime_type") or "").lower(),
+            "mime": mime,
+            "kind": kind,
+            "playable": playable,
             "url": urllib.parse.urljoin(Server.URL, f"dl/{file_data['_id']}")
         })
 
