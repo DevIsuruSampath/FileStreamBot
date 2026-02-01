@@ -49,7 +49,7 @@ async def start_batch(bot: Client, message: Message):
 @FileStream.on_message(
     filters.private
     & filters.forwarded
-    & (filters.video | filters.document),
+    & (filters.video | filters.document | filters.audio),
     group=1,
 )
 async def collect_batch_file(bot: Client, message: Message):
