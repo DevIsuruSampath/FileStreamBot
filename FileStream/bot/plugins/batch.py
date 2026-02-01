@@ -110,6 +110,7 @@ async def finish_batch(bot: Client, message: Message, user_id: int | None = None
     file_list = batch_sessions.get(user_id)
 
     if not file_list:
+        batch_sessions.pop(user_id, None)
         await message.reply_text(
             "No files in batch. Use /batch then forward files.",
             parse_mode=ParseMode.MARKDOWN,
