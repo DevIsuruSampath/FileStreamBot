@@ -148,6 +148,8 @@ async def media_streamer(request: web.Request, db_id: str):
     file_name = file_name.replace('"', '').replace('\n', ' ').replace('\r', ' ')
     if len(file_name) > 150:
         file_name = file_name[:150]
+    if not file_name:
+        file_name = "file"
 
     # RFC 5987 filename* fallback for non-ASCII names
     from urllib.parse import quote
