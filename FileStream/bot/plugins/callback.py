@@ -30,7 +30,14 @@ async def edit_message(update: CallbackQuery, text: str, reply_markup=None, pars
 #---------------------[ START CMD ]---------------------#
 @FileStream.on_callback_query()
 async def cb_data(bot, update: CallbackQuery):
-    usr_cmd = update.data.split("_")
+    try:
+        usr_cmd = update.data.split("_")
+    except Exception:
+        return
+
+    if not usr_cmd or not usr_cmd[0]:
+        return
+
     if usr_cmd[0] == "home":
         await edit_message(
             update,
@@ -63,25 +70,40 @@ async def cb_data(bot, update: CallbackQuery):
         except Exception:
             pass
     elif usr_cmd[0] == "msgdelete":
+        if len(usr_cmd) < 3:
+            await update.answer("Invalid action")
+            return
         await edit_message(
             update,
             "**Cᴏɴғɪʀᴍ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜᴇ Fɪʟᴇ**\n\n",
             InlineKeyboardMarkup([[InlineKeyboardButton("ʏᴇs", callback_data=f"msgdelyes_{usr_cmd[1]}_{usr_cmd[2]}"), InlineKeyboardButton("ɴᴏ", callback_data=f"myfile_{usr_cmd[1]}_{usr_cmd[2]}")]])
         )
     elif usr_cmd[0] == "msgdelyes":
+        if len(usr_cmd) < 3:
+            await update.answer("Invalid action")
+            return
         await delete_user_file(usr_cmd[1], int(usr_cmd[2]), update)
         return
     elif usr_cmd[0] == "msgdelpvt":
+        if len(usr_cmd) < 2:
+            await update.answer("Invalid action")
+            return
         await edit_message(
             update,
             "**Cᴏɴғɪʀᴍ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜᴇ Fɪʟᴇ**\n\n",
             InlineKeyboardMarkup([[InlineKeyboardButton("ʏᴇs", callback_data=f"msgdelpvtyes_{usr_cmd[1]}"), InlineKeyboardButton("ɴᴏ", callback_data=f"mainstream_{usr_cmd[1]}")]])
         )
     elif usr_cmd[0] == "msgdelpvtyes":
+        if len(usr_cmd) < 2:
+            await update.answer("Invalid action")
+            return
         await delete_user_filex(usr_cmd[1], update)
         return
 
     elif usr_cmd[0] == "mainstream":
+        if len(usr_cmd) < 2:
+            await update.answer("Invalid action")
+            return
         _id = usr_cmd[1]
         # gen_link from bot_utils handles Ads/Shortener internally
         reply_markup, stream_text = await gen_link(_id=_id)
@@ -93,12 +115,21 @@ async def cb_data(bot, update: CallbackQuery):
         )
 
     elif usr_cmd[0] == "userfiles":
+        if len(usr_cmd) < 2:
+            await update.answer("Invalid action")
+            return
         file_list, total_files = await gen_file_list_button(int(usr_cmd[1]), update.from_user.id)
         await edit_message(update, "Total files: {}".format(total_files), InlineKeyboardMarkup(file_list))
     elif usr_cmd[0] == "myfile":
+        if len(usr_cmd) < 3:
+            await update.answer("Invalid action")
+            return
         await gen_file_menu(usr_cmd[1], usr_cmd[2], update)
         return
     elif usr_cmd[0] == "sendfile":
+        if len(usr_cmd) < 2:
+            await update.answer("Invalid action")
+            return
         myfile = await db.get_file(usr_cmd[1])
         file_name = myfile['file_name']
         await update.answer(f"Sending File {file_name}")
