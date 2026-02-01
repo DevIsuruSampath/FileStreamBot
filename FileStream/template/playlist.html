@@ -119,10 +119,12 @@
                 return;
             }
 
+            const mediaType = item.kind === 'audio' ? 'audio' : 'video';
+            const fallbackMime = mediaType === 'audio' ? 'audio/mpeg' : 'video/mp4';
             player.source = {
-                type: 'video',
+                type: mediaType,
                 title: item.name,
-                sources: [{ src: item.url, type: item.mime || 'video/mp4' }]
+                sources: [{ src: item.url, type: item.mime || fallbackMime }]
             };
 
             if (autoPlay) player.play();
