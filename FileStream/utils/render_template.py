@@ -21,8 +21,13 @@ async def render_page(db_id):
         file_name = file_name[:150] + "…"
 
     base_dir = os.path.dirname(os.path.dirname(__file__))  # FileStream/
-    mime_type = (file_data.get('mime_type') or '').split('/')[0].strip()
-    if str(mime_type) == 'video':
+    mime_type = (file_data.get('mime_type') or '').lower()
+    primary = mime_type.split('/')[0].strip() if mime_type else ""
+    ext = os.path.splitext(file_name)[1].lower()
+    video_ext = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpeg", ".mpg"}
+    audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
+
+    if primary in ("video", "audio") or ext in video_ext or ext in audio_ext:
         template_file = os.path.join(base_dir, "template", "play.html")
     else:
         template_file = os.path.join(base_dir, "template", "dl.html")
