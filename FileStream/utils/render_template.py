@@ -95,9 +95,12 @@ async def render_playlist(playlist_id: str):
     with open(template_file, encoding="utf-8") as f:
         template = env.from_string(f.read())
 
+    playlist_json = json.dumps(files, ensure_ascii=False)
+    playlist_json = playlist_json.replace("</", "<\\/")
+
     return template.render(
         playlist_id=str(playlist_id),
-        playlist_json=json.dumps(files),
+        playlist_json=playlist_json,
         files=files,
         count=len(files)
     )
