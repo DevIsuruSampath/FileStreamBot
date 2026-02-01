@@ -4,10 +4,11 @@ from pyrogram import filters, Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums.parse_mode import ParseMode
 
-from FileStream.bot import FileStream
+from FileStream.bot import FileStream, multi_clients
 from FileStream.utils.database import Database
-from FileStream.utils.file_properties import get_file_info
+from FileStream.utils.file_properties import get_file_info, get_file_ids
 from FileStream.utils.human_readable import humanbytes
+from FileStream.utils.bot_utils import verify_user
 from FileStream.config import Telegram, Server
 
 
@@ -18,7 +19,9 @@ batch_sessions: dict[int, list[str]] = {}
 
 
 @FileStream.on_message(filters.command("batch") & filters.private)
-async def start_batch(_: Client, message: Message):
+async def start_batch(bot: Client, message: Message):
+    if not await verify_user(bot, message):
+        return
     user_id = message.from_user.id
     if user_id in batch_sessions and batch_sessions[user_id]:
         await message.reply_text(
@@ -49,7 +52,9 @@ async def start_batch(_: Client, message: Message):
     & (filters.video | filters.document),
     group=1,
 )
-async def collect_batch_file(_: Client, message: Message):
+async def collect_batch_file(bot: Client, message: Message):
+    if not await verify_user(bot, message):
+        return
     user_id = message.from_user.id
     if user_id not in batch_sessions:
         return
@@ -97,8 +102,11 @@ async def batch_callback(_: Client, callback_query):
 
 
 @FileStream.on_message(filters.command("done") & filters.private)
-async def finish_batch(_: Client, message: Message, user_id: int | None = None):
-    user_id = user_id or message.from_user.id
+async def finish_batch(bot: Client, message: Message, user_id: int | None = None):
+    if user_id is None:
+        if not await verify_user(bot, message):
+            return
+        user_id = message.from_user.id
     file_list = batch_sessions.get(user_id)
 
     if not file_list:
@@ -122,8 +130,11 @@ async def finish_batch(_: Client, message: Message, user_id: int | None = None):
 
 
 @FileStream.on_message(filters.command("cancel") & filters.private)
-async def cancel_batch(_: Client, message: Message, user_id: int | None = None):
-    user_id = user_id or message.from_user.id
+async def cancel_batch(bot: Client, message: Message, user_id: int | None = None):
+    if user_id is None:
+        if not await verify_user(bot, message):
+            return
+        user_id = message.from_user.id
     if user_id in batch_sessions:
         batch_sessions.pop(user_id, None)
         await message.reply_text(
