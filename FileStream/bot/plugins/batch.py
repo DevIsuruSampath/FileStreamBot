@@ -80,6 +80,10 @@ async def batch_callback(_: Client, callback_query):
     else:
         await cancel_batch(_, callback_query.message)
     await callback_query.answer()
+    try:
+        await callback_query.message.delete()
+    except Exception:
+        pass
 
 
 @FileStream.on_message(filters.command("done") & filters.private)
