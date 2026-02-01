@@ -187,8 +187,15 @@ async def gen_linkx(m:Message , _id, name: list):
 async def gen_file_list_button(file_list_no: int, user_id: int):
     if file_list_no < 1:
         file_list_no = 1
+
+    total_files = await db.total_files(user_id)
+    if total_files > 0:
+        max_pages = math.ceil(total_files / 10)
+        if file_list_no > max_pages:
+            file_list_no = max_pages
+
     file_range=[file_list_no*10-10+1, file_list_no*10]
-    user_files, total_files=await db.find_files(user_id, file_range)
+    user_files, _ = await db.find_files(user_id, file_range)
 
     file_list=[]
     async for x in user_files:
