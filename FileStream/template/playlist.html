@@ -113,7 +113,11 @@
             setActive(index);
             updateHeader(item);
 
-            if (!item.playable) return;
+            if (!item.playable) {
+                player.pause();
+                try { player.currentTime = 0; } catch (e) {}
+                return;
+            }
 
             player.source = {
                 type: 'video',
