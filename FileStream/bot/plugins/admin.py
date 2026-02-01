@@ -52,7 +52,11 @@ def get_readable_time(seconds: int) -> str:
 # ---------------------[ CHECK YOUR ID ]---------------------#
 @FileStream.on_message(filters.command("id") & filters.private)
 async def get_id(c: Client, m: Message):
-    await m.reply_text(f"Your User ID is: `{m.from_user.id}`\nOwner ID in Config: `{Telegram.OWNER_ID}`", quote=True)
+    await m.reply_text(
+        f"Your User ID is: `{m.from_user.id}`\nOwner ID in Config: `{Telegram.OWNER_ID}`",
+        parse_mode=ParseMode.MARKDOWN,
+        quote=True
+    )
 
 # ---------------------[ ADS TOGGLE COMMAND ]---------------------#
 @FileStream.on_message(filters.command("ads") & filters.private)
