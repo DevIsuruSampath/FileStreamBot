@@ -74,7 +74,10 @@ class_cache = {}
 
 async def media_streamer(request: web.Request, db_id: str):
     range_header = request.headers.get("Range", 0)
-    
+
+    if not work_loads:
+        raise web.HTTPServiceUnavailable(text="No available clients")
+
     index = min(work_loads, key=work_loads.get)
     faster_client = multi_clients[index]
     
