@@ -24,6 +24,9 @@ async def get_invite_link(bot, chat_id: Union[str, int]):
             print(f"Sleep of {e.value}s caused by FloodWait ...")
             await asyncio.sleep(e.value)
             continue
+        except Exception as e:
+            print(f"Failed to create invite link: {e}")
+            return None
 
 async def is_user_joined(bot, message: Message):
     if Telegram.FORCE_SUB_ID:
@@ -48,25 +51,23 @@ async def is_user_joined(bot, message: Message):
             return False
     except UserNotParticipant:
         invite_link = await get_invite_link(bot, chat_id=channel_chat_id)
+        join_markup = None
+        if invite_link and getattr(invite_link, "invite_link", None):
+            join_markup = InlineKeyboardMarkup(
+                [[InlineKeyboardButton("❆ Jᴏɪɴ Oᴜʀ Cʜᴀɴɴᴇʟ ❆", url=invite_link.invite_link)]]
+            )
+
         if Telegram.VERIFY_PIC:
             ver = await message.reply_photo(
                 photo=Telegram.VERIFY_PIC,
                 caption="<i>Jᴏɪɴ ᴍʏ ᴜᴘᴅᴀᴛᴇ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴜsᴇ ᴍᴇ 🔐</i>",
                 parse_mode=ParseMode.HTML,
-                reply_markup=InlineKeyboardMarkup(
-                [[
-                    InlineKeyboardButton("❆ Jᴏɪɴ Oᴜʀ Cʜᴀɴɴᴇʟ ❆", url=invite_link.invite_link)
-                ]]
-                )
+                reply_markup=join_markup
             )
         else:
             ver = await message.reply_text(
                 text = "<i>Jᴏɪɴ ᴍʏ ᴜᴘᴅᴀᴛᴇ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴜsᴇ ᴍᴇ 🔐</i>",
-                reply_markup=InlineKeyboardMarkup(
-                    [[
-                        InlineKeyboardButton("❆ Jᴏɪɴ Oᴜʀ Cʜᴀɴɴᴇʟ ❆", url=invite_link.invite_link)
-                    ]]
-                ),
+                reply_markup=join_markup,
                 parse_mode=ParseMode.HTML
             )
         await asyncio.sleep(30)
