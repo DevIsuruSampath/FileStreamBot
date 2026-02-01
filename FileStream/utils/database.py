@@ -159,6 +159,15 @@ class Database:
 # ---------------------[ PLAYLISTS ]---------------------#
     async def create_playlist(self, user_id: int, file_list: list[str]):
         import secrets
+        # Deduplicate while preserving order
+        seen = set()
+        unique_files = []
+        for fid in file_list:
+            if fid in seen:
+                continue
+            seen.add(fid)
+            unique_files.append(fid)
+
         playlist_id = secrets.token_urlsafe(8).replace("-", "").replace("_", "")
         while await self.playlists.find_one({"_id": playlist_id}):
             playlist_id = secrets.token_urlsafe(8).replace("-", "").replace("_", "")
@@ -166,7 +175,7 @@ class Database:
         doc = {
             "_id": playlist_id,
             "user_id": int(user_id),
-            "files": file_list,
+            "files": unique_files,
             "created_at": time.time(),
         }
         await self.playlists.insert_one(doc)
