@@ -3,6 +3,7 @@ import math
 import logging
 import mimetypes
 import traceback
+import os
 from aiohttp import web
 from aiohttp.http_exceptions import BadStatusLine
 from FileStream.bot import multi_clients, work_loads, FileStream
@@ -162,7 +163,10 @@ async def media_streamer(request: web.Request, db_id: str):
 
     # Use "inline" for media to allow in-browser playback
     # Use "attachment" for everything else to force download
-    if "video" in mime_type or "audio" in mime_type or "image" in mime_type:
+    ext = os.path.splitext(file_name)[1].lower()
+    video_ext = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpeg", ".mpg"}
+    audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
+    if "video" in mime_type or "audio" in mime_type or "image" in mime_type or ext in video_ext or ext in audio_ext:
         disposition = "inline"
     else:
         disposition = "attachment"
