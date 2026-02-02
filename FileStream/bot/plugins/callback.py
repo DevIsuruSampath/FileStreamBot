@@ -32,7 +32,16 @@ async def edit_message(update: CallbackQuery, text: str, reply_markup=None, pars
 @FileStream.on_callback_query()
 async def cb_data(bot, update: CallbackQuery):
     try:
-        usr_cmd = update.data.split("_")
+        data = update.data or ""
+    except Exception:
+        return
+
+    # Let other handlers process these
+    if data.startswith("fld:") or data.startswith("folderm_"):
+        return
+
+    try:
+        usr_cmd = data.split("_")
     except Exception:
         return
 
@@ -148,10 +157,7 @@ async def cb_data(bot, update: CallbackQuery):
         except Exception:
             await update.answer("Failed to send file")
     else:
-        try:
-            await update.message.delete()
-        except Exception:
-            pass
+        return
 
 
     #---------------------[ MY FILES FUNC ]---------------------#
