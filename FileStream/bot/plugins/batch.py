@@ -42,6 +42,13 @@ def parse_tg_link(link: str):
     return chat_id, msg_id
 
 
+def extract_tg_link(text: str):
+    if not text:
+        return None
+    m = re.search(r"(?:https?://)?t\.me/(?:c/)?[^/]+/\d+", text)
+    return m.group(0) if m else None
+
+
 async def resolve_chat_id(bot: Client, chat_id):
     if isinstance(chat_id, int):
         return chat_id
@@ -145,7 +152,7 @@ async def start_folder(bot: Client, message: Message):
 
         folder_sessions[user_id] = {"start": (start_chat, start[1])}
         await message.reply_text(
-            "Start saved. Now forward the END file or send /folder <end_link>.",
+            "Start saved. Now forward the END file or send the end link.",
             parse_mode=ParseMode.MARKDOWN,
             quote=True
         )
@@ -153,7 +160,7 @@ async def start_folder(bot: Client, message: Message):
 
     if user_id in folder_sessions and folder_sessions[user_id].get("start"):
         await message.reply_text(
-            "Start already set. Now forward the END file or send /folder <end_link>.",
+            "Start already set. Now forward the END file or send the end link.",
             parse_mode=ParseMode.MARKDOWN,
             quote=True
         )
@@ -162,12 +169,56 @@ async def start_folder(bot: Client, message: Message):
     folder_sessions[user_id] = {"start": None}
     await message.reply_text(
         "**Folder mode started.**\n"
-        "Forward the **START** file or send /folder <start_link>.\n"
-        "Then forward the **END** file or send /folder <end_link>.\n"
+        "Forward the **START** file or send a start link.\n"
+        "Then forward the **END** file or send an end link.\n"
+        "(No need to type /folder again.)\n"
         "Use /cancel to discard.",
         parse_mode=ParseMode.MARKDOWN,
         quote=True
     )
+
+
+@FileStream.on_message(
+    filters.private
+    & filters.text
+    & ~filters.command,
+    group=2,
+)
+async def folder_link_text(bot: Client, message: Message):
+    if not await verify_user(bot, message):
+        return
+
+    user_id = message.from_user.id
+    if user_id not in folder_sessions:
+        return
+
+    link = extract_tg_link(message.text or "")
+    if not link:
+        return
+
+    parsed = parse_tg_link(link)
+    if not parsed:
+        return
+
+    chat_id = await resolve_chat_id(bot, parsed[0])
+    if not chat_id:
+        await message.reply_text("Unable to resolve channel from link.")
+        return
+
+    start = folder_sessions[user_id].get("start")
+    if not start:
+        folder_sessions[user_id]["start"] = (chat_id, parsed[1])
+        await message.reply_text("Start saved. Now forward the END file or send the end link.")
+        return
+
+    start_chat, start_id = start
+    if start_chat != chat_id:
+        await message.reply_text("Start and end links must be from the same channel.")
+        return
+
+    folder_sessions.pop(user_id, None)
+    await build_folder_from_range(bot, message, user_id, chat_id, start_id, parsed[1], mode="folder")
+    message.stop_propagation()
 
 
 @FileStream.on_message(filters.command(["folderm", "batch"]) & filters.private)
@@ -222,7 +273,7 @@ async def handle_forwarded(bot: Client, message: Message):
 
         if not start:
             folder_sessions[user_id]["start"] = (fchat.id, fmsg_id)
-            await message.reply_text("Start saved. Now forward the END file or send /folder <end_link>.")
+            await message.reply_text("Start saved. Now forward the END file or send the end link.")
             return
 
         start_chat, start_id = start
