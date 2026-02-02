@@ -1,4 +1,5 @@
 import asyncio
+import re
 import time
 from pyrogram import filters, Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
@@ -14,35 +15,136 @@ from FileStream.config import Telegram, Server
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
-# In-memory batch sessions: {user_id: [file_db_ids...]}
-batch_sessions: dict[int, list[str]] = {}
-MAX_BATCH_ITEMS = 100
+# Manual folder sessions (old /batch)
+folderm_sessions: dict[int, list[str]] = {}
+# Range folder sessions
+folder_sessions: dict[int, dict] = {}
+
+MAX_FOLDERM_ITEMS = 100
+MAX_FOLDER_RANGE = 200
 
 
-@FileStream.on_message(filters.command("batch") & filters.private)
-async def start_batch(bot: Client, message: Message):
+def parse_tg_link(link: str):
+    # Accept: https://t.me/c/<id>/<msg_id>  OR https://t.me/<username>/<msg_id>
+    m = re.match(r"(?:https?://)?t\.me/(c/)?([^/]+)/(?P<msg>\d+)", link)
+    if not m:
+        return None
+    is_private = bool(m.group(1))
+    chat = m.group(2)
+    msg_id = int(m.group("msg"))
+
+    if is_private:
+        # t.me/c/<id>/<msg_id> where <id> is channel_id without -100
+        chat_id = int("-100" + chat)
+    else:
+        chat_id = chat  # username
+
+    return chat_id, msg_id
+
+
+async def build_folder_from_range(bot: Client, message: Message, user_id: int, chat_id, start_id: int, end_id: int, mode: str = "folder"):
+    start_id, end_id = (start_id, end_id) if start_id <= end_id else (end_id, start_id)
+    total = end_id - start_id + 1
+
+    if total > MAX_FOLDER_RANGE:
+        await message.reply_text(
+            f"Range too large (**{total}**). Max allowed: **{MAX_FOLDER_RANGE}**",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+        return
+
+    status = await message.reply_text(
+        f"Building folder from **{total}** messages...",
+        parse_mode=ParseMode.MARKDOWN,
+        quote=True
+    )
+
+    files = []
+    for chunk_start in range(start_id, end_id + 1, 50):
+        ids = list(range(chunk_start, min(chunk_start + 50, end_id + 1)))
+        msgs = await bot.get_messages(chat_id, ids)
+        if not isinstance(msgs, list):
+            msgs = [msgs]
+        for msg in msgs:
+            if not msg:
+                continue
+            info = get_file_info(msg)
+            if not info:
+                continue
+            inserted_id = await db.add_file(info)
+            try:
+                await get_file_ids(False, inserted_id, multi_clients, msg)
+            except Exception:
+                pass
+            files.append(str(inserted_id))
+
+    if not files:
+        await status.edit_text("No valid media found in that range.")
+        return
+
+    playlist_id = await db.create_playlist(user_id, files)
+    link = f"{Server.URL}{mode}/{playlist_id}"
+    await status.edit_text(f"✅ Folder created!\n\n{link}")
+
+
+@FileStream.on_message(filters.command("folder") & filters.private)
+async def start_folder(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
+
+    parts = message.text.split()
     user_id = message.from_user.id
-    if user_id in batch_sessions and batch_sessions[user_id]:
+
+    if len(parts) >= 3:
+        start = parse_tg_link(parts[1])
+        end = parse_tg_link(parts[2])
+        if not start or not end:
+            await message.reply_text("Invalid links. Use: /folder <start_link> <end_link>")
+            return
+        if start[0] != end[0]:
+            await message.reply_text("Start and end links must be from the same channel.")
+            return
+
+        await build_folder_from_range(bot, message, user_id, start[0], start[1], end[1], mode="folder")
+        return
+
+    folder_sessions[user_id] = {"start": None}
+    await message.reply_text(
+        "**Folder mode started.**\n"
+        "Forward the **START** file, then the **END** file.\n"
+        "Or use: /folder <start_link> <end_link>\n"
+        "Use /cancel to discard.",
+        parse_mode=ParseMode.MARKDOWN,
+        quote=True
+    )
+
+
+@FileStream.on_message(filters.command(["folderm", "batch"]) & filters.private)
+async def start_folderm(bot: Client, message: Message):
+    if not await verify_user(bot, message):
+        return
+
+    user_id = message.from_user.id
+    if user_id in folderm_sessions and folderm_sessions[user_id]:
         await message.reply_text(
-            f"Batch already active with **{len(batch_sessions[user_id])}** files.\n"
+            f"Folderm already active with **{len(folderm_sessions[user_id])}** files.\n"
             "Use /done to finish or /cancel to discard.",
             parse_mode=ParseMode.MARKDOWN,
             quote=True
         )
         return
 
-    batch_sessions[user_id] = []
+    folderm_sessions[user_id] = []
     await message.reply_text(
-        "**Batch mode started.**\n"
-        "Forward video/document files one by one.\n"
+        "**Folderm mode started.**\n"
+        "Forward video/audio/document files one by one.\n"
         "Send /done when finished.\n"
         "Use /cancel to discard.",
         parse_mode=ParseMode.MARKDOWN,
         quote=True,
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Done", callback_data="batch_done"), InlineKeyboardButton("❌ Cancel", callback_data="batch_cancel")]
+            [InlineKeyboardButton("✅ Done", callback_data="folderm_done"), InlineKeyboardButton("❌ Cancel", callback_data="folderm_cancel")]
         ])
     )
 
@@ -53,16 +155,43 @@ async def start_batch(bot: Client, message: Message):
     & (filters.video | filters.document | filters.audio),
     group=1,
 )
-async def collect_batch_file(bot: Client, message: Message):
+async def handle_forwarded(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
+
     user_id = message.from_user.id
-    if user_id not in batch_sessions:
+
+    # Range folder flow
+    if user_id in folder_sessions:
+        start = folder_sessions[user_id].get("start")
+        fchat = getattr(message, "forward_from_chat", None)
+        fmsg_id = getattr(message, "forward_from_message_id", None)
+        if not fchat or not fmsg_id:
+            await message.reply_text("Please forward a message from a channel.")
+            return
+
+        if not start:
+            folder_sessions[user_id]["start"] = (fchat.id, fmsg_id)
+            await message.reply_text("Start saved. Now forward the END file.")
+            return
+
+        start_chat, start_id = start
+        if start_chat != fchat.id:
+            await message.reply_text("Start and end must be from the same channel.")
+            return
+
+        folder_sessions.pop(user_id, None)
+        await build_folder_from_range(bot, message, user_id, fchat.id, start_id, fmsg_id, mode="folder")
+        message.stop_propagation()
         return
 
-    if len(batch_sessions[user_id]) >= MAX_BATCH_ITEMS:
+    # Manual folderm flow
+    if user_id not in folderm_sessions:
+        return
+
+    if len(folderm_sessions[user_id]) >= MAX_FOLDERM_ITEMS:
         await message.reply_text(
-            f"Batch limit reached (**{MAX_BATCH_ITEMS}**). Send /done to finish.",
+            f"Folderm limit reached (**{MAX_FOLDERM_ITEMS}**). Send /done to finish.",
             parse_mode=ParseMode.MARKDOWN,
             quote=True
         )
@@ -77,8 +206,9 @@ async def collect_batch_file(bot: Client, message: Message):
         await get_file_ids(False, inserted_id, multi_clients, message)
     except Exception:
         pass
+
     item_id = str(inserted_id)
-    if item_id in batch_sessions[user_id]:
+    if item_id in folderm_sessions[user_id]:
         await message.reply_text(
             f"⚠️ Already added **{info.get('file_name', 'file')}**.",
             parse_mode=ParseMode.MARKDOWN,
@@ -86,12 +216,11 @@ async def collect_batch_file(bot: Client, message: Message):
         )
         return
 
-    batch_sessions[user_id].append(item_id)
-
+    folderm_sessions[user_id].append(item_id)
     await message.reply_text(
         f"✅ Added **{info.get('file_name', 'file')}** "
         f"({humanbytes(info.get('file_size') or 0)})\n"
-        f"Total: **{len(batch_sessions[user_id])}**",
+        f"Total: **{len(folderm_sessions[user_id])}**",
         parse_mode=ParseMode.MARKDOWN,
         quote=True
     )
@@ -99,14 +228,14 @@ async def collect_batch_file(bot: Client, message: Message):
     message.stop_propagation()
 
 
-@FileStream.on_callback_query(filters.regex(r"^batch_(done|cancel)$"))
-async def batch_callback(_: Client, callback_query):
+@FileStream.on_callback_query(filters.regex(r"^folderm_(done|cancel)$"))
+async def folderm_callback(_: Client, callback_query):
     action = callback_query.data.split("_", 1)[1]
     user_id = callback_query.from_user.id
     if action == "done":
-        await finish_batch(_, callback_query.message, user_id=user_id)
+        await finish_folderm(callback_query.message, user_id=user_id)
     else:
-        await cancel_batch(_, callback_query.message, user_id=user_id)
+        await cancel_any(callback_query.message, user_id=user_id)
     await callback_query.answer()
     try:
         await callback_query.message.delete()
@@ -115,28 +244,26 @@ async def batch_callback(_: Client, callback_query):
 
 
 @FileStream.on_message(filters.command("done") & filters.private)
-async def finish_batch(bot: Client, message: Message, user_id: int | None = None):
+async def finish_folderm(message: Message, user_id: int | None = None):
     if user_id is None:
-        if not await verify_user(bot, message):
-            return
         user_id = message.from_user.id
-    file_list = batch_sessions.get(user_id)
 
+    file_list = folderm_sessions.get(user_id)
     if not file_list:
-        batch_sessions.pop(user_id, None)
+        folderm_sessions.pop(user_id, None)
         await message.reply_text(
-            "No files in batch. Use /batch then forward files.",
+            "No files in folderm. Use /folderm then forward files.",
             parse_mode=ParseMode.MARKDOWN,
             quote=True
         )
         return
 
     playlist_id = await db.create_playlist(user_id, file_list)
-    batch_sessions.pop(user_id, None)
+    folderm_sessions.pop(user_id, None)
 
-    link = f"{Server.URL}playlist/{playlist_id}"
+    link = f"{Server.URL}folderm/{playlist_id}"
     await message.reply_text(
-        f"✅ Playlist created!\n\n{link}",
+        f"✅ Folderm created!\n\n{link}",
         parse_mode=ParseMode.MARKDOWN,
         disable_web_page_preview=True,
         quote=True
@@ -144,19 +271,19 @@ async def finish_batch(bot: Client, message: Message, user_id: int | None = None
 
 
 @FileStream.on_message(filters.command("cancel") & filters.private)
-async def cancel_batch(bot: Client, message: Message, user_id: int | None = None):
+async def cancel_any(message: Message, user_id: int | None = None):
     if user_id is None:
-        if not await verify_user(bot, message):
-            return
         user_id = message.from_user.id
-    if user_id in batch_sessions:
-        batch_sessions.pop(user_id, None)
-        await message.reply_text(
-            "Batch discarded.",
-            parse_mode=ParseMode.MARKDOWN,
-            quote=True
-        )
+
+    if user_id in folderm_sessions:
+        folderm_sessions.pop(user_id, None)
+        await message.reply_text("Folderm discarded.", parse_mode=ParseMode.MARKDOWN, quote=True)
         return
 
-    # If no active batch, stay silent
+    if user_id in folder_sessions:
+        folder_sessions.pop(user_id, None)
+        await message.reply_text("Folder range discarded.", parse_mode=ParseMode.MARKDOWN, quote=True)
+        return
+
+    # If no active session, stay silent
     return

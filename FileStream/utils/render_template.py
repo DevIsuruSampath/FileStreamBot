@@ -59,7 +59,7 @@ async def render_page(db_id):
     )
 
 
-async def render_playlist(playlist_id: str):
+async def render_playlist(playlist_id: str, title: str = "Playlist"):
     playlist = await db.get_playlist(playlist_id)
     files = []
     seen = set()
@@ -113,5 +113,6 @@ async def render_playlist(playlist_id: str):
         playlist_id=str(playlist_id),
         playlist_json=playlist_json,
         files=files,
-        count=len(files)
+        count=len(files),
+        page_title=title,
     )
