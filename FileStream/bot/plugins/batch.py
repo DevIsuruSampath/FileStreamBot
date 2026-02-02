@@ -204,7 +204,7 @@ async def start_folder(bot: Client, message: Message):
 @FileStream.on_message(
     filters.private
     & filters.text
-    & ~filters.command,
+    & ~filters.regex(r"^/"),
     group=2,
 )
 async def folder_link_text(bot: Client, message: Message):
