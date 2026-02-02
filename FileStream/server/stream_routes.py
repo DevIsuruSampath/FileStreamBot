@@ -118,6 +118,8 @@ async def media_streamer(request: web.Request, db_id: str):
     logging.debug("after calling get_file_properties")
     
     file_size = file_id.file_size
+    if not file_size or file_size <= 0:
+        raise web.HTTPNotFound(text="File not found")
 
     if range_header:
         # Standard parsing for "bytes=START-END"

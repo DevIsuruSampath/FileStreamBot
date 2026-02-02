@@ -219,6 +219,8 @@ async def gen_file_list_button(file_list_no: int, user_id: int):
 #---------------------[ USER BANNED ]---------------------#
 
 async def is_user_banned(message):
+    if not getattr(message, "from_user", None):
+        return True
     if await db.is_user_banned(message.from_user.id):
         await message.reply_text(
             text=LANG.BAN_TEXT.format(Telegram.OWNER_ID),
@@ -244,6 +246,9 @@ async def is_channel_banned(bot, message):
 #---------------------[ USER AUTH ]---------------------#
 
 async def is_user_authorized(message):
+    if not getattr(message, "from_user", None):
+        return False
+
     if hasattr(Telegram, 'AUTH_USERS') and Telegram.AUTH_USERS:
         user_id = message.from_user.id
 
@@ -294,6 +299,9 @@ async def is_channel_exist(bot, message):
                 pass
 
 async def verify_user(bot, message):
+    if not getattr(message, "from_user", None):
+        return False
+
     if not await is_user_authorized(message):
         return False
 

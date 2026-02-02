@@ -117,6 +117,12 @@ def get_name(media_msg: Message | FileId | None) -> str:
 
 
 def get_file_info(message):
+    if message is None or not getattr(message, "chat", None):
+        return None
+
+    if message.chat.type == ChatType.PRIVATE and not getattr(message, "from_user", None):
+        return None
+
     media = get_media_from_message(message)
     if message.chat.type == ChatType.PRIVATE:
         user_idx = message.from_user.id
@@ -149,15 +155,21 @@ async def update_file_id(msg_id, multi_clients):
 
     # Run concurrently for speed
     tasks = [get_id(client) for client in multi_clients.values()]
-    results = await asyncio.gather(*tasks)
+    results = await asyncio.gather(*tasks, return_exceptions=True)
     
-    for client_id, file_id in results:
+    for result in results:
+        if isinstance(result, Exception):
+            continue
+        client_id, file_id = result
         file_ids[client_id] = file_id
 
     return file_ids
 
 
 async def send_file(client: Client, db_id, file_id: str, message=None, file_name: str | None = None):
+    if not Telegram.FLOG_CHANNEL:
+        raise FileNotFound
+
     if message:
         file_caption = getattr(message, 'caption', None) or get_name(message)
     else:

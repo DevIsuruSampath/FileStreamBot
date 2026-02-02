@@ -4,6 +4,7 @@ import time
 from pyrogram import filters, Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums.parse_mode import ParseMode
+from pyrogram.errors import FloodWait
 
 from FileStream.bot import FileStream, multi_clients
 from FileStream.utils.database import Database
@@ -60,6 +61,10 @@ async def resolve_chat_id(bot: Client, chat_id):
 
 
 async def build_folder_from_range(bot: Client, message: Message, user_id: int, chat_id, start_id: int, end_id: int, mode: str = "folder"):
+    if not chat_id:
+        await message.reply_text("Invalid channel reference.")
+        return
+
     start_id, end_id = (start_id, end_id) if start_id <= end_id else (end_id, start_id)
     total = end_id - start_id + 1
 
@@ -78,9 +83,18 @@ async def build_folder_from_range(bot: Client, message: Message, user_id: int, c
     )
 
     files = []
+    seen = set()
     for chunk_start in range(start_id, end_id + 1, 50):
         ids = list(range(chunk_start, min(chunk_start + 50, end_id + 1)))
-        msgs = await bot.get_messages(chat_id, ids)
+        try:
+            msgs = await bot.get_messages(chat_id, ids)
+        except FloodWait as e:
+            await asyncio.sleep(e.value)
+            msgs = await bot.get_messages(chat_id, ids)
+        except Exception:
+            await status.edit_text("Failed to fetch messages from that channel.")
+            return
+
         if not isinstance(msgs, list):
             msgs = [msgs]
         for msg in msgs:
@@ -89,12 +103,21 @@ async def build_folder_from_range(bot: Client, message: Message, user_id: int, c
             info = get_file_info(msg)
             if not info:
                 continue
+
+            # Ensure files are attributed to the requesting user
+            info["user_id"] = user_id
+
             inserted_id = await db.add_file(info)
             try:
                 await get_file_ids(False, inserted_id, multi_clients, msg)
             except Exception:
                 pass
-            files.append(str(inserted_id))
+
+            item_id = str(inserted_id)
+            if item_id in seen:
+                continue
+            seen.add(item_id)
+            files.append(item_id)
 
     if not files:
         await status.edit_text("No valid media found in that range.")
@@ -192,10 +215,28 @@ async def folder_link_text(bot: Client, message: Message):
     if user_id not in folder_sessions:
         return
 
-    link = extract_tg_link(message.text or "")
-    if not link:
+    links = re.findall(r"(?:https?://)?t\.me/(?:c/)?[^/]+/\d+", message.text or "")
+    if not links:
         return
 
+    # If two links provided in one message and start not set, use them directly
+    start = folder_sessions[user_id].get("start")
+    if len(links) >= 2 and not start:
+        start_parsed = parse_tg_link(links[0])
+        end_parsed = parse_tg_link(links[1])
+        if not start_parsed or not end_parsed:
+            return
+        start_chat = await resolve_chat_id(bot, start_parsed[0])
+        end_chat = await resolve_chat_id(bot, end_parsed[0])
+        if not start_chat or not end_chat or start_chat != end_chat:
+            await message.reply_text("Start and end links must be from the same channel.")
+            return
+        folder_sessions.pop(user_id, None)
+        await build_folder_from_range(bot, message, user_id, start_chat, start_parsed[1], end_parsed[1], mode="folder")
+        message.stop_propagation()
+        return
+
+    link = links[0]
     parsed = parse_tg_link(link)
     if not parsed:
         return
@@ -205,7 +246,6 @@ async def folder_link_text(bot: Client, message: Message):
         await message.reply_text("Unable to resolve channel from link.")
         return
 
-    start = folder_sessions[user_id].get("start")
     if not start:
         folder_sessions[user_id]["start"] = (chat_id, parsed[1])
         await message.reply_text("Start saved. Now forward the END file or send the end link.")
@@ -330,13 +370,18 @@ async def handle_forwarded(bot: Client, message: Message):
 
 
 @FileStream.on_callback_query(filters.regex(r"^folderm_(done|cancel)$"))
-async def folderm_callback(_: Client, callback_query):
+async def folderm_callback(bot: Client, callback_query):
     action = callback_query.data.split("_", 1)[1]
     user_id = callback_query.from_user.id
+
+    if user_id not in folderm_sessions:
+        await callback_query.answer("No active folderm")
+        return
+
     if action == "done":
-        await finish_folderm(callback_query.message, user_id=user_id)
+        await finish_folderm(bot, callback_query.message, user_id=user_id)
     else:
-        await cancel_any(callback_query.message, user_id=user_id)
+        await cancel_any(bot, callback_query.message, user_id=user_id)
     await callback_query.answer()
     try:
         await callback_query.message.delete()
@@ -345,8 +390,10 @@ async def folderm_callback(_: Client, callback_query):
 
 
 @FileStream.on_message(filters.command("done") & filters.private)
-async def finish_folderm(message: Message, user_id: int | None = None):
+async def finish_folderm(bot: Client, message: Message, user_id: int | None = None):
     if user_id is None:
+        if not await verify_user(bot, message):
+            return
         user_id = message.from_user.id
 
     file_list = folderm_sessions.get(user_id)
@@ -372,8 +419,10 @@ async def finish_folderm(message: Message, user_id: int | None = None):
 
 
 @FileStream.on_message(filters.command("cancel") & filters.private)
-async def cancel_any(message: Message, user_id: int | None = None):
+async def cancel_any(bot: Client, message: Message, user_id: int | None = None):
     if user_id is None:
+        if not await verify_user(bot, message):
+            return
         user_id = message.from_user.id
 
     if user_id in folderm_sessions:

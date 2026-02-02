@@ -130,10 +130,17 @@ async def cb_data(bot, update: CallbackQuery):
         if len(usr_cmd) < 2:
             await update.answer("Invalid action")
             return
-        myfile = await db.get_file(usr_cmd[1])
-        file_name = myfile['file_name']
+        try:
+            myfile = await db.get_file(usr_cmd[1])
+        except FileNotFound:
+            await update.answer("File Not Found")
+            return
+        file_name = myfile.get('file_name') or "file"
         await update.answer(f"Sending File {file_name}")
-        await update.message.reply_cached_media(myfile['file_id'], caption=f'**{file_name}**')
+        try:
+            await update.message.reply_cached_media(myfile['file_id'], caption=f'**{file_name}**')
+        except Exception:
+            await update.answer("Failed to send file")
     else:
         try:
             await update.message.delete()
