@@ -16,6 +16,13 @@ PAGE_SIZE = 5
 rename_pending: dict[int, str] = {}
 
 
+async def _edit_message(msg: Message, text: str, reply_markup=None, parse_mode=ParseMode.MARKDOWN):
+    if getattr(msg, "photo", None) or getattr(msg, "caption", None):
+        await msg.edit_caption(caption=text, reply_markup=reply_markup, parse_mode=parse_mode)
+    else:
+        await msg.edit_text(text=text, reply_markup=reply_markup, parse_mode=parse_mode)
+
+
 def _fmt_title(folder):
     title = (folder.get("title") or "").strip()
     if not title:
@@ -40,17 +47,7 @@ async def _send_folder_list(message: Message, page: int = 1, edit: bool = False)
         page = 1
 
     total = await db.total_folders(user_id)
-    if total == 0:
-        if edit:
-            try:
-                await message.edit_text("No folders yet.")
-                return
-            except Exception:
-                pass
-        await message.reply_text("No folders yet.", quote=True)
-        return
-
-    max_pages = (total + PAGE_SIZE - 1) // PAGE_SIZE
+    max_pages = max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1)
     if page > max_pages:
         page = max_pages
 
@@ -72,24 +69,32 @@ async def _send_folder_list(message: Message, page: int = 1, edit: bool = False)
             InlineKeyboardButton("►", callback_data=f"fld:list:{page+1}" if page < max_pages else "fld:noop"),
         ])
 
+    if not buttons:
+        buttons.append([InlineKeyboardButton("ᴇᴍᴘᴛʏ", callback_data="fld:noop")])
+
     buttons.append([InlineKeyboardButton("Close", callback_data="fld:close")])
+
+    caption = f"Total folders: {total}"
 
     if edit:
         try:
-            await message.edit_text(
-                f"Your folders ({total}):",
-                reply_markup=InlineKeyboardMarkup(buttons),
-                disable_web_page_preview=True,
-            )
+            await _edit_message(message, caption, InlineKeyboardMarkup(buttons))
             return
         except Exception:
             pass
 
-    await message.reply_text(
-        f"Your folders ({total}):",
-        reply_markup=InlineKeyboardMarkup(buttons),
-        quote=True
-    )
+    if Telegram.FILE_PIC:
+        await message.reply_photo(
+            photo=Telegram.FILE_PIC,
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
+    else:
+        await message.reply_text(
+            caption,
+            reply_markup=InlineKeyboardMarkup(buttons),
+            quote=True
+        )
 
 
 @FileStream.on_message(filters.command("folders") & filters.private)
@@ -163,14 +168,14 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
              InlineKeyboardButton("Delete", callback_data=f"fld:del:{folder_id}:{page}")],
             [InlineKeyboardButton("Back", callback_data=f"fld:list:{page}")]
         ]
-        await cq.message.edit_text(
+        await _edit_message(
+            cq.message,
             f"<b>{safe_title}</b>\n"
             f"Files: <code>{count}</code>\n"
             f"Created: <code>{created}</code>\n"
             f"ID: <code>{folder_id}</code>",
-            parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup(buttons),
-            disable_web_page_preview=True
+            parse_mode=ParseMode.HTML,
         )
         await cq.answer()
         return
@@ -185,7 +190,8 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
             [InlineKeyboardButton("Yes, delete", callback_data=f"fld:delyes:{folder_id}:{page}"),
              InlineKeyboardButton("Cancel", callback_data=f"fld:list:{page}")]
         ]
-        await cq.message.edit_text(
+        await _edit_message(
+            cq.message,
             "Confirm delete this folder?",
             reply_markup=InlineKeyboardMarkup(buttons)
         )
