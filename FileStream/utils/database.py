@@ -13,7 +13,8 @@ class Database:
         self.black = self.db.blacklist
         self.file = self.db.file
         self.settings = self.db.settings  # <--- NEW COLLECTION
-        self.playlists = self.db.playlists
+        self.folders = self.db.folders
+        self.playlists = self.db.playlists  # legacy
 
 #---------------------[ NEW USER ]---------------------#
     def new_user(self, id):
@@ -161,8 +162,8 @@ class Database:
             return False
         return bool(settings.get("status", False))
 
-# ---------------------[ PLAYLISTS ]---------------------#
-    async def create_playlist(self, user_id: int, file_list: list[str]):
+# ---------------------[ FOLDERS ]---------------------#
+    async def create_folder(self, user_id: int, file_list: list[str]):
         import secrets
         # Deduplicate while preserving order
         seen = set()
@@ -173,21 +174,31 @@ class Database:
             seen.add(fid)
             unique_files.append(fid)
 
-        playlist_id = secrets.token_urlsafe(8).replace("-", "").replace("_", "")
-        while await self.playlists.find_one({"_id": playlist_id}):
-            playlist_id = secrets.token_urlsafe(8).replace("-", "").replace("_", "")
+        folder_id = secrets.token_urlsafe(8).replace("-", "").replace("_", "")
+        while await self.folders.find_one({"_id": folder_id}):
+            folder_id = secrets.token_urlsafe(8).replace("-", "").replace("_", "")
 
         doc = {
-            "_id": playlist_id,
+            "_id": folder_id,
             "user_id": int(user_id),
             "files": unique_files,
             "created_at": time.time(),
         }
-        await self.playlists.insert_one(doc)
-        return playlist_id
+        await self.folders.insert_one(doc)
+        return folder_id
+
+    async def get_folder(self, folder_id: str):
+        folder = await self.folders.find_one({"_id": str(folder_id)})
+        if not folder:
+            # Legacy fallback
+            folder = await self.playlists.find_one({"_id": str(folder_id)})
+        if not folder:
+            raise FileNotFound
+        return folder
+
+    # Backward-compatible aliases
+    async def create_playlist(self, user_id: int, file_list: list[str]):
+        return await self.create_folder(user_id, file_list)
 
     async def get_playlist(self, playlist_id: str):
-        playlist = await self.playlists.find_one({"_id": str(playlist_id)})
-        if not playlist:
-            raise FileNotFound
-        return playlist
+        return await self.get_folder(playlist_id)

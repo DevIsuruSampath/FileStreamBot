@@ -123,8 +123,8 @@ async def build_folder_from_range(bot: Client, message: Message, user_id: int, c
         await status.edit_text("No valid media found in that range.")
         return
 
-    playlist_id = await db.create_playlist(user_id, files)
-    link = f"{Server.URL}{mode}/{playlist_id}"
+    folder_id = await db.create_folder(user_id, files)
+    link = f"{Server.URL}{mode}/{folder_id}"
     await status.edit_text(f"✅ Folder created!\n\n{link}")
 
 
@@ -406,10 +406,10 @@ async def finish_folderm(bot: Client, message: Message, user_id: int | None = No
         )
         return
 
-    playlist_id = await db.create_playlist(user_id, file_list)
+    folder_id = await db.create_folder(user_id, file_list)
     folderm_sessions.pop(user_id, None)
 
-    link = f"{Server.URL}folderm/{playlist_id}"
+    link = f"{Server.URL}folderm/{folder_id}"
     await message.reply_text(
         f"✅ Folderm created!\n\n{link}",
         parse_mode=ParseMode.MARKDOWN,

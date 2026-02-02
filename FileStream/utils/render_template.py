@@ -59,11 +59,11 @@ async def render_page(db_id):
     )
 
 
-async def render_playlist(playlist_id: str, title: str = "Folder"):
-    playlist = await db.get_playlist(playlist_id)
+async def render_folder(folder_id: str, title: str = "Folder"):
+    folder = await db.get_folder(folder_id)
     files = []
     seen = set()
-    for fid in playlist.get("files", []):
+    for fid in folder.get("files", []):
         if fid in seen:
             continue
         seen.add(fid)
@@ -106,13 +106,18 @@ async def render_playlist(playlist_id: str, title: str = "Folder"):
     with open(template_file, encoding="utf-8") as f:
         template = env.from_string(f.read())
 
-    playlist_json = json.dumps(files, ensure_ascii=False)
-    playlist_json = playlist_json.replace("</", "<\\/")
+    folder_json = json.dumps(files, ensure_ascii=False)
+    folder_json = folder_json.replace("</", "<\\/")
 
     return template.render(
-        playlist_id=str(playlist_id),
-        playlist_json=playlist_json,
+        folder_id=str(folder_id),
+        folder_json=folder_json,
         files=files,
         count=len(files),
         page_title=title,
     )
+
+
+# Backward-compatible alias
+async def render_playlist(playlist_id: str, title: str = "Folder"):
+    return await render_folder(playlist_id, title=title)
