@@ -312,16 +312,19 @@ async def handle_forwarded(bot: Client, message: Message):
         fmsg_id = getattr(message, "forward_from_message_id", None)
         if not fchat or not fmsg_id:
             await message.reply_text("Please forward a message from a channel.")
+            message.stop_propagation()
             return
 
         if not start:
             folder_sessions[user_id]["start"] = (fchat.id, fmsg_id)
             await message.reply_text("Start saved. Now forward the END file or send the end link.")
+            message.stop_propagation()
             return
 
         start_chat, start_id = start
         if start_chat != fchat.id:
             await message.reply_text("Start and end must be from the same channel.")
+            message.stop_propagation()
             return
 
         folder_sessions.pop(user_id, None)
