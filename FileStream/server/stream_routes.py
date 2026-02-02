@@ -46,15 +46,7 @@ async def watch_handler(request: web.Request):
 
 # legacy route removed
 
-@routes.get("/folder/{folder_id}", allow_head=True)
-async def folder_handler(request: web.Request):
-    try:
-        folder_id = request.match_info["folder_id"]
-        return web.Response(text=await render_folder(folder_id, title="Folder"), content_type='text/html')
-    except FileNotFound as e:
-        raise web.HTTPNotFound(text=e.message)
-    except (AttributeError, BadStatusLine, ConnectionResetError):
-        raise web.HTTPServiceUnavailable(text="Service Unavailable")
+# /folder removed (use /folderm)
 
 @routes.get("/folderm/{folder_id}", allow_head=True)
 async def folderm_handler(request: web.Request):
