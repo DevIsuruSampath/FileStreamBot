@@ -296,8 +296,7 @@ async def start_folderm(bot: Client, message: Message):
     await message.reply_text(
         "**Folderm mode started.**\n"
         "Forward video/audio/document files one by one.\n"
-        "Send /done when finished.\n"
-        "Use /cancel to discard.",
+        "Use the buttons below when finished.",
         parse_mode=ParseMode.MARKDOWN,
         quote=True,
         reply_markup=InlineKeyboardMarkup([
@@ -363,9 +362,12 @@ async def handle_forwarded(bot: Client, message: Message):
 
     if len(folderm_sessions[user_id]) >= MAX_FOLDERM_ITEMS:
         await message.reply_text(
-            f"Folderm limit reached (**{MAX_FOLDERM_ITEMS}**). Send /done to finish.",
+            f"Folderm limit reached (**{MAX_FOLDERM_ITEMS}**).",
             parse_mode=ParseMode.MARKDOWN,
-            quote=True
+            quote=True,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Done", callback_data="folderm_done"), InlineKeyboardButton("❌ Cancel", callback_data="folderm_cancel")]
+            ])
         )
         return
 
@@ -394,7 +396,10 @@ async def handle_forwarded(bot: Client, message: Message):
         f"({humanbytes(info.get('file_size') or 0)})\n"
         f"Total: **{len(folderm_sessions[user_id])}**",
         parse_mode=ParseMode.MARKDOWN,
-        quote=True
+        quote=True,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Done", callback_data="folderm_done"), InlineKeyboardButton("❌ Cancel", callback_data="folderm_cancel")]
+        ])
     )
 
     message.stop_propagation()
