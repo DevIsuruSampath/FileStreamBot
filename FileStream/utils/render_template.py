@@ -59,7 +59,7 @@ async def render_page(db_id):
     )
 
 
-async def render_playlist(playlist_id: str, title: str = "Playlist"):
+async def render_playlist(playlist_id: str, title: str = "Folder"):
     playlist = await db.get_playlist(playlist_id)
     files = []
     seen = set()
@@ -101,7 +101,7 @@ async def render_playlist(playlist_id: str, title: str = "Playlist"):
         raise FileNotFound
 
     base_dir = os.path.dirname(os.path.dirname(__file__))  # FileStream/
-    template_file = os.path.join(base_dir, "template", "playlist.html")
+    template_file = os.path.join(base_dir, "template", "folder.html")
 
     with open(template_file, encoding="utf-8") as f:
         template = env.from_string(f.read())

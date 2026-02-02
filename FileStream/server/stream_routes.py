@@ -48,7 +48,7 @@ async def watch_handler(request: web.Request):
 async def playlist_handler(request: web.Request):
     try:
         playlist_id = request.match_info["playlist_id"]
-        return web.Response(text=await render_playlist(playlist_id, title="Playlist"), content_type='text/html')
+        return web.Response(text=await render_playlist(playlist_id, title="Folder"), content_type='text/html')
     except FileNotFound as e:
         raise web.HTTPNotFound(text=e.message)
     except (AttributeError, BadStatusLine, ConnectionResetError):
