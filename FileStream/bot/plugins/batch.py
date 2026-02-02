@@ -4,7 +4,7 @@ import time
 from pyrogram import filters, Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums.parse_mode import ParseMode
-from pyrogram.errors import FloodWait
+from pyrogram.errors import FloodWait, ChannelPrivate, UserNotParticipant, PeerIdInvalid, ChatAdminRequired, ChatWriteForbidden
 
 from FileStream.bot import FileStream, multi_clients
 from FileStream.utils.database import Database
@@ -65,6 +65,16 @@ async def build_folder_from_range(bot: Client, message: Message, user_id: int, c
         await message.reply_text("Invalid channel reference.")
         return
 
+    # Verify bot can access the channel
+    try:
+        await bot.get_chat(chat_id)
+    except (ChannelPrivate, UserNotParticipant, ChatAdminRequired, ChatWriteForbidden, PeerIdInvalid):
+        await message.reply_text("I can’t access that channel. Add the bot as admin and try again.")
+        return
+    except Exception:
+        await message.reply_text("Unable to access that channel. Please try again.")
+        return
+
     start_id, end_id = (start_id, end_id) if start_id <= end_id else (end_id, start_id)
     total = end_id - start_id + 1
 
@@ -91,6 +101,9 @@ async def build_folder_from_range(bot: Client, message: Message, user_id: int, c
         except FloodWait as e:
             await asyncio.sleep(e.value)
             msgs = await bot.get_messages(chat_id, ids)
+        except (ChannelPrivate, UserNotParticipant, ChatAdminRequired, ChatWriteForbidden, PeerIdInvalid):
+            await status.edit_text("I can’t access that channel. Add the bot as admin and try again.")
+            return
         except Exception:
             await status.edit_text("Failed to fetch messages from that channel.")
             return
@@ -145,7 +158,7 @@ async def start_folder(bot: Client, message: Message):
         start_chat = await resolve_chat_id(bot, start[0])
         end_chat = await resolve_chat_id(bot, end[0])
         if not start_chat or not end_chat:
-            await message.reply_text("Unable to resolve channel from link.")
+            await message.reply_text("Unable to access that channel. Add the bot as admin and try again.")
             return
         if start_chat != end_chat:
             await message.reply_text("Start and end links must be from the same channel.")
@@ -161,7 +174,7 @@ async def start_folder(bot: Client, message: Message):
             return
         start_chat = await resolve_chat_id(bot, start[0])
         if not start_chat:
-            await message.reply_text("Unable to resolve channel from link.")
+            await message.reply_text("Unable to access that channel. Add the bot as admin and try again.")
             return
 
         if user_id in folder_sessions and folder_sessions[user_id].get("start"):
@@ -246,7 +259,7 @@ async def folder_link_text(bot: Client, message: Message):
 
     chat_id = await resolve_chat_id(bot, parsed[0])
     if not chat_id:
-        await message.reply_text("Unable to resolve channel from link.")
+        await message.reply_text("Unable to access that channel. Add the bot as admin and try again.")
         return
 
     if not start:
@@ -312,6 +325,18 @@ async def handle_forwarded(bot: Client, message: Message):
         fmsg_id = getattr(message, "forward_from_message_id", None)
         if not fchat or not fmsg_id:
             await message.reply_text("Please forward a message from a channel.")
+            message.stop_propagation()
+            return
+
+        # Ensure bot can access channel
+        try:
+            await bot.get_chat(fchat.id)
+        except (ChannelPrivate, UserNotParticipant, ChatAdminRequired, ChatWriteForbidden, PeerIdInvalid):
+            await message.reply_text("I can’t access that channel. Add the bot as admin and try again.")
+            message.stop_propagation()
+            return
+        except Exception:
+            await message.reply_text("Unable to access that channel. Please try again.")
             message.stop_propagation()
             return
 
