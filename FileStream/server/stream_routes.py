@@ -10,7 +10,7 @@ from FileStream.bot import multi_clients, work_loads, FileStream
 from FileStream.config import Telegram, Server
 from FileStream.server.exceptions import FileNotFound, InvalidHash
 from FileStream import utils, StartTime, __version__
-from FileStream.utils.render_template import render_page, render_folder, render_playlist
+from FileStream.utils.render_template import render_page, render_folder
 
 routes = web.RouteTableDef()
 
@@ -44,15 +44,7 @@ async def watch_handler(request: web.Request):
     except (AttributeError, BadStatusLine, ConnectionResetError):
         raise web.HTTPServiceUnavailable(text="Service Unavailable")
 
-@routes.get("/playlist/{folder_id}", allow_head=True)
-async def playlist_handler(request: web.Request):
-    try:
-        folder_id = request.match_info["folder_id"]
-        return web.Response(text=await render_folder(folder_id, title="Folder"), content_type='text/html')
-    except FileNotFound as e:
-        raise web.HTTPNotFound(text=e.message)
-    except (AttributeError, BadStatusLine, ConnectionResetError):
-        raise web.HTTPServiceUnavailable(text="Service Unavailable")
+# legacy route removed
 
 @routes.get("/folder/{folder_id}", allow_head=True)
 async def folder_handler(request: web.Request):

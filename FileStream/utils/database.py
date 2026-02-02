@@ -14,7 +14,6 @@ class Database:
         self.file = self.db.file
         self.settings = self.db.settings  # <--- NEW COLLECTION
         self.folders = self.db.folders
-        self.playlists = self.db.playlists  # legacy
 
 #---------------------[ NEW USER ]---------------------#
     def new_user(self, id):
@@ -190,15 +189,5 @@ class Database:
     async def get_folder(self, folder_id: str):
         folder = await self.folders.find_one({"_id": str(folder_id)})
         if not folder:
-            # Legacy fallback
-            folder = await self.playlists.find_one({"_id": str(folder_id)})
-        if not folder:
             raise FileNotFound
         return folder
-
-    # Backward-compatible aliases
-    async def create_playlist(self, user_id: int, file_list: list[str]):
-        return await self.create_folder(user_id, file_list)
-
-    async def get_playlist(self, playlist_id: str):
-        return await self.get_folder(playlist_id)

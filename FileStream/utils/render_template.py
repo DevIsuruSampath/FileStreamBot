@@ -118,6 +118,4 @@ async def render_folder(folder_id: str, title: str = "Folder"):
     )
 
 
-# Backward-compatible alias
-async def render_playlist(playlist_id: str, title: str = "Folder"):
-    return await render_folder(playlist_id, title=title)
+# alias removed
