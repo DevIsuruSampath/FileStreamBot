@@ -42,6 +42,16 @@ def parse_tg_link(link: str):
     return chat_id, msg_id
 
 
+async def resolve_chat_id(bot: Client, chat_id):
+    if isinstance(chat_id, int):
+        return chat_id
+    try:
+        chat = await bot.get_chat(chat_id)
+        return chat.id
+    except Exception:
+        return None
+
+
 async def build_folder_from_range(bot: Client, message: Message, user_id: int, chat_id, start_id: int, end_id: int, mode: str = "folder"):
     start_id, end_id = (start_id, end_id) if start_id <= end_id else (end_id, start_id)
     total = end_id - start_id + 1
@@ -102,18 +112,58 @@ async def start_folder(bot: Client, message: Message):
         if not start or not end:
             await message.reply_text("Invalid links. Use: /folder <start_link> <end_link>")
             return
-        if start[0] != end[0]:
+        start_chat = await resolve_chat_id(bot, start[0])
+        end_chat = await resolve_chat_id(bot, end[0])
+        if not start_chat or not end_chat:
+            await message.reply_text("Unable to resolve channel from link.")
+            return
+        if start_chat != end_chat:
             await message.reply_text("Start and end links must be from the same channel.")
             return
 
-        await build_folder_from_range(bot, message, user_id, start[0], start[1], end[1], mode="folder")
+        await build_folder_from_range(bot, message, user_id, start_chat, start[1], end[1], mode="folder")
+        return
+
+    if len(parts) == 2:
+        start = parse_tg_link(parts[1])
+        if not start:
+            await message.reply_text("Invalid link. Use: /folder <start_link> <end_link>")
+            return
+        start_chat = await resolve_chat_id(bot, start[0])
+        if not start_chat:
+            await message.reply_text("Unable to resolve channel from link.")
+            return
+
+        if user_id in folder_sessions and folder_sessions[user_id].get("start"):
+            prev_chat, prev_id = folder_sessions[user_id]["start"]
+            if prev_chat != start_chat:
+                await message.reply_text("Start and end links must be from the same channel.")
+                return
+            folder_sessions.pop(user_id, None)
+            await build_folder_from_range(bot, message, user_id, start_chat, prev_id, start[1], mode="folder")
+            return
+
+        folder_sessions[user_id] = {"start": (start_chat, start[1])}
+        await message.reply_text(
+            "Start saved. Now forward the END file or send /folder <end_link>.",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+        return
+
+    if user_id in folder_sessions and folder_sessions[user_id].get("start"):
+        await message.reply_text(
+            "Start already set. Now forward the END file or send /folder <end_link>.",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
         return
 
     folder_sessions[user_id] = {"start": None}
     await message.reply_text(
         "**Folder mode started.**\n"
-        "Forward the **START** file, then the **END** file.\n"
-        "Or use: /folder <start_link> <end_link>\n"
+        "Forward the **START** file or send /folder <start_link>.\n"
+        "Then forward the **END** file or send /folder <end_link>.\n"
         "Use /cancel to discard.",
         parse_mode=ParseMode.MARKDOWN,
         quote=True
@@ -172,7 +222,7 @@ async def handle_forwarded(bot: Client, message: Message):
 
         if not start:
             folder_sessions[user_id]["start"] = (fchat.id, fmsg_id)
-            await message.reply_text("Start saved. Now forward the END file.")
+            await message.reply_text("Start saved. Now forward the END file or send /folder <end_link>.")
             return
 
         start_chat, start_id = start
