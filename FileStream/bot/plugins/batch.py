@@ -14,7 +14,7 @@ from FileStream.config import Telegram, Server
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
 # Manual folder sessions (old /batch)
-folderm_sessions: dict[int, list[str]] = {}
+folderm_sessions: dict[int, dict] = {}
 MAX_FOLDERM_ITEMS = 100
 
 
@@ -24,24 +24,67 @@ def _folderm_buttons():
     ])
 
 
+def _get_session(user_id: int) -> dict | None:
+    session = folderm_sessions.get(user_id)
+    if not session:
+        return None
+    if not isinstance(session, dict):
+        session = {"files": list(session), "status_msg_id": None, "chat_id": None, "lock": asyncio.Lock()}
+        folderm_sessions[user_id] = session
+    session.setdefault("files", [])
+    if "lock" not in session or session["lock"] is None:
+        session["lock"] = asyncio.Lock()
+    return session
+
+
+async def _update_progress(bot: Client, message: Message, session: dict, text: str):
+    chat_id = session.get("chat_id") or message.chat.id
+    msg_id = session.get("status_msg_id")
+    if msg_id:
+        try:
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=msg_id,
+                text=text,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=_folderm_buttons(),
+            )
+            return
+        except Exception:
+            pass
+    # fallback: send a new message and track it
+    msg = await message.reply_text(
+        text,
+        parse_mode=ParseMode.MARKDOWN,
+        quote=True,
+        reply_markup=_folderm_buttons()
+    )
+    session["status_msg_id"] = msg.id
+    session["chat_id"] = chat_id
+
+
 @FileStream.on_message(filters.command(["folder"]) & filters.private)
 async def start_folderm(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
 
     user_id = message.from_user.id
-    if user_id in folderm_sessions:
-        await message.reply_text(
-            f"Folder already active with **{len(folderm_sessions[user_id])}** files.\n"
+    session = _get_session(user_id)
+    if session:
+        total = len(session.get("files") or [])
+        msg = await message.reply_text(
+            f"Folder already active with **{total}** files.\n"
             "Use the buttons below.",
             parse_mode=ParseMode.MARKDOWN,
             quote=True,
             reply_markup=_folderm_buttons()
         )
+        session["status_msg_id"] = msg.id
+        session["chat_id"] = message.chat.id
         return
 
-    folderm_sessions[user_id] = []
-    await message.reply_text(
+    folderm_sessions[user_id] = {"files": [], "status_msg_id": None, "chat_id": message.chat.id, "lock": asyncio.Lock()}
+    msg = await message.reply_text(
         "**Folder mode started.**\n"
         "Send or forward video/audio/document/photo/voice/animation/video_note files one by one.\n"
         "Use the buttons below when finished.",
@@ -49,6 +92,7 @@ async def start_folderm(bot: Client, message: Message):
         quote=True,
         reply_markup=_folderm_buttons()
     )
+    folderm_sessions[user_id]["status_msg_id"] = msg.id
 
 
 @FileStream.on_message(
@@ -61,52 +105,57 @@ async def handle_forwarded(bot: Client, message: Message):
         return
 
     user_id = message.from_user.id
-    if user_id not in folderm_sessions:
+    session = _get_session(user_id)
+    if not session:
         return
 
-    if len(folderm_sessions[user_id]) >= MAX_FOLDERM_ITEMS:
-        await message.reply_text(
-            f"Folder limit reached (**{MAX_FOLDERM_ITEMS}**).",
-            parse_mode=ParseMode.MARKDOWN,
-            quote=True,
-            reply_markup=_folderm_buttons()
+    async with session["lock"]:
+        files = session.get("files") or []
+
+        if len(files) >= MAX_FOLDERM_ITEMS:
+            await _update_progress(
+                bot,
+                message,
+                session,
+                f"Folder limit reached (**{MAX_FOLDERM_ITEMS}**).",
+            )
+            message.stop_propagation()
+            return
+
+        info = get_file_info(message)
+        if not info:
+            message.stop_propagation()
+            return
+
+        inserted_id = await db.add_file(info)
+        try:
+            await get_file_ids(False, inserted_id, multi_clients, message)
+        except Exception:
+            pass
+
+        item_id = str(inserted_id)
+        if item_id in files:
+            await _update_progress(
+                bot,
+                message,
+                session,
+                f"⚠️ Already added **{info.get('file_name', 'file')}**.\nTotal: **{len(files)}**",
+            )
+            message.stop_propagation()
+            return
+
+        files.append(item_id)
+        session["files"] = files
+        await _update_progress(
+            bot,
+            message,
+            session,
+            f"✅ Added **{info.get('file_name', 'file')}** "
+            f"({humanbytes(info.get('file_size') or 0)})\n"
+            f"Total: **{len(files)}**",
         )
+
         message.stop_propagation()
-        return
-
-    info = get_file_info(message)
-    if not info:
-        message.stop_propagation()
-        return
-
-    inserted_id = await db.add_file(info)
-    try:
-        await get_file_ids(False, inserted_id, multi_clients, message)
-    except Exception:
-        pass
-
-    item_id = str(inserted_id)
-    if item_id in folderm_sessions[user_id]:
-        await message.reply_text(
-            f"⚠️ Already added **{info.get('file_name', 'file')}**.",
-            parse_mode=ParseMode.MARKDOWN,
-            quote=True,
-            reply_markup=_folderm_buttons()
-        )
-        message.stop_propagation()
-        return
-
-    folderm_sessions[user_id].append(item_id)
-    await message.reply_text(
-        f"✅ Added **{info.get('file_name', 'file')}** "
-        f"({humanbytes(info.get('file_size') or 0)})\n"
-        f"Total: **{len(folderm_sessions[user_id])}**",
-        parse_mode=ParseMode.MARKDOWN,
-        quote=True,
-        reply_markup=_folderm_buttons()
-    )
-
-    message.stop_propagation()
 
 
 @FileStream.on_callback_query(filters.regex(r"^folder(m)?_(done|cancel)$"))
@@ -136,7 +185,8 @@ async def finish_folderm(bot: Client, message: Message, user_id: int | None = No
             return
         user_id = message.from_user.id
 
-    file_list = folderm_sessions.get(user_id)
+    session = _get_session(user_id)
+    file_list = (session or {}).get("files")
     if not file_list:
         folderm_sessions.pop(user_id, None)
         await message.reply_text(

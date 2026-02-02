@@ -220,6 +220,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
             await cq.answer("Invalid")
             return
         folder_id = data[2]
+        page = int(data[3])
         rename_pending[user_id] = {
             "folder_id": folder_id,
             "page": page,
