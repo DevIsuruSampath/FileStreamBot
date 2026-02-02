@@ -190,6 +190,10 @@ async def send_file(client: Client, db_id, file_id: str, message=None, file_name
         caption=f"<b>{safe_caption}</b>",
         parse_mode=ParseMode.HTML,
     )
+    try:
+        await db.update_file_flog_msg(db_id, log_msg.id)
+    except Exception:
+        pass
 
     if message and message.chat:
         if message.chat.type == ChatType.PRIVATE and message.from_user:

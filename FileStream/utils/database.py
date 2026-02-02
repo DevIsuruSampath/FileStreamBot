@@ -135,6 +135,12 @@ class Database:
             await self.file.update_one({"_id": ObjectId(_id)}, {"$set": {"file_ids": file_ids}})
         except InvalidId:
             return
+
+    async def update_file_flog_msg(self, _id, msg_id: int):
+        try:
+            await self.file.update_one({"_id": ObjectId(_id)}, {"$set": {"flog_msg_id": int(msg_id)}})
+        except Exception:
+            return
         
     async def count_links(self, id, operation: str):
         if operation == "-":

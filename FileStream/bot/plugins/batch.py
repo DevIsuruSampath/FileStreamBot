@@ -32,6 +32,7 @@ def _get_session(user_id: int) -> dict | None:
     if not isinstance(session, dict):
         session = {
             "files": list(session),
+            "new_files": [],
             "status_msg_id": None,
             "chat_id": None,
             "lock": asyncio.Lock(),
@@ -39,6 +40,7 @@ def _get_session(user_id: int) -> dict | None:
         }
         folderm_sessions[user_id] = session
     session.setdefault("files", [])
+    session.setdefault("new_files", [])
     session.setdefault("update_count", 0)
     if "lock" not in session or session["lock"] is None:
         session["lock"] = asyncio.Lock()
@@ -105,6 +107,7 @@ async def start_folderm(bot: Client, message: Message):
 
     folderm_sessions[user_id] = {
         "files": [],
+        "new_files": [],
         "status_msg_id": None,
         "chat_id": message.chat.id,
         "lock": asyncio.Lock(),
@@ -153,11 +156,30 @@ async def handle_forwarded(bot: Client, message: Message):
             message.stop_propagation()
             return
 
-        inserted_id = await db.add_file(info)
-        try:
-            await get_file_ids(False, inserted_id, multi_clients, message)
-        except Exception:
-            pass
+        file_unique_id = info.get("file_unique_id")
+        existing = None
+        if file_unique_id:
+            try:
+                existing = await db.get_file_by_fileuniqueid(user_id, file_unique_id)
+            except Exception:
+                existing = None
+
+        if existing:
+            inserted_id = existing["_id"]
+            # Ensure cached ids only if missing
+            if not existing.get("file_ids"):
+                try:
+                    await get_file_ids(False, inserted_id, multi_clients, message)
+                except Exception:
+                    pass
+            is_new = False
+        else:
+            inserted_id = await db.add_file(info)
+            try:
+                await get_file_ids(False, inserted_id, multi_clients, message)
+            except Exception:
+                pass
+            is_new = True
 
         item_id = str(inserted_id)
         if item_id in files:
@@ -172,6 +194,8 @@ async def handle_forwarded(bot: Client, message: Message):
 
         files.append(item_id)
         session["files"] = files
+        if is_new:
+            session["new_files"].append(item_id)
         await _update_progress(
             bot,
             message,
@@ -246,6 +270,32 @@ async def cancel_folderm(bot: Client, message: Message, user_id: int | None = No
         user_id = message.from_user.id
 
     if user_id in folderm_sessions:
+        session = _get_session(user_id) or {}
+        new_files = list(session.get("new_files") or [])
+        # delete progress message if exists
+        try:
+            if session.get("chat_id") and session.get("status_msg_id"):
+                await bot.delete_messages(chat_id=session["chat_id"], message_ids=session["status_msg_id"])
+        except Exception:
+            pass
+
+        for fid in new_files:
+            try:
+                file_info = await db.get_file(fid)
+            except Exception:
+                continue
+            # delete FLOG message if available
+            try:
+                if Telegram.FLOG_CHANNEL and file_info.get("flog_msg_id"):
+                    await bot.delete_messages(Telegram.FLOG_CHANNEL, int(file_info["flog_msg_id"]))
+            except Exception:
+                pass
+            try:
+                await db.delete_one_file(file_info["_id"])
+                await db.count_links(user_id, "-")
+            except Exception:
+                pass
+
         folderm_sessions.pop(user_id, None)
         await message.reply_text("Folder cancelled.", parse_mode=ParseMode.MARKDOWN, quote=True)
         return
