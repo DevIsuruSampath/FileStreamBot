@@ -16,6 +16,7 @@ db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 # Manual folder sessions (old /batch)
 folderm_sessions: dict[int, dict] = {}
 MAX_FOLDERM_ITEMS = 100
+PROGRESS_REFRESH_EVERY = 5  # edit N times, then resend to keep it near bottom
 
 
 def _folderm_buttons():
@@ -29,9 +30,16 @@ def _get_session(user_id: int) -> dict | None:
     if not session:
         return None
     if not isinstance(session, dict):
-        session = {"files": list(session), "status_msg_id": None, "chat_id": None, "lock": asyncio.Lock()}
+        session = {
+            "files": list(session),
+            "status_msg_id": None,
+            "chat_id": None,
+            "lock": asyncio.Lock(),
+            "update_count": 0,
+        }
         folderm_sessions[user_id] = session
     session.setdefault("files", [])
+    session.setdefault("update_count", 0)
     if "lock" not in session or session["lock"] is None:
         session["lock"] = asyncio.Lock()
     return session
@@ -40,15 +48,30 @@ def _get_session(user_id: int) -> dict | None:
 async def _update_progress(bot: Client, message: Message, session: dict, text: str):
     chat_id = session.get("chat_id") or message.chat.id
     msg_id = session.get("status_msg_id")
+    update_count = session.get("update_count", 0)
 
-    # Delete previous progress message to keep only one visible
+    # Try edit for a few updates to be "live", then resend to keep it near bottom
+    if msg_id and update_count < PROGRESS_REFRESH_EVERY:
+        try:
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=msg_id,
+                text=text,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=_folderm_buttons(),
+            )
+            session["update_count"] = update_count + 1
+            return
+        except Exception:
+            pass
+
+    # Resend (and delete old) to keep it near bottom
     if msg_id:
         try:
             await bot.delete_messages(chat_id=chat_id, message_ids=msg_id)
         except Exception:
             pass
 
-    # Send a fresh progress message (stays at bottom)
     msg = await message.reply_text(
         text,
         parse_mode=ParseMode.MARKDOWN,
@@ -57,6 +80,7 @@ async def _update_progress(bot: Client, message: Message, session: dict, text: s
     )
     session["status_msg_id"] = msg.id
     session["chat_id"] = chat_id
+    session["update_count"] = 0
 
 
 @FileStream.on_message(filters.command(["folder"]) & filters.private)
@@ -79,7 +103,13 @@ async def start_folderm(bot: Client, message: Message):
         session["chat_id"] = message.chat.id
         return
 
-    folderm_sessions[user_id] = {"files": [], "status_msg_id": None, "chat_id": message.chat.id, "lock": asyncio.Lock()}
+    folderm_sessions[user_id] = {
+        "files": [],
+        "status_msg_id": None,
+        "chat_id": message.chat.id,
+        "lock": asyncio.Lock(),
+        "update_count": 0,
+    }
     msg = await message.reply_text(
         "**Folder mode started.**\n"
         "Send or forward video/audio/document/photo/voice/animation/video_note files one by one.\n"
