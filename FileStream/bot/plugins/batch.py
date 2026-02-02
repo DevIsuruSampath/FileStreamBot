@@ -196,12 +196,15 @@ async def finish_folderm(bot: Client, message: Message, user_id: int | None = No
         )
         return
 
+    total_files = len(file_list)
     folder_id = await db.create_folder(user_id, file_list)
     folderm_sessions.pop(user_id, None)
 
     link = f"{Server.URL}folder/{folder_id}"
     await message.reply_text(
-        f"✅ Folder created!\n\n{link}",
+        f"✅ Folder created!\n"
+        f"Total files: **{total_files}**\n\n"
+        f"{link}",
         parse_mode=ParseMode.MARKDOWN,
         disable_web_page_preview=True,
         quote=True,
