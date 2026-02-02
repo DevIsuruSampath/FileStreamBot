@@ -30,9 +30,11 @@
                     </div>
                     <span class="text-white font-bold text-lg tracking-tight">StreamBot</span>
                 </div>
-                <a href="https://t.me/YourChannel" class="text-xs font-semibold bg-white/5 hover:bg-white/10 border border-white/10 text-white px-4 py-2 rounded-lg transition-all whitespace-nowrap">
+                {% if updates_url %}
+                <a href="{{ updates_url }}" class="text-xs font-semibold bg-white/5 hover:bg-white/10 border border-white/10 text-white px-4 py-2 rounded-lg transition-all whitespace-nowrap">
                     Join Channel
                 </a>
+                {% endif %}
             </div>
         </div>
     </nav>
@@ -109,30 +111,36 @@
             settings: ['captions', 'quality', 'speed', 'loop'],
         });
 
-        const fileUrl = '{{file_url}}';
+        const fileUrl = {{ file_url | tojson }};
+        const fileName = {{ file_name | tojson }};
 
-        function copyLink() {
-            navigator.clipboard.writeText(fileUrl).then(() => {
-                const btn = document.getElementById('copyBtn');
-                const originalHTML = btn.innerHTML;
-                btn.innerHTML = `<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Copied!`;
-                btn.classList.add('text-green-400', 'bg-green-400/10');
-                
-                setTimeout(() => {
-                    btn.innerHTML = originalHTML;
-                    btn.classList.remove('text-green-400', 'bg-green-400/10');
-                }, 2000);
-            });
+        async function copyLink() {
+            const btn = document.getElementById('copyBtn');
+            const originalHTML = btn.innerHTML;
+            try {
+                await navigator.clipboard.writeText(fileUrl);
+            } catch (e) {
+                window.prompt('Copy this link:', fileUrl);
+            }
+            btn.innerHTML = `<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Copied!`;
+            btn.classList.add('text-green-400', 'bg-green-400/10');
+
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('text-green-400', 'bg-green-400/10');
+            }, 2000);
         }
 
         function openPlayer(app) {
             let scheme = '';
+            const safeUrl = encodeURI(fileUrl);
+            const safeTitle = encodeURIComponent(fileName);
             // Intent schemes for Android Apps
             switch(app) {
-                case 'vlc': scheme = `vlc://${fileUrl}`; break;
-                case 'mx': scheme = `intent:${fileUrl}#Intent;package=com.mxtech.videoplayer.ad;S.title={{file_name}};end`; break;
-                case 'nplayer': scheme = `nplayer-${fileUrl}`; break;
-                case 'km': scheme = `intent:${fileUrl}#Intent;package=com.kmplayer;end`; break;
+                case 'vlc': scheme = `vlc://${safeUrl}`; break;
+                case 'mx': scheme = `intent:${safeUrl}#Intent;package=com.mxtech.videoplayer.ad;S.title=${safeTitle};end`; break;
+                case 'nplayer': scheme = `nplayer-${safeUrl}`; break;
+                case 'km': scheme = `intent:${safeUrl}#Intent;package=com.kmplayer;end`; break;
             }
             if(scheme) window.location.href = scheme;
         }

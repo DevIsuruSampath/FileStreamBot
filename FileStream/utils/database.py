@@ -60,10 +60,10 @@ class Database:
 
     async def ban_user(self, id):
         user = self.black_user(id)
-        await self.black.insert_one(user)
+        await self.black.update_one({"id": int(id)}, {"$setOnInsert": user}, upsert=True)
 
     async def unban_user(self, id):
-        await self.black.delete_one({'id': int(id)})
+        await self.black.delete_many({'id': int(id)})
 
     async def is_user_banned(self, id):
         user = await self.black.find_one({'id': int(id)})

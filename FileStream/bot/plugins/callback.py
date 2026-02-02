@@ -29,6 +29,13 @@ async def edit_message(update: CallbackQuery, text: str, reply_markup=None, pars
             disable_web_page_preview=disable_web_page_preview,
         )
 
+
+def _is_owner(file_info: dict, user_id: int) -> bool:
+    try:
+        return int(file_info.get("user_id")) == int(user_id)
+    except Exception:
+        return False
+
 #---------------------[ START CMD ]---------------------#
 @FileStream.on_callback_query(
     filters.regex(r"^(home|help|about|N/A|close|msgdelete_|msgdelyes_|msgdelpvt_|msgdelpvtyes_|mainstream_|userfiles_|myfile_|sendfile_)")
@@ -148,6 +155,9 @@ async def cb_data(bot, update: CallbackQuery):
         except FileNotFound:
             await update.answer("File Not Found")
             return
+        if not _is_owner(myfile, update.from_user.id):
+            await update.answer("Unauthorized", show_alert=True)
+            return
         file_name = myfile.get('file_name') or "file"
         await update.answer(f"Sending File {file_name}")
         safe_name = html.escape(file_name)
@@ -170,6 +180,10 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
         myfile_info=await db.get_file(_id)
     except FileNotFound:
         await update.answer("File Not Found")
+        return
+
+    if not _is_owner(myfile_info, update.from_user.id):
+        await update.answer("Unauthorized", show_alert=True)
         return
 
     file_id=FileId.decode(myfile_info['file_id'])
@@ -233,13 +247,20 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     else:
         readable_time = TiMe
 
+    safe_name = html.escape(myfile_info.get('file_name') or "file")
+    safe_type = html.escape(file_type)
+    safe_time = html.escape(str(readable_time))
+
     await edit_message(
         update,
-        "**File Name :** `{}`\n**File Size :** `{}`\n**File Type :** `{}`\n**Created On :** `{}`".format(myfile_info['file_name'],
-                                                                                                        humanbytes(int(myfile_info['file_size'])),
-                                                                                                        file_type,
-                                                                                                        readable_time),
-        MYFILES_BUTTONS
+        "<b>File Name :</b> <code>{}</code>\n<b>File Size :</b> <code>{}</code>\n<b>File Type :</b> <code>{}</code>\n<b>Created On :</b> <code>{}</code>".format(
+            safe_name,
+            humanbytes(int(myfile_info.get('file_size') or 0)),
+            safe_type,
+            safe_time,
+        ),
+        MYFILES_BUTTONS,
+        parse_mode=ParseMode.HTML,
     )
 
 
@@ -249,6 +270,10 @@ async def delete_user_file(_id, file_list_no: int, update:CallbackQuery):
         myfile_info=await db.get_file(_id)
     except FileNotFound:
         await update.answer("File Already Deleted")
+        return
+
+    if not _is_owner(myfile_info, update.from_user.id):
+        await update.answer("Unauthorized", show_alert=True)
         return
 
     await db.delete_one_file(myfile_info['_id'])
@@ -268,6 +293,10 @@ async def delete_user_filex(_id, update:CallbackQuery):
         myfile_info=await db.get_file(_id)
     except FileNotFound:
         await update.answer("File Already Deleted")
+        return
+
+    if not _is_owner(myfile_info, update.from_user.id):
+        await update.answer("Unauthorized", show_alert=True)
         return
 
     await db.delete_one_file(myfile_info['_id'])

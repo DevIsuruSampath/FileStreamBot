@@ -50,12 +50,16 @@ async def render_page(db_id):
 
     resolved_mime = mime_type or ("audio/mpeg" if is_audio else "video/mp4")
 
+    updates_channel = (Telegram.UPDATES_CHANNEL or "").lstrip("@").strip()
+    updates_url = f"https://t.me/{updates_channel}" if updates_channel else None
+
     return template.render(
         file_name=file_name,
         file_url=src,
         file_size=file_size,
         mime_type=resolved_mime,
         is_audio=is_audio,
+        updates_url=updates_url,
     )
 
 

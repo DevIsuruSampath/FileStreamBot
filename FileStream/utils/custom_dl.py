@@ -158,50 +158,50 @@ class ByteStreamer:
         Thanks to Eyaadh <https://github.com/eyaadh>
         """
         client = self.client
-        work_loads[index] += 1
+        work_loads[index] = work_loads.get(index, 0) + 1
         logging.debug(f"Starting to yielding file with client {index}.")
-        media_session = await self.generate_media_session(client, file_id)
-
-        current_part = 1
-
-        location = await self.get_location(file_id)
 
         try:
-            r = await media_session.invoke(
-                raw.functions.upload.GetFile(
-                    location=location, offset=offset, limit=chunk_size
-                ),
-            )
-            if isinstance(r, raw.types.upload.File):
-                while True:
-                    chunk = r.bytes
-                    if not chunk:
-                        break
-                    elif part_count == 1:
-                        yield chunk[first_part_cut:last_part_cut]
-                    elif current_part == 1:
-                        yield chunk[first_part_cut:]
-                    elif current_part == part_count:
-                        yield chunk[:last_part_cut]
-                    else:
-                        yield chunk
+            media_session = await self.generate_media_session(client, file_id)
+            current_part = 1
+            location = await self.get_location(file_id)
 
-                    current_part += 1
-                    offset += chunk_size
+            try:
+                r = await media_session.invoke(
+                    raw.functions.upload.GetFile(
+                        location=location, offset=offset, limit=chunk_size
+                    ),
+                )
+                if isinstance(r, raw.types.upload.File):
+                    while True:
+                        chunk = r.bytes
+                        if not chunk:
+                            break
+                        elif part_count == 1:
+                            yield chunk[first_part_cut:last_part_cut]
+                        elif current_part == 1:
+                            yield chunk[first_part_cut:]
+                        elif current_part == part_count:
+                            yield chunk[:last_part_cut]
+                        else:
+                            yield chunk
 
-                    if current_part > part_count:
-                        break
+                        current_part += 1
+                        offset += chunk_size
 
-                    r = await media_session.invoke(
-                        raw.functions.upload.GetFile(
-                            location=location, offset=offset, limit=chunk_size
-                        ),
-                    )
-        except (TimeoutError, AttributeError):
-            pass
+                        if current_part > part_count:
+                            break
+
+                        r = await media_session.invoke(
+                            raw.functions.upload.GetFile(
+                                location=location, offset=offset, limit=chunk_size
+                            ),
+                        )
+            except (TimeoutError, AttributeError):
+                pass
         finally:
-            logging.debug(f"Finished yielding file with {current_part} parts.")
-            work_loads[index] -= 1
+            logging.debug(f"Finished yielding file with {locals().get('current_part', 0)} parts.")
+            work_loads[index] = max(work_loads.get(index, 1) - 1, 0)
 
     
     async def clean_cache(self) -> None:

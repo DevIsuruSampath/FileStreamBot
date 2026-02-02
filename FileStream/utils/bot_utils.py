@@ -52,9 +52,18 @@ async def is_user_joined(bot, message: Message):
     except UserNotParticipant:
         invite_link = await get_invite_link(bot, chat_id=channel_chat_id)
         join_markup = None
+        join_url = None
         if invite_link and getattr(invite_link, "invite_link", None):
+            join_url = invite_link.invite_link
+        else:
+            # Fallback to public channel link if available
+            if isinstance(channel_chat_id, str) and channel_chat_id and not channel_chat_id.lstrip("-").isdigit():
+                join_url = f"https://t.me/{channel_chat_id.lstrip('@')}"
+            elif Telegram.UPDATES_CHANNEL:
+                join_url = f"https://t.me/{str(Telegram.UPDATES_CHANNEL).lstrip('@')}"
+        if join_url:
             join_markup = InlineKeyboardMarkup(
-                [[InlineKeyboardButton("❆ Jᴏɪɴ Oᴜʀ Cʜᴀɴɴᴇʟ ❆", url=invite_link.invite_link)]]
+                [[InlineKeyboardButton("❆ Jᴏɪɴ Oᴜʀ Cʜᴀɴɴᴇʟ ❆", url=join_url)]]
             )
 
         if Telegram.VERIFY_PIC:

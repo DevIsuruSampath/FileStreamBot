@@ -86,8 +86,53 @@ async def dl_handler(request: web.Request):
 
 class_cache = {}
 
+
+def _sanitize_filename(name: str) -> str:
+    if not isinstance(name, str):
+        name = str(name or "")
+    # Remove control chars and path separators
+    name = name.replace("\x00", " ").replace("\n", " ").replace("\r", " ")
+    name = name.replace("/", " ").replace("\\", " ").replace('"', "")
+    name = "".join(ch for ch in name if ch.isprintable())
+    name = " ".join(name.split()).strip()
+    if not name:
+        return "file"
+    if len(name) > 150:
+        name = name[:150]
+    return name
+
+
+def _parse_range(range_header: str, file_size: int):
+    if not range_header:
+        return None
+    header = range_header.strip().lower()
+    if not header.startswith("bytes="):
+        return False
+    # Only support a single range; ignore extras
+    range_spec = header.split("=", 1)[1].split(",", 1)[0].strip()
+    if "-" not in range_spec:
+        return False
+    start_str, end_str = range_spec.split("-", 1)
+    if start_str == "" and end_str == "":
+        return False
+    try:
+        if start_str == "":
+            # suffix range: last N bytes
+            length = int(end_str)
+            if length <= 0:
+                return False
+            start = max(file_size - length, 0)
+            end = file_size - 1
+        else:
+            start = int(start_str)
+            end = int(end_str) if end_str else file_size - 1
+    except ValueError:
+        return False
+    return start, end
+
+
 async def media_streamer(request: web.Request, db_id: str):
-    range_header = request.headers.get("Range", 0)
+    range_header = request.headers.get("Range")
 
     if not work_loads:
         raise web.HTTPServiceUnavailable(text="No available clients")
@@ -115,23 +160,19 @@ async def media_streamer(request: web.Request, db_id: str):
         raise web.HTTPNotFound(text="File not found")
 
     if range_header:
-        # Standard parsing for "bytes=START-END"
-        try:
-            from_bytes, until_bytes = range_header.replace("bytes=", "").split("-")
-
-            # Suffix range support: bytes=-500 (last 500 bytes)
-            if from_bytes == "" and until_bytes:
-                length = int(until_bytes)
-                from_bytes = max(file_size - length, 0)
-                until_bytes = file_size - 1
-            else:
-                from_bytes = int(from_bytes)
-                until_bytes = int(until_bytes) if until_bytes else file_size - 1
-        except ValueError:
-            # Invalid range header -> treat as full content
-            range_header = None
+        parsed = _parse_range(range_header, file_size)
+        if parsed is False:
+            return web.Response(
+                status=416,
+                body="416: Range not satisfiable",
+                headers={"Content-Range": f"bytes */{file_size}"},
+            )
+        if parsed is None:
             from_bytes = 0
             until_bytes = file_size - 1
+            range_header = None
+        else:
+            from_bytes, until_bytes = parsed
     else:
         from_bytes = 0
         until_bytes = file_size - 1
@@ -159,13 +200,7 @@ async def media_streamer(request: web.Request, db_id: str):
         )
 
     mime_type = (file_id.mime_type or "").strip()
-    file_name = utils.get_name(file_id)
-    # Basic header safety
-    file_name = file_name.replace('"', '').replace('\n', ' ').replace('\r', ' ')
-    if len(file_name) > 150:
-        file_name = file_name[:150]
-    if not file_name:
-        file_name = "file"
+    file_name = _sanitize_filename(utils.get_name(file_id))
 
     # RFC 5987 filename* fallback for non-ASCII names
     from urllib.parse import quote
