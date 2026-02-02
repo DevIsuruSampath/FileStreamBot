@@ -40,19 +40,15 @@ def _get_session(user_id: int) -> dict | None:
 async def _update_progress(bot: Client, message: Message, session: dict, text: str):
     chat_id = session.get("chat_id") or message.chat.id
     msg_id = session.get("status_msg_id")
+
+    # Delete previous progress message to keep only one visible
     if msg_id:
         try:
-            await bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=msg_id,
-                text=text,
-                parse_mode=ParseMode.MARKDOWN,
-                reply_markup=_folderm_buttons(),
-            )
-            return
+            await bot.delete_messages(chat_id=chat_id, message_ids=msg_id)
         except Exception:
             pass
-    # fallback: send a new message and track it
+
+    # Send a fresh progress message (stays at bottom)
     msg = await message.reply_text(
         text,
         parse_mode=ParseMode.MARKDOWN,
