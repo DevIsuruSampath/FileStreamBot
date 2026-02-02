@@ -11,6 +11,7 @@ from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.shortener import shorten
 from FileStream.server.exceptions import FileNotFound
+from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.file_id import FileId, FileType, PHOTO_TYPES
 from pyrogram.enums.parse_mode import ParseMode
@@ -29,15 +30,13 @@ async def edit_message(update: CallbackQuery, text: str, reply_markup=None, pars
         )
 
 #---------------------[ START CMD ]---------------------#
-@FileStream.on_callback_query()
+@FileStream.on_callback_query(
+    filters.regex(r"^(home|help|about|N/A|close|msgdelete_|msgdelyes_|msgdelpvt_|msgdelpvtyes_|mainstream_|userfiles_|myfile_|sendfile_)")
+)
 async def cb_data(bot, update: CallbackQuery):
     try:
         data = update.data or ""
     except Exception:
-        return
-
-    # Let other handlers process these
-    if data.startswith("fld:") or data.startswith("folderm_"):
         return
 
     try:
