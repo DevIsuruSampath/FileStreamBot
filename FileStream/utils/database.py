@@ -181,6 +181,7 @@ class Database:
             "_id": folder_id,
             "user_id": int(user_id),
             "files": unique_files,
+            "title": None,
             "created_at": time.time(),
         }
         await self.folders.insert_one(doc)
@@ -191,3 +192,38 @@ class Database:
         if not folder:
             raise FileNotFound
         return folder
+
+    async def get_folder_for_user(self, folder_id: str, user_id: int):
+        folder = await self.folders.find_one({"_id": str(folder_id), "user_id": int(user_id)})
+        if not folder:
+            raise FileNotFound
+        return folder
+
+    async def list_folders(self, user_id: int, range):
+        start, end = range
+        if start > end:
+            return self.folders.find({"_id": None}), 0
+        folders = (
+            self.folders.find({"user_id": int(user_id)})
+            .sort('_id', pymongo.DESCENDING)
+            .skip(start - 1)
+            .limit(end - start + 1)
+        )
+        total = await self.folders.count_documents({"user_id": int(user_id)})
+        return folders, total
+
+    async def total_folders(self, user_id: int):
+        return await self.folders.count_documents({"user_id": int(user_id)})
+
+    async def update_folder_title(self, folder_id: str, user_id: int, title: str):
+        res = await self.folders.update_one(
+            {"_id": str(folder_id), "user_id": int(user_id)},
+            {"$set": {"title": title}}
+        )
+        if res.matched_count == 0:
+            raise FileNotFound
+
+    async def delete_folder(self, folder_id: str, user_id: int):
+        res = await self.folders.delete_one({"_id": str(folder_id), "user_id": int(user_id)})
+        if res.deleted_count == 0:
+            raise FileNotFound
