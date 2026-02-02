@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import logging
+import html
 from datetime import datetime
 from pyrogram import Client
 from typing import Any, Optional
@@ -175,21 +176,40 @@ async def send_file(client: Client, db_id, file_id: str, message=None, file_name
     else:
         file_caption = file_name or "file"
 
+    if not isinstance(file_caption, str):
+        file_caption = str(file_caption)
+    file_caption = file_caption.replace("\n", " ").replace("\r", " ")
+    if len(file_caption) > 1000:
+        file_caption = file_caption[:1000] + "…"
+
+    safe_caption = html.escape(file_caption)
+
     log_msg = await client.send_cached_media(
         chat_id=Telegram.FLOG_CHANNEL,
         file_id=file_id,
-        caption=f'**{file_caption}**'
+        caption=f"<b>{safe_caption}</b>",
+        parse_mode=ParseMode.HTML,
     )
 
     if message and message.chat:
-        if message.chat.type == ChatType.PRIVATE:
+        if message.chat.type == ChatType.PRIVATE and message.from_user:
+            name = html.escape(message.from_user.first_name or "User")
             await log_msg.reply_text(
-                text=f"**RᴇQᴜᴇꜱᴛᴇᴅ ʙʏ :** [{message.from_user.first_name}](tg://user?id={message.from_user.id})\n**Uꜱᴇʀ ɪᴅ :** `{message.from_user.id}`\n**Fɪʟᴇ ɪᴅ :** `{db_id}`",
-                disable_web_page_preview=True, parse_mode=ParseMode.MARKDOWN, quote=True)
+                text=(
+                    f"<b>RᴇQᴜᴇꜱᴛᴇᴅ ʙʏ :</b> <a href='tg://user?id={message.from_user.id}'>{name}</a>\n"
+                    f"<b>Uꜱᴇʀ ɪᴅ :</b> <code>{message.from_user.id}</code>\n"
+                    f"<b>Fɪʟᴇ ɪᴅ :</b> <code>{db_id}</code>"
+                ),
+                disable_web_page_preview=True, parse_mode=ParseMode.HTML, quote=True)
         else:
+            title = html.escape(message.chat.title or "Channel")
             await log_msg.reply_text(
-                text=f"**RᴇQᴜᴇꜱᴛᴇᴅ ʙʏ :** {message.chat.title} \n**Cʜᴀɴɴᴇʟ ɪᴅ :** `{message.chat.id}`\n**Fɪʟᴇ ɪᴅ :** `{db_id}`",
-                disable_web_page_preview=True, parse_mode=ParseMode.MARKDOWN, quote=True)
+                text=(
+                    f"<b>RᴇQᴜᴇꜱᴛᴇᴅ ʙʏ :</b> {title}\n"
+                    f"<b>Cʜᴀɴɴᴇʟ ɪᴅ :</b> <code>{message.chat.id}</code>\n"
+                    f"<b>Fɪʟᴇ ɪᴅ :</b> <code>{db_id}</code>"
+                ),
+                disable_web_page_preview=True, parse_mode=ParseMode.HTML, quote=True)
 
     return log_msg
     # return await client.send_cached_media(Telegram.BIN_CHANNEL, file_id)

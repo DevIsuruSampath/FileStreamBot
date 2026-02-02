@@ -1,5 +1,6 @@
 import logging
 import math
+import html
 from FileStream import __version__
 from FileStream.bot import FileStream
 from FileStream.server.exceptions import FileNotFound
@@ -86,8 +87,13 @@ async def start(bot: Client, message: Message):
             try:
                 file_check = await db.get_file(file_id)
                 file_id = file_check['file_id']
-                file_name = file_check['file_name']
-                filex = await message.reply_cached_media(file_id=file_id, caption=f'**{file_name}**')
+                file_name = file_check.get('file_name') or "file"
+                safe_name = html.escape(file_name)
+                filex = await message.reply_cached_media(
+                    file_id=file_id,
+                    caption=f"<b>{safe_name}</b>",
+                    parse_mode=ParseMode.HTML,
+                )
                 asyncio.create_task(delete_later(filex, message))
 
             except FileNotFound as e:

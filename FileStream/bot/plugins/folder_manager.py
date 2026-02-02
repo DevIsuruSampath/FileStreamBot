@@ -1,4 +1,5 @@
 import datetime
+import html
 from pyrogram import filters, Client
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
 from pyrogram.enums.parse_mode import ParseMode
@@ -33,13 +34,19 @@ def _fmt_date(ts):
         return "N/A"
 
 
-async def _send_folder_list(message: Message, page: int = 1):
+async def _send_folder_list(message: Message, page: int = 1, edit: bool = False):
     user_id = message.from_user.id
     if page < 1:
         page = 1
 
     total = await db.total_folders(user_id)
     if total == 0:
+        if edit:
+            try:
+                await message.edit_text("No folders yet.")
+                return
+            except Exception:
+                pass
         await message.reply_text("No folders yet.", quote=True)
         return
 
@@ -64,6 +71,19 @@ async def _send_folder_list(message: Message, page: int = 1):
             InlineKeyboardButton(f"{page}/{max_pages}", callback_data="fld:noop"),
             InlineKeyboardButton("►", callback_data=f"fld:list:{page+1}" if page < max_pages else "fld:noop"),
         ])
+
+    buttons.append([InlineKeyboardButton("Close", callback_data="fld:close")])
+
+    if edit:
+        try:
+            await message.edit_text(
+                f"Your folders ({total}):",
+                reply_markup=InlineKeyboardMarkup(buttons),
+                disable_web_page_preview=True,
+            )
+            return
+        except Exception:
+            pass
 
     await message.reply_text(
         f"Your folders ({total}):",
@@ -92,14 +112,30 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
     action = data[1]
     user_id = cq.from_user.id
 
+    # Simple auth guard for callbacks
+    if Telegram.AUTH_USERS and user_id not in Telegram.AUTH_USERS and user_id != Telegram.OWNER_ID:
+        await cq.answer("Unauthorized")
+        return
+    if await db.is_user_banned(user_id):
+        await cq.answer("Banned")
+        return
+
     if action == "noop":
         await cq.answer()
+        return
+
+    if action == "close":
+        await cq.answer()
+        try:
+            await cq.message.delete()
+        except Exception:
+            pass
         return
 
     if action == "list":
         page = int(data[2]) if len(data) > 2 else 1
         await cq.answer()
-        await _send_folder_list(cq.message, page=page)
+        await _send_folder_list(cq.message, page=page, edit=True)
         return
 
     if action == "open":
@@ -119,6 +155,8 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
         created = _fmt_date(folder.get("created_at"))
         link = f"{Server.URL}folder/{folder_id}"
 
+        safe_title = html.escape(title)
+
         buttons = [
             [InlineKeyboardButton("Open Folder", url=link)],
             [InlineKeyboardButton("Rename", callback_data=f"fld:ren:{folder_id}:{page}"),
@@ -126,11 +164,11 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
             [InlineKeyboardButton("Back", callback_data=f"fld:list:{page}")]
         ]
         await cq.message.edit_text(
-            f"**{title}**\n"
-            f"Files: `{count}`\n"
-            f"Created: `{created}`\n"
-            f"ID: `{folder_id}`",
-            parse_mode=ParseMode.MARKDOWN,
+            f"<b>{safe_title}</b>\n"
+            f"Files: <code>{count}</code>\n"
+            f"Created: <code>{created}</code>\n"
+            f"ID: <code>{folder_id}</code>",
+            parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup(buttons),
             disable_web_page_preview=True
         )
@@ -166,7 +204,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
             await cq.answer("Folder not found")
             return
         await cq.answer("Deleted")
-        await _send_folder_list(cq.message, page=page)
+        await _send_folder_list(cq.message, page=page, edit=True)
         return
 
     if action == "ren":
@@ -183,7 +221,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
         return
 
 
-@FileStream.on_message(filters.private & filters.text & ~filters.command, group=3)
+@FileStream.on_message(filters.private & filters.text, group=3)
 async def rename_folder_text(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
@@ -192,8 +230,18 @@ async def rename_folder_text(bot: Client, message: Message):
     if user_id not in rename_pending:
         return
 
+    text = (message.text or "").strip()
+    if text.lower().startswith("/cancel"):
+        rename_pending.pop(user_id, None)
+        await message.reply_text("Rename cancelled.", quote=True)
+        return
+
+    if text.startswith("/"):
+        # Ignore other commands while waiting for a name
+        return
+
     folder_id = rename_pending.pop(user_id)
-    title = (message.text or "").strip()
+    title = text.strip()
     if not title:
         await message.reply_text("Name cannot be empty.", quote=True)
         return

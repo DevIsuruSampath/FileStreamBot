@@ -102,7 +102,7 @@ async def sts(c: Client, m: Message):
     sys_uptime = get_readable_time(int(time.time() - psutil.boot_time()))
 
     # 2. CPU Usage
-    cpu_usage = psutil.cpu_percent(interval=0.5)
+    cpu_usage = psutil.cpu_percent(interval=0.1)
     
     # 3. RAM Usage
     mem = psutil.virtual_memory()

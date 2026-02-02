@@ -216,6 +216,9 @@ class Database:
         return await self.folders.count_documents({"user_id": int(user_id)})
 
     async def update_folder_title(self, folder_id: str, user_id: int, title: str):
+        title = (title or "").strip()
+        if not title:
+            raise FileNotFound
         res = await self.folders.update_one(
             {"_id": str(folder_id), "user_id": int(user_id)},
             {"$set": {"title": title}}

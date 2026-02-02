@@ -1,6 +1,7 @@
 import datetime
 import math
 import os
+import html
 from FileStream import __version__
 from FileStream.bot import FileStream
 from FileStream.config import Telegram, Server
@@ -137,8 +138,13 @@ async def cb_data(bot, update: CallbackQuery):
             return
         file_name = myfile.get('file_name') or "file"
         await update.answer(f"Sending File {file_name}")
+        safe_name = html.escape(file_name)
         try:
-            await update.message.reply_cached_media(myfile['file_id'], caption=f'**{file_name}**')
+            await update.message.reply_cached_media(
+                myfile['file_id'],
+                caption=f"<b>{safe_name}</b>",
+                parse_mode=ParseMode.HTML,
+            )
         except Exception:
             await update.answer("Failed to send file")
     else:
