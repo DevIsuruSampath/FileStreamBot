@@ -197,7 +197,10 @@ async def start_folder(bot: Client, message: Message):
         "(No need to type /folder again.)\n"
         "Use /cancel to discard.",
         parse_mode=ParseMode.MARKDOWN,
-        quote=True
+        quote=True,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ Cancel", callback_data="folder_cancel")]
+        ])
     )
 
 
@@ -383,6 +386,20 @@ async def folderm_callback(bot: Client, callback_query):
     else:
         await cancel_any(bot, callback_query.message, user_id=user_id)
     await callback_query.answer()
+    try:
+        await callback_query.message.delete()
+    except Exception:
+        pass
+
+
+@FileStream.on_callback_query(filters.regex(r"^folder_cancel$"))
+async def folder_cancel_cb(bot: Client, callback_query):
+    user_id = callback_query.from_user.id
+    if user_id in folder_sessions:
+        folder_sessions.pop(user_id, None)
+        await callback_query.answer("Folder cancelled")
+    else:
+        await callback_query.answer("No active folder")
     try:
         await callback_query.message.delete()
     except Exception:
