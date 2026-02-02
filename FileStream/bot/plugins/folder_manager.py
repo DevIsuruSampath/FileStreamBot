@@ -41,8 +41,9 @@ def _fmt_date(ts):
         return "N/A"
 
 
-async def _send_folder_list(message: Message, page: int = 1, edit: bool = False):
-    user_id = message.from_user.id
+async def _send_folder_list(message: Message, page: int = 1, edit: bool = False, user_id: int | None = None):
+    if user_id is None:
+        user_id = message.from_user.id
     if page < 1:
         page = 1
 
@@ -101,7 +102,7 @@ async def _send_folder_list(message: Message, page: int = 1, edit: bool = False)
 async def folders_cmd(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
-    await _send_folder_list(message, page=1)
+    await _send_folder_list(message, page=1, user_id=message.from_user.id)
 
 
 @FileStream.on_callback_query(filters.regex(r"^fld:"))
@@ -140,7 +141,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
     if action == "list":
         page = int(data[2]) if len(data) > 2 else 1
         await cq.answer()
-        await _send_folder_list(cq.message, page=page, edit=True)
+        await _send_folder_list(cq.message, page=page, edit=True, user_id=user_id)
         return
 
     if action == "open":
@@ -210,7 +211,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
             await cq.answer("Folder not found")
             return
         await cq.answer("Deleted")
-        await _send_folder_list(cq.message, page=page, edit=True)
+        await _send_folder_list(cq.message, page=page, edit=True, user_id=user_id)
         return
 
     if action == "ren":
