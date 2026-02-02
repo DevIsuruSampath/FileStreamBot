@@ -24,7 +24,7 @@ def _folderm_buttons():
     ])
 
 
-@FileStream.on_message(filters.command(["folderm", "folder", "batch"]) & filters.private)
+@FileStream.on_message(filters.command(["folder"]) & filters.private)
 async def start_folderm(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
@@ -32,7 +32,7 @@ async def start_folderm(bot: Client, message: Message):
     user_id = message.from_user.id
     if user_id in folderm_sessions and folderm_sessions[user_id]:
         await message.reply_text(
-            f"Folderm already active with **{len(folderm_sessions[user_id])}** files.\n"
+            f"Folder already active with **{len(folderm_sessions[user_id])}** files.\n"
             "Use the buttons below.",
             parse_mode=ParseMode.MARKDOWN,
             quote=True,
@@ -42,7 +42,7 @@ async def start_folderm(bot: Client, message: Message):
 
     folderm_sessions[user_id] = []
     await message.reply_text(
-        "**Folderm mode started.**\n"
+        "**Folder mode started.**\n"
         "Forward video/audio/document files one by one.\n"
         "Use the buttons below when finished.",
         parse_mode=ParseMode.MARKDOWN,
@@ -141,7 +141,7 @@ async def finish_folderm(bot: Client, message: Message, user_id: int | None = No
     if not file_list:
         folderm_sessions.pop(user_id, None)
         await message.reply_text(
-            "No files in folderm. Use /folderm then forward files.",
+            "No files in folder. Use /folder then forward files.",
             parse_mode=ParseMode.MARKDOWN,
             quote=True
         )
@@ -150,9 +150,9 @@ async def finish_folderm(bot: Client, message: Message, user_id: int | None = No
     folder_id = await db.create_folder(user_id, file_list)
     folderm_sessions.pop(user_id, None)
 
-    link = f"{Server.URL}folderm/{folder_id}"
+    link = f"{Server.URL}folder/{folder_id}"
     await message.reply_text(
-        f"✅ Folderm created!\n\n{link}",
+        f"✅ Folder created!\n\n{link}",
         parse_mode=ParseMode.MARKDOWN,
         disable_web_page_preview=True,
         quote=True
@@ -168,7 +168,7 @@ async def cancel_folderm(bot: Client, message: Message, user_id: int | None = No
 
     if user_id in folderm_sessions:
         folderm_sessions.pop(user_id, None)
-        await message.reply_text("Folderm discarded.", parse_mode=ParseMode.MARKDOWN, quote=True)
+        await message.reply_text("Folder discarded.", parse_mode=ParseMode.MARKDOWN, quote=True)
         return
 
     # If no active session, stay silent

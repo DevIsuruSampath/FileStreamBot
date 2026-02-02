@@ -158,7 +158,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
         title = _fmt_title(folder)
         count = len(folder.get("files", []))
         created = _fmt_date(folder.get("created_at"))
-        link = f"{Server.URL}folderm/{folder_id}"
+        link = f"{Server.URL}folder/{folder_id}"
 
         safe_title = html.escape(title)
 
