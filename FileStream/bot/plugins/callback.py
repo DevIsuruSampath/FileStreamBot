@@ -75,6 +75,10 @@ async def cb_data(bot, update: CallbackQuery):
         await update.answer("N/A", True)
     elif usr_cmd[0] == "close":
         try:
+            await update.answer()
+        except Exception:
+            pass
+        try:
             await update.message.delete()
         except Exception:
             pass

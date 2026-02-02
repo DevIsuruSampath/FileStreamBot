@@ -20,7 +20,7 @@ MAX_FOLDERM_ITEMS = 100
 
 def _folderm_buttons():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Done", callback_data="folderm_done"), InlineKeyboardButton("❌ Cancel", callback_data="folderm_cancel")]
+        [InlineKeyboardButton("✅ Done", callback_data="folder_done"), InlineKeyboardButton("❌ Cancel", callback_data="folder_cancel")]
     ])
 
 
@@ -30,7 +30,7 @@ async def start_folderm(bot: Client, message: Message):
         return
 
     user_id = message.from_user.id
-    if user_id in folderm_sessions and folderm_sessions[user_id]:
+    if user_id in folderm_sessions:
         await message.reply_text(
             f"Folder already active with **{len(folderm_sessions[user_id])}** files.\n"
             "Use the buttons below.",
@@ -43,7 +43,7 @@ async def start_folderm(bot: Client, message: Message):
     folderm_sessions[user_id] = []
     await message.reply_text(
         "**Folder mode started.**\n"
-        "Forward video/audio/document files one by one.\n"
+        "Send or forward video/audio/document/photo/voice/animation/video_note files one by one.\n"
         "Use the buttons below when finished.",
         parse_mode=ParseMode.MARKDOWN,
         quote=True,
@@ -53,8 +53,7 @@ async def start_folderm(bot: Client, message: Message):
 
 @FileStream.on_message(
     filters.private
-    & filters.forwarded
-    & (filters.video | filters.document | filters.audio),
+    & (filters.video | filters.document | filters.audio | filters.photo | filters.animation | filters.voice | filters.video_note),
     group=1,
 )
 async def handle_forwarded(bot: Client, message: Message):
@@ -67,7 +66,7 @@ async def handle_forwarded(bot: Client, message: Message):
 
     if len(folderm_sessions[user_id]) >= MAX_FOLDERM_ITEMS:
         await message.reply_text(
-            f"Folderm limit reached (**{MAX_FOLDERM_ITEMS}**).",
+            f"Folder limit reached (**{MAX_FOLDERM_ITEMS}**).",
             parse_mode=ParseMode.MARKDOWN,
             quote=True,
             reply_markup=_folderm_buttons()
@@ -110,13 +109,13 @@ async def handle_forwarded(bot: Client, message: Message):
     message.stop_propagation()
 
 
-@FileStream.on_callback_query(filters.regex(r"^folderm_(done|cancel)$"))
+@FileStream.on_callback_query(filters.regex(r"^folder(m)?_(done|cancel)$"))
 async def folderm_callback(bot: Client, callback_query):
     action = callback_query.data.split("_", 1)[1]
     user_id = callback_query.from_user.id
 
     if user_id not in folderm_sessions:
-        await callback_query.answer("No active folderm")
+        await callback_query.answer("No active folder")
         return
 
     if action == "done":
@@ -155,7 +154,8 @@ async def finish_folderm(bot: Client, message: Message, user_id: int | None = No
         f"✅ Folder created!\n\n{link}",
         parse_mode=ParseMode.MARKDOWN,
         disable_web_page_preview=True,
-        quote=True
+        quote=True,
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Open Folder", url=link)]])
     )
 
 
@@ -168,7 +168,7 @@ async def cancel_folderm(bot: Client, message: Message, user_id: int | None = No
 
     if user_id in folderm_sessions:
         folderm_sessions.pop(user_id, None)
-        await message.reply_text("Folder discarded.", parse_mode=ParseMode.MARKDOWN, quote=True)
+        await message.reply_text("Folder cancelled.", parse_mode=ParseMode.MARKDOWN, quote=True)
         return
 
     # If no active session, stay silent

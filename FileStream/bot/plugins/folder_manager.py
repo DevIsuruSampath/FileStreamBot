@@ -13,18 +13,19 @@ from FileStream.config import Telegram, Server
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
 PAGE_SIZE = 5
-rename_pending: dict[int, str] = {}
+rename_pending: dict[int, dict] = {}
 
 
 async def _edit_message(msg: Message, text: str, reply_markup=None, parse_mode=ParseMode.MARKDOWN):
     if getattr(msg, "photo", None) or getattr(msg, "caption", None):
         await msg.edit_caption(caption=text, reply_markup=reply_markup, parse_mode=parse_mode)
     else:
-        await msg.edit_text(text=text, reply_markup=reply_markup, parse_mode=parse_mode)
+        await msg.edit_text(text=text, reply_markup=reply_markup, parse_mode=parse_mode, disable_web_page_preview=True)
 
 
 def _fmt_title(folder):
     title = (folder.get("title") or "").strip()
+    title = " ".join(title.split())
     if not title:
         title = f"Folder {folder.get('_id')}"
     if len(title) > 30:
@@ -219,7 +220,12 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
             await cq.answer("Invalid")
             return
         folder_id = data[2]
-        rename_pending[user_id] = folder_id
+        rename_pending[user_id] = {
+            "folder_id": folder_id,
+            "page": page,
+            "chat_id": cq.message.chat.id,
+            "message_id": cq.message.id,
+        }
         await cq.answer()
         await cq.message.reply_text(
             "Send the new folder name (max 50 chars).",
@@ -247,18 +253,53 @@ async def rename_folder_text(bot: Client, message: Message):
         # Ignore other commands while waiting for a name
         return
 
-    folder_id = rename_pending.pop(user_id)
+    meta = rename_pending.get(user_id) or {}
+    folder_id = meta.get("folder_id")
+    page = meta.get("page", 1)
+    chat_id = meta.get("chat_id")
+    message_id = meta.get("message_id")
+
     title = text.strip()
     if not title:
         await message.reply_text("Name cannot be empty.", quote=True)
         return
     if len(title) > 50:
-        title = title[:50]
+        await message.reply_text("Name too long (max 50 chars).", quote=True)
+        return
 
     try:
         await db.update_folder_title(folder_id, user_id, title)
     except Exception:
+        rename_pending.pop(user_id, None)
         await message.reply_text("Folder not found.", quote=True)
         return
 
+    rename_pending.pop(user_id, None)
     await message.reply_text("✅ Renamed.", quote=True)
+
+    # Refresh the folder details message if possible
+    try:
+        folder = await db.get_folder_for_user(folder_id, user_id)
+        count = len(folder.get("files", []))
+        created = _fmt_date(folder.get("created_at"))
+        link = f"{Server.URL}folder/{folder_id}"
+        safe_title = html.escape(_fmt_title(folder))
+        buttons = [
+            [InlineKeyboardButton("Open Folder", url=link)],
+            [InlineKeyboardButton("Rename", callback_data=f"fld:ren:{folder_id}:{page}"),
+             InlineKeyboardButton("Delete", callback_data=f"fld:del:{folder_id}:{page}")],
+            [InlineKeyboardButton("Back", callback_data=f"fld:list:{page}")]
+        ]
+        if chat_id and message_id:
+            target = await bot.get_messages(chat_id, message_id)
+            await _edit_message(
+                target,
+                f"<b>{safe_title}</b>\n"
+                f"Files: <code>{count}</code>\n"
+                f"Created: <code>{created}</code>\n"
+                f"ID: <code>{folder_id}</code>",
+                reply_markup=InlineKeyboardMarkup(buttons),
+                parse_mode=ParseMode.HTML,
+            )
+    except Exception:
+        pass

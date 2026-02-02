@@ -173,6 +173,9 @@ class Database:
             seen.add(fid)
             unique_files.append(fid)
 
+        if not unique_files:
+            raise FileNotFound
+
         folder_id = secrets.token_urlsafe(8).replace("-", "").replace("_", "")
         while await self.folders.find_one({"_id": folder_id}):
             folder_id = secrets.token_urlsafe(8).replace("-", "").replace("_", "")
@@ -205,7 +208,7 @@ class Database:
             return self.folders.find({"_id": None}), 0
         folders = (
             self.folders.find({"user_id": int(user_id)})
-            .sort('_id', pymongo.DESCENDING)
+            .sort('created_at', pymongo.DESCENDING)
             .skip(start - 1)
             .limit(end - start + 1)
         )
