@@ -35,8 +35,16 @@
 
     <main class="max-w-7xl mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6 lg:gap-8">
         <div class="lg:w-3/4">
-            <div class="relative aspect-video bg-black rounded-2xl mb-4 shadow-2xl">
-                <video id="player" playsinline controls></video>
+            <div id="videoWrap" class="relative aspect-video bg-black rounded-2xl mb-4 shadow-2xl">
+                <video id="videoPlayer" playsinline controls preload="metadata" class="w-full h-full"></video>
+            </div>
+            <div id="audioWrap" class="relative bg-[#0b0b10] rounded-2xl mb-4 shadow-2xl border border-white/5 p-4 hidden">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-indigo-600/20 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-2v13" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19a3 3 0 11-6 0 3 3 0 016 0zm12-2a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    </div>
+                    <audio id="audioPlayer" controls preload="metadata" class="w-full"></audio>
+                </div>
             </div>
             <div class="space-y-2">
                 <h1 id="currentTitle" class="text-xl md:text-2xl font-bold text-white break-all leading-snug"></h1>
@@ -77,13 +85,21 @@
         const metaEl = document.getElementById('currentMeta');
         const playBtn = document.getElementById('playBtn');
         const downloadBtn = document.getElementById('downloadBtn');
+        const videoWrap = document.getElementById('videoWrap');
+        const audioWrap = document.getElementById('audioWrap');
 
-        const player = new Plyr('#player', {
+        const videoPlayer = new Plyr('#videoPlayer', {
             controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen'],
             settings: ['speed', 'loop'],
         });
 
+        const audioPlayer = new Plyr('#audioPlayer', {
+            controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'loop'],
+            settings: ['speed', 'loop'],
+        });
+
         let currentIndex = 0;
+        let activePlayer = videoPlayer;
 
         function setActive(index) {
             document.querySelectorAll('.folder-item').forEach((el) => {
@@ -109,7 +125,24 @@
             }
         }
 
-        function loadVideo(index, autoPlay = true) {
+        function setActivePlayer(kind) {
+            if (kind === 'audio') {
+                videoWrap.classList.add('hidden');
+                audioWrap.classList.remove('hidden');
+                activePlayer = audioPlayer;
+            } else {
+                audioWrap.classList.add('hidden');
+                videoWrap.classList.remove('hidden');
+                activePlayer = videoPlayer;
+            }
+        }
+
+        function pauseAll() {
+            try { videoPlayer.pause(); } catch (e) {}
+            try { audioPlayer.pause(); } catch (e) {}
+        }
+
+        function loadMedia(index, autoPlay = true) {
             if (!folderItems[index]) return;
             const item = folderItems[index];
             currentIndex = index;
@@ -117,20 +150,22 @@
             updateHeader(item);
 
             if (!item.playable) {
-                player.pause();
-                try { player.currentTime = 0; } catch (e) {}
+                pauseAll();
+                try { activePlayer.currentTime = 0; } catch (e) {}
                 return;
             }
 
             const mediaType = item.kind === 'audio' ? 'audio' : 'video';
             const fallbackMime = mediaType === 'audio' ? 'audio/mpeg' : 'video/mp4';
-            player.source = {
+            setActivePlayer(mediaType);
+
+            activePlayer.source = {
                 type: mediaType,
                 title: item.name,
                 sources: [{ src: item.url, type: item.mime || fallbackMime }]
             };
 
-            if (autoPlay) player.play();
+            if (autoPlay) activePlayer.play();
         }
 
         function nextPlayable(startIdx) {
@@ -147,30 +182,33 @@
             const playButton = e.target.closest('.play-item');
             if (playButton) {
                 const index = parseInt(playButton.dataset.index, 10);
-                loadVideo(index);
+                loadMedia(index);
                 return;
             }
 
             const item = e.target.closest('.folder-item');
             if (item) {
                 const index = parseInt(item.dataset.index, 10);
-                loadVideo(index);
+                loadMedia(index);
             }
         });
 
         playBtn.addEventListener('click', () => {
-            loadVideo(currentIndex);
+            loadMedia(currentIndex);
         });
 
-        player.on('ended', () => {
+        function onEnded() {
             const next = nextPlayable(currentIndex + 1);
-            if (next !== -1) loadVideo(next);
-        });
+            if (next !== -1) loadMedia(next);
+        }
+
+        videoPlayer.on('ended', onEnded);
+        audioPlayer.on('ended', onEnded);
 
         // Init first item (prefer first playable)
         if (folderItems.length > 0) {
             const firstPlayable = nextPlayable(0);
-            loadVideo(firstPlayable !== -1 ? firstPlayable : 0, false);
+            loadMedia(firstPlayable !== -1 ? firstPlayable : 0, false);
         }
     </script>
 </body>
