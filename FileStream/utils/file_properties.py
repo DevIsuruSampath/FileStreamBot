@@ -2,6 +2,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import html
+import mimetypes
+import os
 from datetime import datetime
 from pyrogram import Client
 from typing import Any, Optional
@@ -117,6 +119,15 @@ def get_name(media_msg: Message | FileId | None) -> str:
     return file_name
 
 
+def _guess_mime(file_name: str, mime_type: str | None = None) -> str:
+    if mime_type:
+        return mime_type
+    if not file_name:
+        return ""
+    guess, _ = mimetypes.guess_type(file_name)
+    return guess or ""
+
+
 def get_file_info(message):
     if message is None or not getattr(message, "chat", None):
         return None
@@ -133,13 +144,18 @@ def get_file_info(message):
     if not getattr(media, "file_id", None):
         # No valid media found
         return None
+
+    file_name = get_name(message)
+    mime_type = _guess_mime(file_name, getattr(media, "mime_type", ""))
+
     return {
         "user_id": user_idx,
         "file_id": getattr(media, "file_id", ""),
         "file_unique_id": getattr(media, "file_unique_id", ""),
-        "file_name": get_name(message),
+        "file_name": file_name,
         "file_size": getattr(media, "file_size", 0),
-        "mime_type": getattr(media, "mime_type", "")
+        "mime_type": mime_type,
+        "file_ext": os.path.splitext(file_name)[1].lower() if file_name else "",
     }
 
 

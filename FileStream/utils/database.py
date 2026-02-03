@@ -1,5 +1,6 @@
 import pymongo
 import time
+import mimetypes
 import motor.motor_asyncio
 from bson.objectid import ObjectId
 from bson.errors import InvalidId
@@ -103,6 +104,16 @@ class Database:
             file_info=await self.file.find_one({"_id": ObjectId(_id)})
             if not file_info:
                 raise FileNotFound
+
+            # Backfill missing mime_type using file extension
+            if not file_info.get("mime_type") and file_info.get("file_name"):
+                mime, _ = mimetypes.guess_type(file_info.get("file_name"))
+                if mime:
+                    await self.file.update_one(
+                        {"_id": file_info["_id"]},
+                        {"$set": {"mime_type": mime}}
+                    )
+                    file_info["mime_type"] = mime
             return file_info
         except InvalidId:
             raise FileNotFound
