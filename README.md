@@ -159,6 +159,16 @@ PORT = 8080
 * `NO_PORT`: (True/False) Set PORT to 80 or 443 hide port display; ignore if on Heroku. Defaults to `False`.
 * `HAS_SSL`: (can be either `True` or `False`) If you want the generated links in https format. Defaults to `False`. 
 
+#### 🔒 NudeNet (NSFW Block)
+* `NUDENET_ENABLE`: Enable NudeNet scanning. Defaults to `True`.
+* `NUDENET_THRESHOLD`: Score threshold (0-1). Defaults to `0.6`.
+* `NUDENET_SCAN_IMAGES`: Scan images. Defaults to `True`.
+* `NUDENET_SCAN_VIDEOS`: Scan videos. Defaults to `True`.
+* `NUDENET_MAX_VIDEO_FRAMES`: Frames to sample per video. Defaults to `12`.
+* `NUDENET_FRAME_INTERVAL`: Seconds between sampled frames. Defaults to `5`.
+* `NUDENET_BLOCK_ON_ERROR`: Block if scan fails. Defaults to `False`.
+* `NUDENET_TEMP_DIR`: Temp path for scans. Defaults to `/tmp/filestream_nsfw`.
+
 </details>
 
 <details>

@@ -100,6 +100,46 @@
     "MODE": {
       "description": "Should be set to `secondary` if you only want to use the server for serving files.",
       "required": false
+    },
+    "NUDENET_ENABLE": {
+      "description": "Enable NudeNet NSFW scanning.",
+      "value": "True",
+      "required": false
+    },
+    "NUDENET_THRESHOLD": {
+      "description": "NSFW score threshold (0-1).",
+      "value": "0.6",
+      "required": false
+    },
+    "NUDENET_SCAN_IMAGES": {
+      "description": "Scan images for adult content.",
+      "value": "True",
+      "required": false
+    },
+    "NUDENET_SCAN_VIDEOS": {
+      "description": "Scan videos for adult content.",
+      "value": "True",
+      "required": false
+    },
+    "NUDENET_MAX_VIDEO_FRAMES": {
+      "description": "Max frames to sample per video.",
+      "value": "12",
+      "required": false
+    },
+    "NUDENET_FRAME_INTERVAL": {
+      "description": "Seconds between sampled frames.",
+      "value": "5",
+      "required": false
+    },
+    "NUDENET_BLOCK_ON_ERROR": {
+      "description": "Block content if scan fails.",
+      "value": "False",
+      "required": false
+    },
+    "NUDENET_TEMP_DIR": {
+      "description": "Temp directory for NSFW scans.",
+      "value": "/tmp/filestream_nsfw",
+      "required": false
     }
   },
   "buildpacks": [

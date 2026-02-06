@@ -2,6 +2,14 @@ from os import environ as env
 from urllib.parse import urlparse
 from dotenv import load_dotenv
 
+
+def _float_env(key: str, default: float) -> float:
+    try:
+        return float(env.get(key, default))
+    except Exception:
+        return float(default)
+
+
 load_dotenv()
 
 class Telegram:
@@ -57,3 +65,31 @@ class Server:
     URL = "http{}://{}{}/".format(
         "s" if HAS_SSL else "", FQDN, "" if (NO_PORT or has_port) else ":" + str(PORT)
     )
+
+class NSFW:
+    ENABLE = str(env.get("NUDENET_ENABLE", "true")).lower() in ("1", "true", "t", "yes", "y")
+    BLOCK_ON_ERROR = str(env.get("NUDENET_BLOCK_ON_ERROR", "false")).lower() in (
+        "1",
+        "true",
+        "t",
+        "yes",
+        "y",
+    )
+    THRESHOLD = _float_env("NUDENET_THRESHOLD", 0.6)
+    SCAN_IMAGES = str(env.get("NUDENET_SCAN_IMAGES", "true")).lower() in (
+        "1",
+        "true",
+        "t",
+        "yes",
+        "y",
+    )
+    SCAN_VIDEOS = str(env.get("NUDENET_SCAN_VIDEOS", "true")).lower() in (
+        "1",
+        "true",
+        "t",
+        "yes",
+        "y",
+    )
+    MAX_VIDEO_FRAMES = int(env.get("NUDENET_MAX_VIDEO_FRAMES", "12"))
+    FRAME_INTERVAL = int(env.get("NUDENET_FRAME_INTERVAL", "5"))
+    TEMP_DIR = str(env.get("NUDENET_TEMP_DIR", "/tmp/filestream_nsfw"))
