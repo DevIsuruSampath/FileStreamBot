@@ -82,6 +82,31 @@ class OuoIoPlugin(ShortenerPlugin):
             logger.error(f"Ouo.io Error: {e}")
         return url
 
+# -----------------[ YOURLS Plugin ]----------------- #
+class YOURLSPlugin(ShortenerPlugin):
+    @classmethod
+    def matches(cls, domain: str) -> bool:
+        dl = domain.lower()
+        return "yourls" in dl or "yourls-api.php" in dl
+
+    def shorten(self, url: str, api_key: str) -> str:
+        if not self.session:
+            return url
+        try:
+            parsed = urlparse(self.domain if "://" in self.domain else f"https://{self.domain}")
+            base = parsed.geturl()
+            if "yourls-api.php" not in base.lower():
+                base = base.rstrip("/") + "/yourls-api.php"
+            target = f"{base}?signature={api_key}&action=shorturl&format=json&url={quote(url)}"
+            response = self.session.get(target, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "success":
+                    return data.get("shorturl") or data.get("short_url") or url
+        except Exception as e:
+            logger.error(f"YOURLS Error: {e}")
+        return url
+
 # -----------------[ Linkvertise Plugin (Legacy) ]----------------- #
 class LinkvertisePlugin(ShortenerPlugin):
     @classmethod
