@@ -37,6 +37,9 @@ class Telegram:
     _ulog = env.get("ULOG_CHANNEL", None)
     ULOG_CHANNEL = int(_ulog) if _ulog else None
 
+    _nlog = env.get("NUDENET_CHANNEL", None)
+    NUDENET_CHANNEL = int(_nlog) if _nlog else None
+
     MODE = env.get("MODE", "primary")
     SECONDARY = True if MODE.lower() == "secondary" else False
     _auth_raw = str(env.get("AUTH_USERS", "")).split()

@@ -15,6 +15,7 @@ class Database:
         self.file = self.db.file
         self.settings = self.db.settings  # <--- NEW COLLECTION
         self.folders = self.db.folders
+        self.nsfw_reports = self.db.nsfw_reports
 
 #---------------------[ NEW USER ]---------------------#
     def new_user(self, id):
@@ -250,3 +251,23 @@ class Database:
         res = await self.folders.delete_one({"_id": str(folder_id), "user_id": int(user_id)})
         if res.deleted_count == 0:
             raise FileNotFound
+
+    async def delete_folder_by_id(self, folder_id: str):
+        res = await self.folders.delete_one({"_id": str(folder_id)})
+        if res.deleted_count == 0:
+            raise FileNotFound
+
+    async def remove_file_from_folders(self, file_id: str):
+        try:
+            await self.folders.update_many({"files": str(file_id)}, {"$pull": {"files": str(file_id)}})
+        except Exception:
+            pass
+
+    async def add_nsfw_report(self, doc: dict):
+        await self.nsfw_reports.insert_one(doc)
+
+    async def update_nsfw_report(self, report_id: str, updates: dict):
+        await self.nsfw_reports.update_one({"_id": str(report_id)}, {"$set": updates})
+
+    async def get_nsfw_report(self, report_id: str):
+        return await self.nsfw_reports.find_one({"_id": str(report_id)})

@@ -140,6 +140,10 @@
       "description": "Temp directory for NSFW scans.",
       "value": "/tmp/filestream_nsfw",
       "required": false
+    },
+    "NUDENET_CHANNEL": {
+      "description": "Channel ID for NSFW reports.",
+      "required": false
     }
   },
   "buildpacks": [

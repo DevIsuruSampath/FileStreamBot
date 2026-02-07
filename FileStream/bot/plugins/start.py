@@ -102,6 +102,11 @@ async def start(bot: Client, message: Message):
                 await message.reply_text("Something Went Wrong")
                 logging.error(e)
 
+        elif payload.startswith("report_file_") or payload.startswith("report_folder_"):
+            from FileStream.bot.plugins.nsfw_report import process_report
+            target_type = "file" if payload.startswith("report_file_") else "folder"
+            target_id = payload.split("_", 2)[2]
+            await process_report(bot, message, target_type, target_id)
         else:
             await message.reply_text("**Invalid Command**", parse_mode=ParseMode.MARKDOWN)
 

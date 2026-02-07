@@ -52,6 +52,9 @@
                 <div class="flex gap-2 pt-2">
                     <button id="playBtn" class="btn btn-play">Play</button>
                     <a id="downloadBtn" class="btn btn-download" href="#" download>Download</a>
+                    {% if report_url %}
+                    <a class="btn btn-download" href="{{ report_url }}" style="border-color: rgba(239,68,68,0.35); color: #fca5a5;">Report Adult</a>
+                    {% endif %}
                 </div>
             </div>
         </div>

@@ -4,6 +4,7 @@ import aiohttp
 import jinja2
 import urllib.parse
 from FileStream.config import Telegram, Server
+from FileStream.bot import FileStream
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.server.exceptions import FileNotFound
@@ -53,6 +54,10 @@ async def render_page(db_id):
     updates_channel = (Telegram.UPDATES_CHANNEL or "").lstrip("@").strip()
     updates_url = f"https://t.me/{updates_channel}" if updates_channel else None
 
+    report_url = None
+    if getattr(FileStream, "username", None):
+        report_url = f"https://t.me/{FileStream.username}?start=report_file_{db_id}"
+
     return template.render(
         file_name=file_name,
         file_url=src,
@@ -60,6 +65,7 @@ async def render_page(db_id):
         mime_type=resolved_mime,
         is_audio=is_audio,
         updates_url=updates_url,
+        report_url=report_url,
     )
 
 
@@ -113,12 +119,17 @@ async def render_folder(folder_id: str, title: str = "Folder"):
     folder_json = json.dumps(files, ensure_ascii=False)
     folder_json = folder_json.replace("</", "<\\/")
 
+    report_url = None
+    if getattr(FileStream, "username", None):
+        report_url = f"https://t.me/{FileStream.username}?start=report_folder_{folder_id}"
+
     return template.render(
         folder_id=str(folder_id),
         folder_json=folder_json,
         files=files,
         count=len(files),
         page_title=title,
+        report_url=report_url,
     )
 
 

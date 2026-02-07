@@ -168,6 +168,7 @@ PORT = 8080
 * `NUDENET_FRAME_INTERVAL`: Seconds between sampled frames. Defaults to `5`.
 * `NUDENET_BLOCK_ON_ERROR`: Block if scan fails. Defaults to `False`.
 * `NUDENET_TEMP_DIR`: Temp path for scans. Defaults to `/tmp/filestream_nsfw`.
+* `NUDENET_CHANNEL`: Channel ID for NSFW reports.
 
 </details>
 

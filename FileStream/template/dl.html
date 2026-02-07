@@ -83,6 +83,11 @@
         <p class="mt-6 text-xs text-gray-600">
             Link may stop working if the file is deleted.
         </p>
+        {% if report_url %}
+        <a href="{{ report_url }}" class="mt-4 inline-flex items-center justify-center text-sm text-red-400 hover:text-red-300">
+            🚫 Report Adult Content
+        </a>
+        {% endif %}
     </div>
 </body>
 </html>
