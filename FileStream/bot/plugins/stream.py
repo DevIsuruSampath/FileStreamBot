@@ -5,7 +5,6 @@ from FileStream.bot import FileStream, multi_clients
 from FileStream.utils.bot_utils import verify_user, gen_link, is_channel_banned, is_channel_exist
 from FileStream.utils.database import Database
 from FileStream.utils.file_properties import get_file_ids, get_file_info
-from FileStream.utils.nsfw import scan_message
 from FileStream.config import Telegram
 from pyrogram import filters, Client
 from pyrogram.errors import FloodWait
@@ -30,24 +29,6 @@ async def private_receive_handler(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
     try:
-        blocked, reason = await scan_message(message)
-        if blocked:
-            await message.reply_text("🚫 Adult content is blocked.", quote=True)
-            if Telegram.ULOG_CHANNEL:
-                await bot.send_message(
-                    chat_id=Telegram.ULOG_CHANNEL,
-                    text=(
-                        f"#NSFW_BLOCKED\n"
-                        f"User: {message.from_user.id}\n"
-                        f"Reason: {reason}"
-                    ),
-                )
-            try:
-                await message.delete()
-            except Exception:
-                pass
-            return
-
         info = get_file_info(message)
         if not info:
             return
@@ -98,23 +79,6 @@ async def channel_receive_handler(bot: Client, message: Message):
     await is_channel_exist(bot, message)
 
     try:
-        blocked, reason = await scan_message(message)
-        if blocked:
-            if Telegram.ULOG_CHANNEL:
-                await bot.send_message(
-                    chat_id=Telegram.ULOG_CHANNEL,
-                    text=(
-                        f"#NSFW_BLOCKED\n"
-                        f"Channel: {message.chat.id}\n"
-                        f"Reason: {reason}"
-                    ),
-                )
-            try:
-                await message.delete()
-            except Exception:
-                pass
-            return
-
         info = get_file_info(message)
         if not info:
             return
