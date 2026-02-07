@@ -160,6 +160,8 @@ class ShortenerSystem:
         self._lock = asyncio.Lock()
         self._cache: dict[str, tuple[str, float]] = {}
         self._cache_ttl = 3600
+        self._fail_count = 0
+        self._cooldown_until = 0.0
 
     def _get_plugin_class(self, domain: str):
         # Check specific plugins first (exclude Generic from this loop)
@@ -209,8 +211,22 @@ class ShortenerSystem:
             if not await self.initialize():
                 return url
 
-        # Cache lookup
         now = time.time()
+        if self._cooldown_until and now < self._cooldown_until:
+            return url
+
+        # Avoid shortening if URL already points to the shortener domain
+        try:
+            if self.plugin and getattr(self.plugin, "domain", None):
+                parsed_short = urlparse(self.plugin.domain if "://" in self.plugin.domain else f"https://{self.plugin.domain}")
+                short_domain = parsed_short.netloc or parsed_short.path
+                parsed_url = urlparse(url)
+                if short_domain and short_domain in (parsed_url.netloc or ""):
+                    return url
+        except Exception:
+            pass
+
+        # Cache lookup
         cached = self._cache.get(url)
         if cached and cached[1] > now:
             return cached[0]
@@ -233,12 +249,24 @@ class ShortenerSystem:
                     timeout=6.0
                 )
                 final = result or url
+                if final == url:
+                    self._fail_count += 1
+                else:
+                    self._fail_count = 0
+                if self._fail_count >= 3:
+                    self._cooldown_until = time.time() + 300
                 self._cache[url] = (final, time.time() + self._cache_ttl)
                 return final
         except asyncio.TimeoutError:
+            self._fail_count += 1
+            if self._fail_count >= 3:
+                self._cooldown_until = time.time() + 300
             logger.error("Shortener request timed out")
             return url
         except Exception as e:
+            self._fail_count += 1
+            if self._fail_count >= 3:
+                self._cooldown_until = time.time() + 300
             logger.error(f"Error shortening URL: {e}")
             return url
 
