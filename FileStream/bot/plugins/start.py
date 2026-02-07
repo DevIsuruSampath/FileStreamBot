@@ -89,6 +89,8 @@ async def start(bot: Client, message: Message):
                 file_id = file_check['file_id']
                 file_name = file_check.get('file_name') or "file"
                 safe_name = html.escape(file_name)
+                if len(safe_name) > 1000:
+                    safe_name = safe_name[:1000] + "…"
                 filex = await message.reply_cached_media(
                     file_id=file_id,
                     caption=f"<b>{safe_name}</b>",

@@ -43,6 +43,14 @@ def _fmt_date(ts):
         return "N/A"
 
 
+def _parse_page(value, default: int = 1) -> int:
+    try:
+        page = int(value)
+        return page if page > 0 else default
+    except Exception:
+        return default
+
+
 async def _send_folder_list(message: Message, page: int = 1, edit: bool = False, user_id: int | None = None):
     if user_id is None:
         user_id = message.from_user.id
@@ -141,7 +149,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
         return
 
     if action == "list":
-        page = int(data[2]) if len(data) > 2 else 1
+        page = _parse_page(data[2], 1) if len(data) > 2 else 1
         await cq.answer()
         await _send_folder_list(cq.message, page=page, edit=True, user_id=user_id)
         return
@@ -151,7 +159,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
             await cq.answer("Invalid")
             return
         folder_id = data[2]
-        page = int(data[3])
+        page = _parse_page(data[3], 1)
         try:
             folder = await db.get_folder_for_user(folder_id, user_id)
         except Exception:
@@ -190,7 +198,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
             await cq.answer("Invalid")
             return
         folder_id = data[2]
-        page = int(data[3])
+        page = _parse_page(data[3], 1)
         buttons = [
             [InlineKeyboardButton("Yes, delete", callback_data=f"fld:delyes:{folder_id}:{page}"),
              InlineKeyboardButton("Cancel", callback_data=f"fld:list:{page}")]
@@ -208,7 +216,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
             await cq.answer("Invalid")
             return
         folder_id = data[2]
-        page = int(data[3])
+        page = _parse_page(data[3], 1)
         try:
             await db.delete_folder(folder_id, user_id)
         except Exception:
@@ -223,7 +231,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
             await cq.answer("Invalid")
             return
         folder_id = data[2]
-        page = int(data[3])
+        page = _parse_page(data[3], 1)
         rename_pending[user_id] = {
             "folder_id": folder_id,
             "page": page,

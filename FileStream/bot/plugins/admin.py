@@ -348,6 +348,7 @@ async def del_file(c: Client, m: Message):
         return
         
     await db.delete_one_file(file_info['_id'])
+    await db.remove_file_from_folders(str(file_info.get("_id")))
     await db.count_links(file_info['user_id'], "-")
     await m.reply_text(
         text=f"**File Deleted Successfully!** ",

@@ -138,7 +138,11 @@ async def cb_data(bot, update: CallbackQuery):
         if len(usr_cmd) < 2:
             await update.answer("Invalid action")
             return
-        file_list, total_files = await gen_file_list_button(int(usr_cmd[1]), update.from_user.id)
+        try:
+            page_no = int(usr_cmd[1])
+        except Exception:
+            page_no = 1
+        file_list, total_files = await gen_file_list_button(page_no, update.from_user.id)
         await edit_message(update, "Total files: {}".format(total_files), InlineKeyboardMarkup(file_list))
     elif usr_cmd[0] == "myfile":
         if len(usr_cmd) < 3:
@@ -161,6 +165,8 @@ async def cb_data(bot, update: CallbackQuery):
         file_name = myfile.get('file_name') or "file"
         await update.answer(f"Sending File {file_name}")
         safe_name = html.escape(file_name)
+        if len(safe_name) > 1000:
+            safe_name = safe_name[:1000] + "…"
         try:
             await update.message.reply_cached_media(
                 myfile['file_id'],
@@ -186,7 +192,11 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
         await update.answer("Unauthorized", show_alert=True)
         return
 
-    file_id=FileId.decode(myfile_info['file_id'])
+    try:
+        file_id = FileId.decode(myfile_info['file_id'])
+    except Exception:
+        await update.answer("File Not Found")
+        return
 
     if file_id.file_type in PHOTO_TYPES:
         file_type = "Image"
@@ -277,6 +287,7 @@ async def delete_user_file(_id, file_list_no: int, update:CallbackQuery):
         return
 
     await db.delete_one_file(myfile_info['_id'])
+    await db.remove_file_from_folders(str(myfile_info.get("_id")))
     await db.count_links(update.from_user.id, "-")
     caption = "**Fɪʟᴇ Dᴇʟᴇᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ !**"
     if update.message.caption:
@@ -300,6 +311,7 @@ async def delete_user_filex(_id, update:CallbackQuery):
         return
 
     await db.delete_one_file(myfile_info['_id'])
+    await db.remove_file_from_folders(str(myfile_info.get("_id")))
     await db.count_links(update.from_user.id, "-")
     await edit_message(
         update,

@@ -29,6 +29,8 @@ async def get_invite_link(bot, chat_id: Union[str, int]):
             return None
 
 async def is_user_joined(bot, message: Message):
+    if not getattr(message, "from_user", None):
+        return False
     if Telegram.FORCE_SUB_ID:
         # Strip @ if provided
         fsid = str(Telegram.FORCE_SUB_ID).lstrip("@").strip()
@@ -243,12 +245,15 @@ async def is_user_banned(message):
 
 async def is_channel_banned(bot, message):
     if await db.is_user_banned(message.chat.id):
-        await bot.edit_message_reply_markup(
-            chat_id=message.chat.id,
-            message_id=message.id,
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(f"ᴄʜᴀɴɴᴇʟ ɪs ʙᴀɴɴᴇᴅ", callback_data="N/A")]])
-        )
+        try:
+            await bot.edit_message_reply_markup(
+                chat_id=message.chat.id,
+                message_id=message.id,
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("ᴄʜᴀɴɴᴇʟ ɪs ʙᴀɴɴᴇᴅ", callback_data="N/A")]])
+            )
+        except Exception:
+            pass
         return True
     return False
 

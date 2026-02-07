@@ -20,6 +20,15 @@ MAX_FOLDERM_ITEMS = 100
 PROGRESS_REFRESH_EVERY = 5  # edit N times, then resend to keep it near bottom
 
 
+def _escape_md(text: str) -> str:
+    if not text:
+        return ""
+    # Escape Markdown special chars for ParseMode.MARKDOWN
+    for ch in ("\\", "`", "*", "_", "[", "]", "(", ")"):
+        text = text.replace(ch, "\\" + ch)
+    return text
+
+
 def _folderm_buttons():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("✅ Done", callback_data="folder_done"), InlineKeyboardButton("❌ Cancel", callback_data="folder_cancel")]
@@ -188,7 +197,7 @@ async def handle_forwarded(bot: Client, message: Message):
                 bot,
                 message,
                 session,
-                f"⚠️ Already added **{info.get('file_name', 'file')}**.\nTotal: **{len(files)}**",
+                f"⚠️ Already added **{_escape_md(info.get('file_name', 'file'))}**.\nTotal: **{len(files)}**",
             )
             message.stop_propagation()
             return
@@ -201,7 +210,7 @@ async def handle_forwarded(bot: Client, message: Message):
             bot,
             message,
             session,
-            f"✅ Added **{info.get('file_name', 'file')}** "
+            f"✅ Added **{_escape_md(info.get('file_name', 'file'))}** "
             f"({humanbytes(info.get('file_size') or 0)})\n"
             f"Total: **{len(files)}**",
         )

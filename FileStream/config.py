@@ -32,13 +32,22 @@ class Telegram:
     
     # Safely handle optional integer env vars
     _flog = env.get("FLOG_CHANNEL", None)
-    FLOG_CHANNEL = int(_flog) if _flog else None
+    try:
+        FLOG_CHANNEL = int(_flog) if _flog else None
+    except Exception:
+        FLOG_CHANNEL = None
 
     _ulog = env.get("ULOG_CHANNEL", None)
-    ULOG_CHANNEL = int(_ulog) if _ulog else None
+    try:
+        ULOG_CHANNEL = int(_ulog) if _ulog else None
+    except Exception:
+        ULOG_CHANNEL = None
 
     _nlog = env.get("NUDENET_CHANNEL", None)
-    NUDENET_CHANNEL = int(_nlog) if _nlog else None
+    try:
+        NUDENET_CHANNEL = int(_nlog) if _nlog else None
+    except Exception:
+        NUDENET_CHANNEL = None
 
     MODE = env.get("MODE", "primary")
     SECONDARY = True if MODE.lower() == "secondary" else False
