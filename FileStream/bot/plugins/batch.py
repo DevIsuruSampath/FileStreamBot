@@ -8,6 +8,7 @@ from FileStream.utils.database import Database
 from FileStream.utils.file_properties import get_file_info, get_file_ids
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.bot_utils import verify_user
+from FileStream.utils.shortener import shorten
 from FileStream.config import Telegram, Server
 
 
@@ -251,6 +252,8 @@ async def finish_folderm(bot: Client, message: Message, user_id: int | None = No
     folderm_sessions.pop(user_id, None)
 
     link = f"{Server.URL}folder/{folder_id}"
+    if await db.get_ads_status():
+        link = await shorten(link)
     await message.reply_text(
         f"✅ Folder created!\n"
         f"Total files: **{total_files}**\n\n"

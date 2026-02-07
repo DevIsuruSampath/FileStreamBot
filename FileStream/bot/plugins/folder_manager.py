@@ -7,6 +7,7 @@ from pyrogram.enums.parse_mode import ParseMode
 from FileStream.bot import FileStream
 from FileStream.utils.database import Database
 from FileStream.utils.bot_utils import verify_user
+from FileStream.utils.shortener import shorten
 from FileStream.config import Telegram, Server
 
 
@@ -161,6 +162,8 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
         count = len(folder.get("files", []))
         created = _fmt_date(folder.get("created_at"))
         link = f"{Server.URL}folder/{folder_id}"
+        if await db.get_ads_status():
+            link = await shorten(link)
 
         safe_title = html.escape(title)
 
@@ -284,6 +287,8 @@ async def rename_folder_text(bot: Client, message: Message):
         count = len(folder.get("files", []))
         created = _fmt_date(folder.get("created_at"))
         link = f"{Server.URL}folder/{folder_id}"
+        if await db.get_ads_status():
+            link = await shorten(link)
         safe_title = html.escape(_fmt_title(folder))
         buttons = [
             [InlineKeyboardButton("Open Folder", url=link)],
