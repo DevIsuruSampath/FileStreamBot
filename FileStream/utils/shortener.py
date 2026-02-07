@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 import cloudscraper
 from abc import ABC, abstractmethod
 from base64 import b64encode
@@ -156,6 +157,9 @@ class ShortenerSystem:
         self.session = None
         self.plugin = None
         self.ready = False
+        self._lock = asyncio.Lock()
+        self._cache: dict[str, tuple[str, float]] = {}
+        self._cache_ttl = 3600
 
     def _get_plugin_class(self, domain: str):
         # Check specific plugins first (exclude Generic from this loop)
@@ -205,18 +209,32 @@ class ShortenerSystem:
             if not await self.initialize():
                 return url
 
+        # Cache lookup
+        now = time.time()
+        cached = self._cache.get(url)
+        if cached and cached[1] > now:
+            return cached[0]
+
         try:
-            # Run with timeout to prevent blocking the executor
-            result = await asyncio.wait_for(
-                asyncio.get_running_loop().run_in_executor(
-                    None,
-                    self.plugin.shorten,
-                    url,
-                    Telegram.URL_SHORTENER_API_KEY
-                ),
-                timeout=10.0
-            )
-            return result or url
+            async with self._lock:
+                # Re-check cache after waiting on lock
+                cached = self._cache.get(url)
+                if cached and cached[1] > time.time():
+                    return cached[0]
+
+                # Run with timeout to prevent blocking the executor
+                result = await asyncio.wait_for(
+                    asyncio.get_running_loop().run_in_executor(
+                        None,
+                        self.plugin.shorten,
+                        url,
+                        Telegram.URL_SHORTENER_API_KEY
+                    ),
+                    timeout=6.0
+                )
+                final = result or url
+                self._cache[url] = (final, time.time() + self._cache_ttl)
+                return final
         except asyncio.TimeoutError:
             logger.error("Shortener request timed out")
             return url
