@@ -34,13 +34,13 @@ class GPLinksPlugin(ShortenerPlugin):
         # GPlinks API: https://gplinks.in/api?api=API_KEY&url=URL
         target = f"https://gplinks.in/api?api={api_key}&url={quote(url)}"
         try:
-            response = self.session.get(target, timeout=10)
+            response = self.session.get(target, timeout=getattr(self, "request_timeout", 5.0))
             if response.status_code == 200:
                 data = response.json()
                 if data.get("status") == "success":
                     return data.get("shortenedUrl")
         except Exception as e:
-            logger.error(f"GPlinks Error: {e}")
+            logger.debug(f"GPlinks request failed: {e}")
         return url
 
 # -----------------[ ShrinkMe.io Plugin ]----------------- #
@@ -55,13 +55,13 @@ class ShrinkMePlugin(ShortenerPlugin):
         # ShrinkMe API: https://shrinkme.io/api?api=API_KEY&url=URL
         target = f"https://shrinkme.io/api?api={api_key}&url={quote(url)}"
         try:
-            response = self.session.get(target, timeout=10)
+            response = self.session.get(target, timeout=getattr(self, "request_timeout", 5.0))
             if response.status_code == 200:
                 data = response.json()
                 if data.get("status") == "success":
                     return data.get("shortenedUrl")
         except Exception as e:
-            logger.error(f"ShrinkMe Error: {e}")
+            logger.debug(f"ShrinkMe request failed: {e}")
         return url
 
 # -----------------[ Ouo.io Plugin ]----------------- #
@@ -76,11 +76,11 @@ class OuoIoPlugin(ShortenerPlugin):
         # Ouo API is different: http://ouo.io/api/KEY?s=URL
         target = f"http://ouo.io/api/{api_key}?s={quote(url)}"
         try:
-            response = self.session.get(target, timeout=10)
+            response = self.session.get(target, timeout=getattr(self, "request_timeout", 5.0))
             if response.status_code == 200:
                 return response.text.strip()
         except Exception as e:
-            logger.error(f"Ouo.io Error: {e}")
+            logger.debug(f"Ouo request failed: {e}")
         return url
 
 # -----------------[ YOURLS Plugin ]----------------- #
@@ -99,13 +99,13 @@ class YOURLSPlugin(ShortenerPlugin):
             if "yourls-api.php" not in base.lower():
                 base = base.rstrip("/") + "/yourls-api.php"
             target = f"{base}?signature={api_key}&action=shorturl&format=json&url={quote(url)}"
-            response = self.session.get(target, timeout=10)
+            response = self.session.get(target, timeout=getattr(self, "request_timeout", 5.0))
             if response.status_code == 200:
                 data = response.json()
                 if data.get("status") == "success":
                     return data.get("shorturl") or data.get("short_url") or url
         except Exception as e:
-            logger.error(f"YOURLS Error: {e}")
+            logger.debug(f"YOURLS request failed: {e}")
         return url
 
 # -----------------[ Linkvertise Plugin (Legacy) ]----------------- #
@@ -139,7 +139,7 @@ class GenericShortenerPlugin(ShortenerPlugin):
             domain_clean = parsed.netloc or parsed.path
             target_url = f"https://{domain_clean}/api?api={api_key}&url={quote(url)}"
 
-            response = self.session.get(target_url, timeout=10)
+            response = self.session.get(target_url, timeout=getattr(self, "request_timeout", 5.0))
             if response.status_code == 200:
                 data = response.json()
                 # Check for common success keys
@@ -148,7 +148,7 @@ class GenericShortenerPlugin(ShortenerPlugin):
                 if "link" in data:
                     return data["link"]
         except Exception as e:
-            logger.error(f"Generic Shortener Error: {e}")
+            logger.debug(f"Generic shortener request failed: {e}")
         return url
 
 # -----------------[ System Logic ]----------------- #
@@ -162,6 +162,11 @@ class ShortenerSystem:
         self._cache_ttl = 3600
         self._fail_count = 0
         self._cooldown_until = 0.0
+        self._request_timeout = float(getattr(Telegram, "URL_SHORTENER_TIMEOUT", 5) or 5)
+        self._executor_timeout = self._request_timeout + 1.5
+        self._fail_threshold = int(getattr(Telegram, "URL_SHORTENER_FAIL_THRESHOLD", 2) or 2)
+        self._cooldown_seconds = int(getattr(Telegram, "URL_SHORTENER_COOLDOWN", 300) or 300)
+        self._last_timeout_log = 0.0
 
     def _get_plugin_class(self, domain: str):
         # Check specific plugins first (exclude Generic from this loop)
@@ -170,6 +175,20 @@ class ShortenerSystem:
                 return plugin_class
         # Default to Generic if no specific match found
         return GenericShortenerPlugin
+
+    def _mark_failure(self, reason: str):
+        self._fail_count += 1
+        if self._fail_count >= self._fail_threshold:
+            self._cooldown_until = time.time() + self._cooldown_seconds
+            logger.warning(
+                f"Shortener entered cooldown for {self._cooldown_seconds}s after repeated failures"
+            )
+
+        # Avoid noisy duplicate timeout logs
+        now = time.time()
+        if now - self._last_timeout_log > 20:
+            logger.error(reason)
+            self._last_timeout_log = now
 
     async def initialize(self) -> bool:
         if self.ready:
@@ -199,8 +218,12 @@ class ShortenerSystem:
             self.plugin = plugin_class()
             self.plugin.session = self.session
             self.plugin.domain = site
+            self.plugin.request_timeout = self._request_timeout
             self.ready = True
-            logger.info(f"Shortener System Initialized for: {site} using {plugin_class.__name__}")
+            logger.info(
+                f"Shortener System Initialized for: {site} using {plugin_class.__name__} "
+                f"(timeout={self._request_timeout}s, fail_threshold={self._fail_threshold})"
+            )
             return True
         except Exception as e:
             logger.error(f"Failed to initialize ShortenerSystem: {e}")
@@ -212,8 +235,12 @@ class ShortenerSystem:
                 return url
 
         now = time.time()
-        if self._cooldown_until and now < self._cooldown_until:
-            return url
+        if self._cooldown_until:
+            if now < self._cooldown_until:
+                return url
+            # Cooldown elapsed; allow retry
+            self._cooldown_until = 0.0
+            self._fail_count = 0
 
         # Avoid shortening if URL already points to the shortener domain
         try:
@@ -246,28 +273,21 @@ class ShortenerSystem:
                         url,
                         Telegram.URL_SHORTENER_API_KEY
                     ),
-                    timeout=6.0
+                    timeout=self._executor_timeout
                 )
                 final = result or url
                 if final == url:
-                    self._fail_count += 1
+                    self._mark_failure("Shortener returned original URL (fallback used)")
                 else:
                     self._fail_count = 0
-                if self._fail_count >= 3:
-                    self._cooldown_until = time.time() + 300
+                    self._cooldown_until = 0.0
                 self._cache[url] = (final, time.time() + self._cache_ttl)
                 return final
         except asyncio.TimeoutError:
-            self._fail_count += 1
-            if self._fail_count >= 3:
-                self._cooldown_until = time.time() + 300
-            logger.error("Shortener request timed out")
+            self._mark_failure("Shortener request timed out")
             return url
         except Exception as e:
-            self._fail_count += 1
-            if self._fail_count >= 3:
-                self._cooldown_until = time.time() + 300
-            logger.error(f"Error shortening URL: {e}")
+            self._mark_failure(f"Error shortening URL: {e}")
             return url
 
 _system = ShortenerSystem()

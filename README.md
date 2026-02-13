@@ -190,6 +190,9 @@ PORT=8080
 * `HAS_SSL`: Use `https` links (`True`/`False`). `bool`
 * `URL_SHORTENER_SITE`: Optional shortener provider/site id. `str`
 * `URL_SHORTENER_API_KEY`: Optional shortener API key. `str`
+* `URL_SHORTENER_TIMEOUT`: Shortener API request timeout in seconds. Default `5`. `float`
+* `URL_SHORTENER_FAIL_THRESHOLD`: Failures before shortener cooldown starts. Default `2`. `int`
+* `URL_SHORTENER_COOLDOWN`: Cooldown duration in seconds after repeated failures. Default `300`. `int`
 
 #### 🔒 NudeNet (NSFW Block)
 * `NUDENET_ENABLE`: Enable NudeNet scanning. Defaults to `True`.
