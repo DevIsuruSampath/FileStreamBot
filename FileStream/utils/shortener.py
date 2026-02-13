@@ -31,16 +31,49 @@ class GPLinksPlugin(ShortenerPlugin):
     def shorten(self, url: str, api_key: str) -> str:
         if not self.session:
             return url
-        # GPlinks API: https://gplinks.in/api?api=API_KEY&url=URL
-        target = f"https://gplinks.in/api?api={api_key}&url={quote(url)}"
-        try:
-            response = self.session.get(target, timeout=getattr(self, "request_timeout", 5.0))
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("status") == "success":
-                    return data.get("shortenedUrl")
-        except Exception as e:
-            logger.debug(f"GPlinks request failed: {e}")
+
+        # Prefer the site set by user, then common GPLinks API hosts.
+        # API supports text mode: ...&format=text (returns only short URL).
+        domain = getattr(self, "domain", "gplinks.com") or "gplinks.com"
+        parsed = urlparse(domain if "://" in domain else f"https://{domain}")
+        host = (parsed.netloc or parsed.path).strip().lower()
+
+        candidates = []
+        if host:
+            candidates.append(host)
+            if host in ("gplinks.com", "gplinks.in"):
+                candidates.append("api.gplinks.com")
+        candidates.extend(["api.gplinks.com", "gplinks.com", "gplinks.in"])
+
+        # Keep order but remove duplicates
+        seen = set()
+        ordered_hosts = []
+        for h in candidates:
+            if h and h not in seen:
+                seen.add(h)
+                ordered_hosts.append(h)
+
+        timeout = getattr(self, "request_timeout", 5.0)
+        for h in ordered_hosts:
+            target = f"https://{h}/api?api={api_key}&url={quote(url)}&format=text"
+            try:
+                response = self.session.get(target, timeout=timeout)
+                if response.status_code != 200:
+                    continue
+
+                text_out = response.text.strip()
+                if text_out.startswith("http"):
+                    return text_out
+
+                # Fallback: some deployments return JSON
+                try:
+                    data = response.json()
+                    if data.get("status") == "success":
+                        return data.get("shortenedUrl") or data.get("short_url") or url
+                except Exception:
+                    pass
+            except Exception as e:
+                logger.debug(f"GPlinks request failed ({h}): {e}")
         return url
 
 # -----------------[ ShrinkMe.io Plugin ]----------------- #
