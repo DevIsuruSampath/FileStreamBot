@@ -101,23 +101,53 @@ docker restart fsb
   <summary><b>Setting up things :</b></summary>
 
 
-If you're on Heroku, just add these in the Environmental Variables
-or if you're Locally hosting, create a file named `.env` in the root directory and add all the variables there.
-An example of `.env` file:
+### 1) Create your environment file (required)
+
+If you are deploying on Heroku/Render/Koyeb, set these values in the platform environment variables.
+If you are running locally or on VPS, create `.env` in project root:
 
 ```sh
-API_ID = 789456
-API_HASH = ysx275f9638x896g43sfzx65
-BOT_TOKEN = 12345678:your_bot_token
-ULOG_CHANNEL = -100123456789
-FLOG_CHANNEL = -100123456789
-DATABASE_URL = mongodb://admin:pass@192.168.27.1
-FQDN = 192.168.27.1
-HAS_SSL = False
-MULTI_TOKEN1 = 12345678:bot_token_multi_client_1
-MULTI_TOKEN2 = 12345678:bot_token_multi_client_2
-OWNER_ID = 987456321
-PORT = 8080
+cp .env.example .env
+```
+
+Then edit `.env` and fill all mandatory values.
+
+### 2) Mandatory environment variables
+
+- `API_ID`
+- `API_HASH`
+- `BOT_TOKEN`
+- `OWNER_ID`
+- `FLOG_CHANNEL`
+- `ULOG_CHANNEL`
+- `DATABASE_URL`
+- `FQDN`
+
+> ⚠️ Bot will not start correctly if mandatory vars are missing.
+
+### 3) Force-subscribe settings
+
+- `FORCE_SUB_ID`: channel ID (usually starts with `-100...`)
+- `FORCE_SUB`: `True` / `False`
+- `UPDATES_CHANNEL`: optional username without `@`
+
+This repo now supports both:
+- `FORCE_SUB` (recommended)
+- `FORCE_UPDATES_CHANNEL` (legacy compatibility)
+
+### 4) Example `.env`
+
+```sh
+API_ID=123456
+API_HASH=your_api_hash
+BOT_TOKEN=123456:your_bot_token
+OWNER_ID=123456789
+FLOG_CHANNEL=-1001234567890
+ULOG_CHANNEL=-1001234567890
+DATABASE_URL=mongodb://user:pass@host:27017
+FQDN=example.com
+FORCE_SUB=False
+PORT=8080
 ```
 </details>
 
@@ -127,37 +157,39 @@ PORT = 8080
 
 #### 📝 Mandatory Vars :
 
-* `API_ID`: API ID of your Telegram account, can be obtained from [My Telegram](https://my.telegram.org). `int`
-* `API_HASH`: API hash of your Telegram account, can be obtained from [My Telegram](https://my.telegram.org). `str`
-* `OWNER_ID`: Your Telegram User ID, Send `/id` to [@missrose_bot](https://telegram.dog/MissRose_bot) to get Your Telegram User ID `int`
-* `BOT_TOKEN`: Telegram API token of your bot, can be obtained from [@BotFather](https://t.me/BotFather). `str`
-* `FLOG_CHANNEL`: ID of the channel where bot will store all Files from users `int`.
-* `ULOG_CHANNEL`: ID of the channel where bot will send logs of New Users`int`.
-* `BOT_WORKERS`: Number of updates bot should process from Telegram at once, by default to 10 updates. `int`
-* `DATABASE_URL`: MongoDB URI for saving User Data and Files List created by user. `str`
-* `FQDN`: A Fully Qualified Domain Name if present without http/s. Defaults to `BIND_ADDRESS`. `str`
+* `API_ID`: API ID of your Telegram account from [my.telegram.org](https://my.telegram.org). `int`
+* `API_HASH`: API hash of your Telegram account from [my.telegram.org](https://my.telegram.org). `str`
+* `BOT_TOKEN`: Telegram bot token from [@BotFather](https://t.me/BotFather). `str`
+* `OWNER_ID`: Your Telegram User ID. `int`
+* `FLOG_CHANNEL`: Channel ID where user files are stored. `int`
+* `ULOG_CHANNEL`: Channel ID where new-user logs are sent. `int`
+* `DATABASE_URL`: MongoDB URI. `str`
+* `FQDN`: Public domain/IP used for generated links (without `http/s`). `str`
 
 #### 🗼 MultiClient Vars :
-* `MULTI_TOKEN1`: Add your first bot token or session strings here. `str`
-* `MULTI_TOKEN2`: Add your second bot token or session strings here. `str`
+* `MULTI_TOKEN1`: First bot token/session string. `str`
+* `MULTI_TOKEN2`: Second bot token/session string. `str`
 
 #### 🪐 Optional Vars :
 
-* `UPDATES_CHANNEL`: Channel Username without `@` to set channel as Update Channel `str`
-* `FORCE_SUB_ID`: Force Sub Channel ID, if you want to use Force Sub. start with `-100` `int
-* `FORCE_SUB`: Set to True, so every user have to Join update channel to use the bot. `bool`
-* `AUTH_USERS`: Put authorized user IDs to use bot, separated by <kbd>Space</kbd>. `int`
-* `SLEEP_THRESHOLD`: Set global flood wait threshold, auto-retry requests under 60s. `int`
-* `SESSION_NAME`: Name for the Database created on your MongoDB. Defaults to `FileStream`. `str`
-* `FILE_PIC`: To set Image at `/files` command. Defaults to pre-set image. `str`
-* `START_PIC`: To set Image at `/start` command. Defaults to pre-set image. `str`
-* `VERIFY_PIC`: To set Image at Force Sub Verification. Defaults to pre-set image. `str`
-* `WORKERS`: Number of maximum concurrent workers for handling incoming updates. Defaults to `6`. `int`
-* `PORT`: The port that you want your webapp to be listened to. Defaults to `8080`. `int`
-* `BIND_ADDRESS`: Your server bind adress. Defauls to `0.0.0.0`. `int`
-* `MODE`: Should be set to `secondary` if you only want to use the server for serving files. `str`
-* `NO_PORT`: (True/False) Set PORT to 80 or 443 hide port display; ignore if on Heroku. Defaults to `False`.
-* `HAS_SSL`: (can be either `True` or `False`) If you want the generated links in https format. Defaults to `False`. 
+* `WORKERS`: Max concurrent workers. Default `6`. `int`
+* `UPDATES_CHANNEL`: Update channel username without `@`. `str`
+* `FORCE_SUB_ID`: Force-subscribe channel ID. Usually starts with `-100`. `str`
+* `FORCE_SUB`: Force subscribe switch (`True` / `False`). `bool`
+* `FORCE_UPDATES_CHANNEL`: Legacy alias for `FORCE_SUB`. `bool`
+* `AUTH_USERS`: Space-separated authorized user IDs. `int list`
+* `SLEEP_THRESHOLD`: Flood-wait auto-retry threshold. Default `60`. `int`
+* `SESSION_NAME`: DB session name. Default `FileStream`. `str`
+* `FILE_PIC`: Image for `/files` command. `str`
+* `START_PIC`: Image for `/start` command. `str`
+* `VERIFY_PIC`: Image for force-sub verification. `str`
+* `PORT`: Web app port. Default `8080`. `int`
+* `BIND_ADDRESS`: Bind address. Default `0.0.0.0`. `str`
+* `MODE`: Set `secondary` to run serving mode only. `str`
+* `NO_PORT`: Hide port in generated links (`True`/`False`). `bool`
+* `HAS_SSL`: Use `https` links (`True`/`False`). `bool`
+* `URL_SHORTENER_SITE`: Optional shortener provider/site id. `str`
+* `URL_SHORTENER_API_KEY`: Optional shortener API key. `str`
 
 #### 🔒 NudeNet (NSFW Block)
 * `NUDENET_ENABLE`: Enable NudeNet scanning. Defaults to `True`.
