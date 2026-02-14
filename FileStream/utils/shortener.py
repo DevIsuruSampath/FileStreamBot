@@ -163,25 +163,68 @@ class GenericShortenerPlugin(ShortenerPlugin):
     def matches(cls, domain: str) -> bool:
         return True
 
+    def _api_candidates(self) -> list[str]:
+        parsed = urlparse(self.domain if "://" in self.domain else f"https://{self.domain}")
+        host = (parsed.netloc or parsed.path).strip().lower()
+
+        candidates: list[str] = []
+
+        # If user passed full endpoint/path, preserve it and normalize to /api suffix.
+        if parsed.netloc:
+            base = f"{parsed.scheme or 'https'}://{parsed.netloc}"
+            path = (parsed.path or "").rstrip("/")
+            if path:
+                if path.endswith("/api"):
+                    candidates.append(f"{base}{path}")
+                else:
+                    candidates.append(f"{base}{path}/api")
+            else:
+                candidates.append(f"{base}/api")
+
+        # Standard host-based endpoint.
+        if host:
+            candidates.append(f"https://{host}/api")
+
+            # Support split deploys where web host and API host differ by api.<host>
+            if not host.startswith("api."):
+                candidates.append(f"https://api.{host}/api")
+
+        # De-duplicate while preserving order.
+        seen = set()
+        ordered: list[str] = []
+        for candidate in candidates:
+            if candidate and candidate not in seen:
+                seen.add(candidate)
+                ordered.append(candidate)
+        return ordered
+
     def shorten(self, url: str, api_key: str) -> str:
         if not self.session:
             return url
-        try:
-            # Standard Shortener API format: https://SITE/api?api=KEY&url=URL
-            parsed = urlparse(self.domain if "://" in self.domain else f"https://{self.domain}")
-            domain_clean = parsed.netloc or parsed.path
-            target_url = f"https://{domain_clean}/api?api={api_key}&url={quote(url)}"
 
-            response = self.session.get(target_url, timeout=getattr(self, "request_timeout", 5.0))
-            if response.status_code == 200:
+        timeout = getattr(self, "request_timeout", 5.0)
+        for endpoint in self._api_candidates():
+            target_url = f"{endpoint}?api={api_key}&url={quote(url)}"
+            try:
+                response = self.session.get(target_url, timeout=timeout)
+                if response.status_code != 200:
+                    continue
+
+                text_out = response.text.strip()
+                if text_out.startswith("http"):
+                    return text_out
+
                 data = response.json()
-                # Check for common success keys
+                # Common success keys across providers
+                if data.get("status") == "success":
+                    return data.get("shortenedUrl") or data.get("short_url") or data.get("link") or url
                 if "shortenedUrl" in data:
                     return data["shortenedUrl"]
                 if "link" in data:
                     return data["link"]
-        except Exception as e:
-            logger.debug(f"Generic shortener request failed: {e}")
+            except Exception as e:
+                logger.debug(f"Generic shortener request failed ({endpoint}): {e}")
+
         return url
 
 # -----------------[ System Logic ]----------------- #
