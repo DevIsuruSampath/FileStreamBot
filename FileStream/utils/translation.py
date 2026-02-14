@@ -53,6 +53,8 @@ class LANG(object):
 """
 
     STREAM_TEXT = """
+<b>✅ Your link generated.</b>
+
 <b>📂 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
 <b>📥 Download:</b> <code>{}</code>
@@ -62,6 +64,8 @@ class LANG(object):
 """
 
     STREAM_TEXT_X = """
+<b>✅ Your link generated.</b>
+
 <b>📂 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
 <b>📥 Download:</b> <code>{}</code>
