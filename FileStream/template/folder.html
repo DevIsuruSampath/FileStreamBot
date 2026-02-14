@@ -1,218 +1,480 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ page_title or 'Folder' }} ({{count}})</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ page_title or 'Folder' }} ({{ count }})</title>
     <link rel="stylesheet" href="/static/plyr.css" />
     <script src="/static/plyr.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0f0f13; }
-        .plyr { border-radius: 12px; overflow: hidden; box-shadow: 0 0 40px rgba(79, 70, 229, 0.15); border: 1px solid rgba(255,255,255,0.05); }
-        :root { --plyr-color-main: #4f46e5; }
-        .active-item { background: rgba(79, 70, 229, 0.15); border-color: rgba(79, 70, 229, 0.4); }
-        .btn { display:inline-flex; align-items:center; justify-content:center; padding:0.375rem 0.75rem; border-radius:0.5rem; font-size:0.75rem; font-weight:600; }
-        .btn-play { background: rgba(79, 70, 229, 0.2); color: #c7d2fe; border: 1px solid rgba(79, 70, 229, 0.35); }
-        .btn-download { background: rgba(255,255,255,0.08); color: #e5e7eb; border: 1px solid rgba(255,255,255,0.12); }
-        .btn-disabled { opacity: .5; cursor: not-allowed; }
+        :root {
+            --bg: #0a1020;
+            --card: rgba(255, 255, 255, 0.08);
+            --card-2: rgba(255, 255, 255, 0.05);
+            --text: #e8edff;
+            --muted: #b5c0dc;
+            --primary: #6f8cff;
+            --primary-2: #7a5cff;
+            --accent: #2dd4bf;
+            --danger: #f87171;
+            --border: rgba(255, 255, 255, 0.16);
+            --radius: 16px;
+            --radius-sm: 12px;
+            --shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+            --header-h: 70px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(1000px 520px at -10% -10%, rgba(111, 140, 255, 0.28), transparent 60%),
+                radial-gradient(900px 500px at 100% 0%, rgba(122, 92, 255, 0.2), transparent 60%),
+                linear-gradient(180deg, #0a1020 0%, #080d1a 100%);
+            min-height: 100vh;
+        }
+
+        a { color: inherit; text-decoration: none; }
+
+        .container {
+            width: min(1180px, 92%);
+            margin: 0 auto;
+        }
+
+        .glass {
+            background: var(--card);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: var(--shadow);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            height: var(--header-h);
+            border-bottom: 1px solid var(--border);
+            background: rgba(8, 12, 24, 0.82);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .header-inner {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 800;
+            font-size: 1.03rem;
+            letter-spacing: 0.2px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, var(--accent), var(--primary));
+            box-shadow: 0 0 0 6px rgba(45, 212, 191, 0.16);
+        }
+
+        .count-tag {
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 7px 12px;
+            font-size: 0.84rem;
+            color: #d9e2ff;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .main {
+            display: grid;
+            gap: 16px;
+            padding: 18px 0 28px;
+        }
+
+        .layout {
+            display: grid;
+            gap: 16px;
+        }
+
+        .player-shell {
+            overflow: hidden;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: #000;
+        }
+
+        .player-shell video { width: 100%; display: block; aspect-ratio: 16/9; }
+
+        .audio-shell {
+            border-radius: var(--radius);
+            padding: 18px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .audio-shell .head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+            color: #d8e3ff;
+            font-size: 0.95rem;
+        }
+
+        .audio-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            background: rgba(111, 140, 255, 0.22);
+            border: 1px solid rgba(111, 140, 255, 0.35);
+        }
+
+        .meta {
+            border-radius: var(--radius);
+            padding: 15px;
+            margin-top: 12px;
+        }
+
+        .meta h1 {
+            font-size: clamp(1rem, 2.8vw, 1.35rem);
+            line-height: 1.35;
+            font-weight: 700;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .meta p {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 40px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            color: var(--text);
+            font-weight: 650;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+            padding: 0 12px;
+            text-decoration: none;
+            background: transparent;
+        }
+
+        .btn:hover { transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-2));
+            border-color: rgba(132, 146, 255, 0.45);
+            color: #fff;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--border);
+            color: #e5ecff;
+        }
+
+        .btn-danger {
+            background: rgba(248, 113, 113, 0.12);
+            border-color: rgba(248, 113, 113, 0.34);
+            color: #fecaca;
+        }
+
+        .btn[disabled],
+        .btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .sidebar {
+            border-radius: var(--radius);
+            padding: 14px;
+            max-height: calc(100vh - (var(--header-h) + 32px));
+            overflow: auto;
+        }
+
+        .sidebar-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .sidebar-head h3 {
+            font-size: 0.9rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #c6d0ef;
+        }
+
+        .list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .item {
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--card-2);
+            padding: 10px;
+            display: grid;
+            gap: 8px;
+            transition: background 0.18s ease, border-color 0.18s ease;
+        }
+
+        .item.active {
+            background: rgba(111, 140, 255, 0.18);
+            border-color: rgba(111, 140, 255, 0.45);
+        }
+
+        .item-title {
+            font-size: 0.88rem;
+            line-height: 1.35;
+            word-break: break-word;
+            color: #e6edff;
+            font-weight: 600;
+        }
+
+        .item-size {
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        .item-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        @media (min-width: 980px) {
+            .layout {
+                grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.9fr);
+                align-items: start;
+            }
+
+            .sidebar {
+                position: sticky;
+                top: calc(var(--header-h) + 12px);
+            }
+        }
+
+        :root { --plyr-color-main: #6f8cff; }
     </style>
 </head>
-<body class="text-gray-300 antialiased">
-    <nav class="border-b border-white/5 bg-[#0f0f13]/80 backdrop-blur-md sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    </div>
-                    <span class="text-white font-bold text-lg tracking-tight">{{ page_title or 'Folder' }}</span>
-                </div>
-            </div>
+<body>
+<header class="header">
+    <div class="container header-inner">
+        <div class="brand">
+            <span class="dot"></span>
+            {{ page_title or 'Folder' }}
         </div>
-    </nav>
+        <span class="count-tag">{{ count }} items</span>
+    </div>
+</header>
 
-    <main class="max-w-7xl mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6 lg:gap-8">
-        <div class="lg:w-3/4">
-            <div id="videoWrap" class="relative aspect-video bg-black rounded-2xl mb-4 shadow-2xl">
-                <video id="videoPlayer" playsinline controls preload="metadata" class="w-full h-full"></video>
+<main class="container main">
+    <div class="layout">
+        <section>
+            <div id="videoWrap" class="player-shell glass">
+                <video id="videoPlayer" playsinline controls preload="metadata"></video>
             </div>
-            <div id="audioWrap" class="relative bg-[#0b0b10] rounded-2xl mb-4 shadow-2xl border border-white/5 p-4 hidden">
-                <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 bg-indigo-600/20 rounded-xl flex items-center justify-center">
-                        <svg class="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-2v13" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19a3 3 0 11-6 0 3 3 0 016 0zm12-2a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    </div>
-                    <audio id="audioPlayer" controls preload="metadata" class="w-full"></audio>
+
+            <div id="audioWrap" class="audio-shell glass" style="display:none;">
+                <div class="head">
+                    <span class="audio-icon">🎵</span>
+                    <span>Audio Stream</span>
                 </div>
+                <audio id="audioPlayer" controls preload="metadata" style="width:100%"></audio>
             </div>
-            <div class="space-y-2">
-                <h1 id="currentTitle" class="text-xl md:text-2xl font-bold text-white break-all leading-snug"></h1>
-                <div class="text-sm text-gray-400" id="currentMeta"></div>
-                <div class="flex gap-2 pt-2">
-                    <button id="playBtn" class="btn btn-play">Play</button>
-                    <a id="downloadBtn" class="btn btn-download" href="#" download>Download</a>
+
+            <article class="meta glass">
+                <h1 id="currentTitle"></h1>
+                <p id="currentMeta"></p>
+                <div class="actions">
+                    <button id="playBtn" class="btn btn-primary">▶️ Play</button>
+                    <a id="downloadBtn" class="btn btn-secondary" href="#" download>⬇️ Download</a>
                     {% if report_url %}
-                    <a class="btn btn-download" href="{{ report_url }}" style="border-color: rgba(239,68,68,0.35); color: #fca5a5;">Report Adult</a>
+                    <a class="btn btn-danger" href="{{ report_url }}">🚫 Report Adult</a>
                     {% endif %}
                 </div>
-            </div>
-        </div>
+            </article>
+        </section>
 
-        <aside class="lg:w-1/4">
-            <div class="bg-[#18181b] border border-white/5 rounded-2xl p-4">
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-white font-semibold text-sm uppercase tracking-wider text-gray-400">{{ page_title or 'Folder' }}</h3>
-                    <span class="text-xs text-gray-500">{{count}} items</span>
-                </div>
-                <ul id="folder" class="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
-                    {% for f in files %}
-                    <li class="folder-item border border-white/5 rounded-xl p-3" data-index="{{ loop.index0 }}" data-playable="{{ '1' if f.playable else '0' }}">
-                        <div class="text-sm text-white font-medium break-all">{{ f.name }}</div>
-                        <div class="text-xs text-gray-400">{{ f.size }}</div>
-                        <div class="mt-2 flex gap-2">
-                            <button class="btn btn-play play-item {{ '' if f.playable else 'btn-disabled' }}" {{ '' if f.playable else 'disabled' }} data-index="{{ loop.index0 }}">Play</button>
-                            <a class="btn btn-download" href="{{ f.url }}" download>Download</a>
-                        </div>
-                    </li>
-                    {% endfor %}
-                </ul>
+        <aside class="sidebar glass">
+            <div class="sidebar-head">
+                <h3>{{ page_title or 'Folder' }}</h3>
+                <span style="font-size:0.82rem;color:var(--muted);">{{ count }} files</span>
             </div>
+
+            <ul id="folder" class="list">
+                {% for f in files %}
+                <li class="item" data-index="{{ loop.index0 }}" data-playable="{{ '1' if f.playable else '0' }}">
+                    <div class="item-title">{{ f.name }}</div>
+                    <div class="item-size">{{ f.size }}</div>
+                    <div class="item-actions">
+                        <button class="btn btn-secondary play-item {{ '' if f.playable else 'disabled' }}" {{ '' if f.playable else 'disabled' }} data-index="{{ loop.index0 }}">Play</button>
+                        <a class="btn btn-secondary" href="{{ f.url }}" download>Download</a>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
         </aside>
-    </main>
+    </div>
+</main>
 
-    <script>
-        const folderItems = {{ folder_json | safe }};
-        const listEl = document.getElementById('folder');
-        const titleEl = document.getElementById('currentTitle');
-        const metaEl = document.getElementById('currentMeta');
-        const playBtn = document.getElementById('playBtn');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const videoWrap = document.getElementById('videoWrap');
-        const audioWrap = document.getElementById('audioWrap');
+<script>
+    const folderItems = {{ folder_json | safe }};
+    const listEl = document.getElementById('folder');
+    const titleEl = document.getElementById('currentTitle');
+    const metaEl = document.getElementById('currentMeta');
+    const playBtn = document.getElementById('playBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const videoWrap = document.getElementById('videoWrap');
+    const audioWrap = document.getElementById('audioWrap');
 
-        const videoPlayer = new Plyr('#videoPlayer', {
-            controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen'],
-            settings: ['speed', 'loop'],
-        });
+    const videoPlayer = new Plyr('#videoPlayer', {
+        controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen'],
+        settings: ['speed', 'loop'],
+    });
 
-        const audioPlayer = new Plyr('#audioPlayer', {
-            controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'loop'],
-            settings: ['speed', 'loop'],
-        });
+    const audioPlayer = new Plyr('#audioPlayer', {
+        controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'loop'],
+        settings: ['speed', 'loop'],
+    });
 
-        let currentIndex = 0;
-        let activePlayer = videoPlayer;
+    let currentIndex = 0;
+    let activePlayer = videoPlayer;
 
-        function setActive(index) {
-            document.querySelectorAll('.folder-item').forEach((el) => {
-                el.classList.remove('active-item');
-            });
-            const active = document.querySelector(`.folder-item[data-index="${index}"]`);
-            if (active) {
-                active.classList.add('active-item');
-                try { active.scrollIntoView({ block: 'nearest' }); } catch (e) {}
-            }
+    function setActive(index) {
+        document.querySelectorAll('.item').forEach((el) => el.classList.remove('active'));
+        const active = document.querySelector(`.item[data-index="${index}"]`);
+        if (active) {
+            active.classList.add('active');
+            try { active.scrollIntoView({ block: 'nearest' }); } catch (_) {}
+        }
+    }
+
+    function updateHeader(item) {
+        titleEl.textContent = item.name;
+        metaEl.textContent = item.size || '';
+        downloadBtn.href = item.url;
+        if (item.playable) {
+            playBtn.classList.remove('disabled');
+            playBtn.disabled = false;
+        } else {
+            playBtn.classList.add('disabled');
+            playBtn.disabled = true;
+        }
+    }
+
+    function setActivePlayer(kind) {
+        if (kind === 'audio') {
+            videoWrap.style.display = 'none';
+            audioWrap.style.display = 'block';
+            activePlayer = audioPlayer;
+        } else {
+            audioWrap.style.display = 'none';
+            videoWrap.style.display = 'block';
+            activePlayer = videoPlayer;
+        }
+    }
+
+    function pauseAll() {
+        try { videoPlayer.pause(); } catch (_) {}
+        try { audioPlayer.pause(); } catch (_) {}
+    }
+
+    function loadMedia(index, autoPlay = true) {
+        if (!folderItems[index]) return;
+        const item = folderItems[index];
+        currentIndex = index;
+        setActive(index);
+        updateHeader(item);
+
+        if (!item.playable) {
+            pauseAll();
+            return;
         }
 
-        function updateHeader(item) {
-            titleEl.textContent = item.name;
-            metaEl.textContent = item.size || '';
-            downloadBtn.href = item.url;
-            if (item.playable) {
-                playBtn.classList.remove('btn-disabled');
-                playBtn.disabled = false;
-            } else {
-                playBtn.classList.add('btn-disabled');
-                playBtn.disabled = true;
-            }
+        const mediaType = item.kind === 'audio' ? 'audio' : 'video';
+        const fallbackMime = mediaType === 'audio' ? 'audio/mpeg' : 'video/mp4';
+        setActivePlayer(mediaType);
+
+        activePlayer.source = {
+            type: mediaType,
+            title: item.name,
+            sources: [{ src: item.url, type: item.mime || fallbackMime }]
+        };
+
+        if (autoPlay) activePlayer.play();
+    }
+
+    function nextPlayable(startIdx) {
+        for (let i = startIdx; i < folderItems.length; i++) {
+            if (folderItems[i].playable) return i;
+        }
+        return -1;
+    }
+
+    listEl.addEventListener('click', (e) => {
+        if (e.target.closest('a')) return;
+
+        const playButton = e.target.closest('.play-item');
+        if (playButton) {
+            const index = parseInt(playButton.dataset.index, 10);
+            loadMedia(index);
+            return;
         }
 
-        function setActivePlayer(kind) {
-            if (kind === 'audio') {
-                videoWrap.classList.add('hidden');
-                audioWrap.classList.remove('hidden');
-                activePlayer = audioPlayer;
-            } else {
-                audioWrap.classList.add('hidden');
-                videoWrap.classList.remove('hidden');
-                activePlayer = videoPlayer;
-            }
+        const item = e.target.closest('.item');
+        if (item) {
+            const index = parseInt(item.dataset.index, 10);
+            loadMedia(index);
         }
+    });
 
-        function pauseAll() {
-            try { videoPlayer.pause(); } catch (e) {}
-            try { audioPlayer.pause(); } catch (e) {}
-        }
+    playBtn.addEventListener('click', () => loadMedia(currentIndex));
 
-        function loadMedia(index, autoPlay = true) {
-            if (!folderItems[index]) return;
-            const item = folderItems[index];
-            currentIndex = index;
-            setActive(index);
-            updateHeader(item);
+    function onEnded() {
+        const next = nextPlayable(currentIndex + 1);
+        if (next !== -1) loadMedia(next);
+    }
 
-            if (!item.playable) {
-                pauseAll();
-                try { activePlayer.currentTime = 0; } catch (e) {}
-                return;
-            }
+    videoPlayer.on('ended', onEnded);
+    audioPlayer.on('ended', onEnded);
 
-            const mediaType = item.kind === 'audio' ? 'audio' : 'video';
-            const fallbackMime = mediaType === 'audio' ? 'audio/mpeg' : 'video/mp4';
-            setActivePlayer(mediaType);
-
-            activePlayer.source = {
-                type: mediaType,
-                title: item.name,
-                sources: [{ src: item.url, type: item.mime || fallbackMime }]
-            };
-
-            if (autoPlay) activePlayer.play();
-        }
-
-        function nextPlayable(startIdx) {
-            for (let i = startIdx; i < folderItems.length; i++) {
-                if (folderItems[i].playable) return i;
-            }
-            return -1;
-        }
-
-        listEl.addEventListener('click', (e) => {
-            // Ignore download link clicks
-            if (e.target.closest('a')) return;
-
-            const playButton = e.target.closest('.play-item');
-            if (playButton) {
-                const index = parseInt(playButton.dataset.index, 10);
-                loadMedia(index);
-                return;
-            }
-
-            const item = e.target.closest('.folder-item');
-            if (item) {
-                const index = parseInt(item.dataset.index, 10);
-                loadMedia(index);
-            }
-        });
-
-        playBtn.addEventListener('click', () => {
-            loadMedia(currentIndex);
-        });
-
-        function onEnded() {
-            const next = nextPlayable(currentIndex + 1);
-            if (next !== -1) loadMedia(next);
-        }
-
-        videoPlayer.on('ended', onEnded);
-        audioPlayer.on('ended', onEnded);
-
-        // Init first item (prefer first playable)
-        if (folderItems.length > 0) {
-            const firstPlayable = nextPlayable(0);
-            loadMedia(firstPlayable !== -1 ? firstPlayable : 0, false);
-        }
-    </script>
+    if (folderItems.length > 0) {
+        const firstPlayable = nextPlayable(0);
+        loadMedia(firstPlayable !== -1 ? firstPlayable : 0, false);
+    }
+</script>
 </body>
 </html>
