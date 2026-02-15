@@ -15,13 +15,14 @@ class BUTTON(object):
     START_BUTTONS = InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("📘 Help", callback_data="help"),
-                InlineKeyboardButton("ℹ️ About", callback_data="about"),
+                InlineKeyboardButton("➕ Add to Channel", url=f"https://t.me/{Telegram.BOT_TOKEN.split(':')[0]}?startgroup=true"),
             ],
-            [InlineKeyboardButton("📁 My Files", callback_data="userfiles_1")],
+            [
+                InlineKeyboardButton("ℹ️ About", callback_data="about"),
+                InlineKeyboardButton("🆘 Help", callback_data="help"),
+            ],
             [
                 InlineKeyboardButton("📢 Updates", url=_updates_link),
-                InlineKeyboardButton("❌ Close", callback_data="close"),
             ],
         ]
     )
@@ -32,7 +33,6 @@ class BUTTON(object):
                 InlineKeyboardButton("🏠 Home", callback_data="home"),
                 InlineKeyboardButton("ℹ️ About", callback_data="about"),
             ],
-            [InlineKeyboardButton("📁 My Files", callback_data="userfiles_1")],
             [
                 InlineKeyboardButton("📢 Updates", url=_updates_link),
                 InlineKeyboardButton("❌ Close", callback_data="close"),
@@ -44,9 +44,8 @@ class BUTTON(object):
         [
             [
                 InlineKeyboardButton("🏠 Home", callback_data="home"),
-                InlineKeyboardButton("📘 Help", callback_data="help"),
+                InlineKeyboardButton("🆘 Help", callback_data="help"),
             ],
-            [InlineKeyboardButton("📁 My Files", callback_data="userfiles_1")],
             [
                 InlineKeyboardButton("📢 Updates", url=_updates_link),
                 InlineKeyboardButton("❌ Close", callback_data="close"),
