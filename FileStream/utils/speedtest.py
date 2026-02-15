@@ -1,43 +1,11 @@
 import asyncio
 import datetime
-import time
 import speedtest
-
+from FileStream.utils.messages import LANG
 from FileStream.utils.human_readable import humanbytes
 
-MSG_SPEEDTEST_START = "🚀 Running Speed Test..."
-MSG_SPEEDTEST_ERROR = (
-    "❌ Speed Test Failed!\n"
-    "> Unable to complete the speed test. Please try again later."
-)
-
-RESULT_TEMPLATE = (
-    "⚡ Speed Test Results\n\n"
-    "SPEEDTEST INFO:\n"
-    "> Download: {download_mbps} Mbps ({download_bps}/s)\n"
-    "> Upload: {upload_mbps} Mbps ({upload_bps}/s)\n"
-    "> Ping: {ping} ms\n"
-    "> Timestamp: {timestamp}\n"
-    "> Data Sent: {bytes_sent}\n"
-    "> Data Received: {bytes_received}\n\n"
-    "SERVER INFO:\n"
-    "> Name: {server_name}\n"
-    "> Country: {server_country}\n"
-    "> Sponsor: {server_sponsor}\n"
-    "> Latency: {server_latency} ms\n"
-    "> Coordinates: {server_lat}, {server_lon}\n\n"
-    "CLIENT DETAILS:\n"
-    "> IP: {client_ip}\n"
-    "> Coordinates: {client_lat}, {client_lon}\n"
-    "> ISP: {client_isp}\n"
-    "> ISP Rating: {client_isprating}\n"
-    "> Country: {client_country}"
-)
-
-
 def _run_speedtest():
-    st = speedtest.Speedtest(secure=True, timeout=10)
-
+    st = speedtest.Speedtest(secure=True)
     try:
         st.get_servers([])
     except Exception:
@@ -46,7 +14,6 @@ def _run_speedtest():
     try:
         st.get_best_server()
     except Exception:
-        # Fallback: pick any available server if best lookup fails
         if getattr(st, "servers", None):
             for servers in st.servers.values():
                 if servers:
@@ -58,8 +25,6 @@ def _run_speedtest():
     st.download(threads=4)
     st.upload(pre_allocate=False, threads=4)
 
-    # Sharing can be flaky; wrap safely
-    share_url = None
     try:
         share_url = st.results.share()
     except Exception:
@@ -91,15 +56,22 @@ def format_speedtest(result: dict) -> str:
     server = result.get("server", {}) or {}
     client = result.get("client", {}) or {}
 
-    return RESULT_TEMPLATE.format(
-        download_mbps=round(result.get("download", 0) / 1_000_000, 2),
+    download_mbps = round(result.get("download", 0) / 1_000_000, 2)
+    upload_mbps = round(result.get("upload", 0) / 1_000_000, 2)
+    ping = round(result.get("ping", 0), 2)
+    timestamp = result.get("timestamp") or datetime.datetime.utcnow().isoformat()
+    bytes_sent = humanbytes(result.get("bytes_sent", 0))
+    bytes_received = humanbytes(result.get("bytes_received", 0))
+
+    return LANG.SPEEDTEST_RESULT.format(
+        download_mbps=download_mbps,
         download_bps=humanbytes(download_bps),
-        upload_mbps=round(result.get("upload", 0) / 1_000_000, 2),
+        upload_mbps=upload_mbps,
         upload_bps=humanbytes(upload_bps),
-        ping=round(result.get("ping", 0), 2),
-        timestamp=result.get("timestamp") or datetime.datetime.utcnow().isoformat(),
-        bytes_sent=humanbytes(result.get("bytes_sent", 0)),
-        bytes_received=humanbytes(result.get("bytes_received", 0)),
+        ping=ping,
+        timestamp=timestamp,
+        bytes_sent=bytes_sent,
+        bytes_received=bytes_received,
         server_name=server.get("name", "N/A"),
         server_country=server.get("country", "N/A"),
         server_sponsor=server.get("sponsor", "N/A"),

@@ -81,3 +81,32 @@ class LANG(object):
     ERROR_FILE_NOT_FOUND = "File not found."
     ERROR_INVALID_LINK = "Invalid link."
     ERROR_FLOOD = "FloodWait: Sleeping for {}s."
+
+    # Speedtest Messages
+    SPEEDTEST_START = "🚀 Running Speed Test..."
+    SPEEDTEST_ERROR = (
+        "❌ Speed Test Failed!\n"
+        "> Unable to complete the speed test. Please try again later."
+    )
+    SPEEDTEST_RESULT = (
+        "⚡ Speed Test Results\n\n"
+        "SPEEDTEST INFO:\n"
+        "> Download: {download_mbps} Mbps ({download_bps}/s)\n"
+        "> Upload: {upload_mbps} Mbps ({upload_bps}/s)\n"
+        "> Ping: {ping} ms\n"
+        "> Timestamp: {timestamp}\n"
+        "> Data Sent: {bytes_sent}\n"
+        "> Data Received: {bytes_received}\n\n"
+        "SERVER INFO:\n"
+        "> Name: {server_name}\n"
+        "> Country: {server_country}\n"
+        "> Sponsor: {server_sponsor}\n"
+        "> Latency: {server_latency} ms\n"
+        "> Coordinates: {server_lat}, {server_lon}\n\n"
+        "CLIENT DETAILS:\n"
+        "> IP: {client_ip}\n"
+        "> Coordinates: {client_lat}, {client_lon}\n"
+        "> ISP: {client_isp}\n"
+        "> ISP Rating: {client_isprating}\n"
+        "> Country: {client_country}"
+    )
