@@ -94,9 +94,9 @@ async def _send_folder_list(message: Message, page: int = 1, edit: bool = False,
         except Exception:
             pass
 
-    if Telegram.FILE_PIC:
+    if Telegram.FOLDERS_PIC:
         await message.reply_photo(
-            photo=Telegram.FILE_PIC,
+            photo=Telegram.FOLDERS_PIC,
             caption=caption,
             reply_markup=InlineKeyboardMarkup(buttons),
         )

@@ -98,6 +98,10 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `NUDENET_ENABLE`: Set to `True` to enable NSFW scanning.
 - `URL_SHORTENER_SITE`: Shortener domain (e.g., `api.gplinks.com`).
 - `URL_SHORTENER_API_KEY`: API Key for the shortener.
+- `FILE_PIC`: Image for `/files` command.
+- `FOLDERS_PIC`: Image for `/folders` command.
+- `START_PIC`: Image for `/start` command.
+- `VERIFY_PIC`: Image for force subscribe verification.
 
 ## 🤝 Contributing
 
