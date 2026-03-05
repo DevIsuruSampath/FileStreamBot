@@ -296,7 +296,9 @@
                 <h1 class="file-name">{{ file_name }}</h1>
                 <div class="meta-row">
                     <span class="tag">💾 {{ file_size }}</span>
-                    <span class="tag">⚡ High Speed</span>
+                    <span class="tag">🗂️ {{ category or 'Other' }}</span>
+                    <span class="tag">👤 {{ uploader or 'Unknown uploader' }}</span>
+                    {% if message_id %}<span class="tag">🆔 {{ message_id }}</span>{% endif %}
                     <span class="tag">🛡️ Secure Link</span>
                 </div>
                 <p class="hint">If this file is removed from source storage, this page will stop working.</p>

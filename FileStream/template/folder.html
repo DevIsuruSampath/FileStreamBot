@@ -268,6 +268,47 @@
             font-size: 0.8rem;
         }
 
+        .item-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .badge-cat {
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #dce6ff;
+            font-size: 0.74rem;
+            padding: 3px 8px;
+            white-space: nowrap;
+        }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            margin-bottom: 10px;
+        }
+
+        .filter-btn {
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.05);
+            color: #dce6ff;
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 0.74rem;
+            cursor: pointer;
+            transition: background 0.16s ease, border-color 0.16s ease;
+        }
+
+        .filter-btn.active {
+            background: rgba(111, 140, 255, 0.22);
+            border-color: rgba(111, 140, 255, 0.5);
+            color: #eef2ff;
+        }
+
         .item-actions {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -334,11 +375,29 @@
                 <span style="font-size:0.82rem;color:var(--muted);">{{ count }} files</span>
             </div>
 
+            <div class="filters" id="categoryFilters">
+                <button class="filter-btn active" type="button" data-category="all">All</button>
+                <button class="filter-btn" type="button" data-category="Movies">Movies</button>
+                <button class="filter-btn" type="button" data-category="TV-Series">TV-Series</button>
+                <button class="filter-btn" type="button" data-category="Music">Music</button>
+                <button class="filter-btn" type="button" data-category="Games">Games</button>
+                <button class="filter-btn" type="button" data-category="Software">Software</button>
+                <button class="filter-btn" type="button" data-category="Courses">Courses</button>
+                <button class="filter-btn" type="button" data-category="Books">Books</button>
+                <button class="filter-btn" type="button" data-category="Anime">Anime</button>
+                <button class="filter-btn" type="button" data-category="Sports">Sports</button>
+                <button class="filter-btn" type="button" data-category="Other">Other</button>
+            </div>
+
             <ul id="folder" class="list">
                 {% for f in files %}
-                <li class="item" data-index="{{ loop.index0 }}" data-playable="{{ '1' if f.playable else '0' }}">
+                <li class="item" data-index="{{ loop.index0 }}" data-playable="{{ '1' if f.playable else '0' }}" data-category="{{ f.category or 'Other' }}">
                     <div class="item-title">{{ f.name }}</div>
-                    <div class="item-size">{{ f.size }}</div>
+                    <div class="item-meta-row">
+                        <span class="item-size">{{ f.size }}</span>
+                        <span class="badge-cat">{{ f.category or 'Other' }}</span>
+                    </div>
+                    <div class="item-size">Uploader: {{ f.uploader or 'Unknown uploader' }}</div>
                     <div class="item-actions">
                         <button class="btn btn-secondary play-item {{ '' if f.playable else 'disabled' }}" {{ '' if f.playable else 'disabled' }} data-index="{{ loop.index0 }}">Play</button>
                         <a class="btn btn-secondary" href="{{ f.url }}" download>Download</a>
@@ -359,6 +418,7 @@
     const downloadBtn = document.getElementById('downloadBtn');
     const videoWrap = document.getElementById('videoWrap');
     const audioWrap = document.getElementById('audioWrap');
+    const filterWrap = document.getElementById('categoryFilters');
 
     const videoPlayer = new Plyr('#videoPlayer', {
         controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen'],
@@ -372,11 +432,21 @@
 
     let currentIndex = 0;
     let activePlayer = videoPlayer;
+    let activeCategory = 'all';
+
+    function getItemElement(index) {
+        return document.querySelector(`.item[data-index="${index}"]`);
+    }
+
+    function isVisibleIndex(index) {
+        const el = getItemElement(index);
+        return !!el && el.style.display !== 'none';
+    }
 
     function setActive(index) {
         document.querySelectorAll('.item').forEach((el) => el.classList.remove('active'));
-        const active = document.querySelector(`.item[data-index="${index}"]`);
-        if (active) {
+        const active = getItemElement(index);
+        if (active && active.style.display !== 'none') {
             active.classList.add('active');
             try { active.scrollIntoView({ block: 'nearest' }); } catch (_) {}
         }
@@ -384,8 +454,20 @@
 
     function updateHeader(item) {
         titleEl.textContent = item.name;
-        metaEl.textContent = item.size || '';
+
+        const info = [
+            item.size || '',
+            `Category: ${item.category || 'Other'}`,
+            `Uploader: ${item.uploader || 'Unknown uploader'}`,
+        ];
+
+        if (item.message_id) {
+            info.push(`Message ID: ${item.message_id}`);
+        }
+
+        metaEl.textContent = info.filter(Boolean).join(' • ');
         downloadBtn.href = item.url;
+
         if (item.playable) {
             playBtn.classList.remove('disabled');
             playBtn.disabled = false;
@@ -414,6 +496,8 @@
 
     function loadMedia(index, autoPlay = true) {
         if (!folderItems[index]) return;
+        if (!isVisibleIndex(index)) return;
+
         const item = folderItems[index];
         currentIndex = index;
         setActive(index);
@@ -439,9 +523,58 @@
 
     function nextPlayable(startIdx) {
         for (let i = startIdx; i < folderItems.length; i++) {
-            if (folderItems[i].playable) return i;
+            if (folderItems[i].playable && isVisibleIndex(i)) return i;
         }
         return -1;
+    }
+
+    function firstVisibleIndex() {
+        for (let i = 0; i < folderItems.length; i++) {
+            if (isVisibleIndex(i)) return i;
+        }
+        return -1;
+    }
+
+    function applyFilter(category) {
+        activeCategory = category;
+        document.querySelectorAll('.filter-btn').forEach((btn) => {
+            btn.classList.toggle('active', (btn.dataset.category || 'all') === category);
+        });
+
+        document.querySelectorAll('.item').forEach((el) => {
+            const itemCategory = (el.dataset.category || 'Other');
+            const visible = category === 'all' || itemCategory === category;
+            el.style.display = visible ? '' : 'none';
+        });
+
+        if (!isVisibleIndex(currentIndex)) {
+            const firstPlayable = nextPlayable(0);
+            if (firstPlayable !== -1) {
+                loadMedia(firstPlayable, false);
+                return;
+            }
+
+            const fallback = firstVisibleIndex();
+            if (fallback !== -1) {
+                loadMedia(fallback, false);
+                return;
+            }
+
+            titleEl.textContent = 'No files in this category';
+            metaEl.textContent = '';
+            downloadBtn.removeAttribute('href');
+            playBtn.disabled = true;
+            playBtn.classList.add('disabled');
+            pauseAll();
+        }
+    }
+
+    if (filterWrap) {
+        filterWrap.addEventListener('click', (e) => {
+            const btn = e.target.closest('.filter-btn');
+            if (!btn) return;
+            applyFilter(btn.dataset.category || 'all');
+        });
     }
 
     listEl.addEventListener('click', (e) => {
@@ -465,15 +598,23 @@
 
     function onEnded() {
         const next = nextPlayable(currentIndex + 1);
-        if (next !== -1) loadMedia(next);
+        if (next !== -1) {
+            loadMedia(next);
+        }
     }
 
     videoPlayer.on('ended', onEnded);
     audioPlayer.on('ended', onEnded);
 
     if (folderItems.length > 0) {
+        applyFilter('all');
         const firstPlayable = nextPlayable(0);
-        loadMedia(firstPlayable !== -1 ? firstPlayable : 0, false);
+        if (firstPlayable !== -1) {
+            loadMedia(firstPlayable, false);
+        } else {
+            const fallback = firstVisibleIndex();
+            if (fallback !== -1) loadMedia(fallback, false);
+        }
     }
 </script>
 </body>

@@ -7,6 +7,7 @@ from FileStream.config import Telegram, Server
 from FileStream.bot import FileStream
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
+from FileStream.utils.category import detect_category
 from FileStream.server.exceptions import FileNotFound
 
 env = jinja2.Environment(autoescape=True)
@@ -28,6 +29,13 @@ async def render_page(db_id):
     ext = os.path.splitext(raw_name)[1].lower()
     video_ext = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpeg", ".mpg"}
     audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
+
+    category = file_data.get("category") or detect_category(file_name=raw_name, mime_type=mime_type, file_ext=ext)
+    uploader = (file_data.get("uploader") or "Unknown uploader").replace("\n", " ").replace("\r", " ")
+    if len(uploader) > 80:
+        uploader = uploader[:80] + "…"
+
+    message_id = file_data.get("message_id")
 
     is_audio = primary == "audio" or ext in audio_ext
     if primary in ("video", "audio") or ext in video_ext or ext in audio_ext:
@@ -63,6 +71,9 @@ async def render_page(db_id):
         file_url=src,
         file_size=file_size,
         mime_type=resolved_mime,
+        category=category,
+        uploader=uploader,
+        message_id=message_id,
         is_audio=is_audio,
         updates_url=updates_url,
         report_url=report_url,
@@ -97,12 +108,20 @@ async def render_folder(folder_id: str, title: str = "Folder"):
             elif ext in audio_ext:
                 kind = "audio"
         playable = kind in ("video", "audio")
+        category = file_data.get("category") or detect_category(file_name=raw_name, mime_type=mime, file_ext=ext)
+        uploader = (file_data.get("uploader") or "Unknown uploader").replace("\n", " ").replace("\r", " ")
+        if len(uploader) > 80:
+            uploader = uploader[:80] + "…"
+
         files.append({
             "id": str(file_data.get("_id")),
             "name": file_name,
             "size": humanbytes(file_data.get("file_size") or 0),
             "mime": mime,
             "kind": kind,
+            "category": category,
+            "uploader": uploader,
+            "message_id": file_data.get("message_id"),
             "playable": playable,
             "url": urllib.parse.urljoin(Server.URL, f"dl/{file_data['_id']}")
         })

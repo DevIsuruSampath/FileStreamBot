@@ -260,13 +260,15 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     safe_name = html.escape(myfile_info.get('file_name') or "file")
     safe_type = html.escape(file_type)
     safe_time = html.escape(str(readable_time))
+    safe_category = html.escape(myfile_info.get('category') or "Other")
 
     await edit_message(
         update,
-        "<b>File Name :</b> <code>{}</code>\n<b>File Size :</b> <code>{}</code>\n<b>File Type :</b> <code>{}</code>\n<b>Created On :</b> <code>{}</code>".format(
+        "<b>File Name :</b> <code>{}</code>\n<b>File Size :</b> <code>{}</code>\n<b>File Type :</b> <code>{}</code>\n<b>Category :</b> <code>{}</code>\n<b>Created On :</b> <code>{}</code>".format(
             safe_name,
             humanbytes(int(myfile_info.get('file_size') or 0)),
             safe_type,
+            safe_category,
             safe_time,
         ),
         MYFILES_BUTTONS,

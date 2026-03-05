@@ -5,6 +5,7 @@ import motor.motor_asyncio
 from bson.objectid import ObjectId
 from bson.errors import InvalidId
 from FileStream.server.exceptions import FileNotFound
+from FileStream.utils.category import detect_category
 
 class Database:
     def __init__(self, uri, database_name):
@@ -106,15 +107,35 @@ class Database:
             if not file_info:
                 raise FileNotFound
 
+            updates = {}
+
             # Backfill missing mime_type using file extension
             if not file_info.get("mime_type") and file_info.get("file_name"):
                 mime, _ = mimetypes.guess_type(file_info.get("file_name"))
                 if mime:
-                    await self.file.update_one(
-                        {"_id": file_info["_id"]},
-                        {"$set": {"mime_type": mime}}
-                    )
-                    file_info["mime_type"] = mime
+                    updates["mime_type"] = mime
+
+            # Backfill file_ext if missing
+            if not file_info.get("file_ext") and file_info.get("file_name"):
+                import os
+                updates["file_ext"] = os.path.splitext(file_info.get("file_name") or "")[1].lower()
+
+            # Backfill category if missing
+            if not file_info.get("category"):
+                category = detect_category(
+                    file_name=file_info.get("file_name"),
+                    mime_type=updates.get("mime_type", file_info.get("mime_type")),
+                    file_ext=updates.get("file_ext", file_info.get("file_ext")),
+                )
+                updates["category"] = category
+
+            if updates:
+                await self.file.update_one(
+                    {"_id": file_info["_id"]},
+                    {"$set": updates}
+                )
+                file_info.update(updates)
+
             return file_info
         except InvalidId:
             raise FileNotFound

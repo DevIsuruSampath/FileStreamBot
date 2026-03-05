@@ -65,17 +65,21 @@
         }
 
         .meta {
-            display: inline-flex;
+            display: flex;
+            flex-wrap: wrap;
             align-items: center;
             justify-content: center;
             gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .chip {
             border: 1px solid var(--border);
             border-radius: 999px;
             background: rgba(255, 255, 255, 0.06);
             color: #d7e2ff;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             padding: 6px 12px;
-            margin-bottom: 18px;
         }
 
         .btn {
@@ -127,7 +131,12 @@
     <main class="card">
         <div class="icon">📄</div>
         <h1>{{ file_name }}</h1>
-        <div class="meta">💾 {{ file_size }}</div>
+        <div class="meta">
+            <span class="chip">💾 {{ file_size }}</span>
+            <span class="chip">🗂️ {{ category or 'Other' }}</span>
+            <span class="chip">👤 {{ uploader or 'Unknown uploader' }}</span>
+            {% if message_id %}<span class="chip">🆔 {{ message_id }}</span>{% endif %}
+        </div>
 
         <a href="{{ file_url }}" download>
             <button class="btn" type="button">⬇️ Download File</button>

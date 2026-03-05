@@ -50,6 +50,7 @@ class LANG(object):
 
 <b>📂 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
+<b>🗂️ Category:</b> <code>{}</code>
 <b>📥 Download:</b> <code>{}</code>
 <b>▶️ Watch:</b> <code>{}</code>
 
@@ -61,6 +62,7 @@ class LANG(object):
 
 <b>📂 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
+<b>🗂️ Category:</b> <code>{}</code>
 <b>📥 Download:</b> <code>{}</code>
 
 <b>ℹ️ Note:</b> Link works until file is removed.

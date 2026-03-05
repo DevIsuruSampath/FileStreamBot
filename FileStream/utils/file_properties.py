@@ -13,6 +13,7 @@ from pyrogram.types import Message
 from pyrogram.file_id import FileId
 from FileStream.bot import FileStream
 from FileStream.utils.database import Database
+from FileStream.utils.category import detect_category
 from FileStream.config import Telegram, Server
 from FileStream.server.exceptions import FileNotFound
 
@@ -145,6 +146,18 @@ def _guess_mime(file_name: str, mime_type: str | None = None) -> str:
     return guess or ""
 
 
+def _extract_uploader(message: Message) -> tuple[str, int | None, str | None]:
+    if getattr(message, "from_user", None):
+        first_name = (message.from_user.first_name or "").strip()
+        last_name = (message.from_user.last_name or "").strip()
+        full_name = " ".join(x for x in [first_name, last_name] if x) or "User"
+        username = getattr(message.from_user, "username", None)
+        return full_name, getattr(message.from_user, "id", None), username
+
+    title = (getattr(message.chat, "title", None) or "Channel").strip()
+    return title or "Channel", getattr(message.chat, "id", None), None
+
+
 def get_file_info(message):
     if message is None or not getattr(message, "chat", None):
         return None
@@ -163,7 +176,17 @@ def get_file_info(message):
         return None
 
     file_name = get_name(message)
+    file_ext = os.path.splitext(file_name)[1].lower() if file_name else ""
     mime_type = _guess_mime(file_name, getattr(media, "mime_type", ""))
+    category = detect_category(file_name=file_name, mime_type=mime_type, file_ext=file_ext)
+
+    uploader_name, uploader_id, uploader_username = _extract_uploader(message)
+
+    msg_id = getattr(message, "id", None)
+    try:
+        msg_id = int(msg_id) if msg_id is not None else None
+    except Exception:
+        msg_id = None
 
     return {
         "user_id": user_idx,
@@ -172,7 +195,13 @@ def get_file_info(message):
         "file_name": file_name,
         "file_size": getattr(media, "file_size", 0),
         "mime_type": mime_type,
-        "file_ext": os.path.splitext(file_name)[1].lower() if file_name else "",
+        "file_ext": file_ext,
+        "category": category,
+        "uploader": uploader_name,
+        "uploader_id": uploader_id,
+        "uploader_username": uploader_username,
+        "message_id": msg_id,
+        "chat_id": getattr(message.chat, "id", None),
     }
 
 

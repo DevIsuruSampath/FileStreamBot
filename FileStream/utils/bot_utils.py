@@ -10,6 +10,7 @@ from FileStream.utils.translation import LANG
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.shortener import shorten
+from FileStream.utils.category import detect_category
 from FileStream.config import Telegram, Server
 from FileStream.bot import FileStream
 
@@ -108,7 +109,10 @@ async def gen_link(_id):
     audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
     is_streamable = ("video" in mime_type or "audio" in mime_type or ext in video_ext or ext in audio_ext)
 
+    category = file_info.get("category") or detect_category(file_name=file_name, mime_type=mime_type, file_ext=ext)
+
     safe_name = html.escape(file_name)
+    safe_category = html.escape(category)
     if len(safe_name) > 200:
         safe_name = safe_name[:200] + "…"
 
@@ -128,7 +132,7 @@ async def gen_link(_id):
     safe_page = html.escape(page_link)
 
     if is_streamable:
-        stream_text = LANG.STREAM_TEXT.format(safe_name, file_size, safe_stream, safe_page)
+        stream_text = LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_stream, safe_page)
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("sᴛʀᴇᴀᴍ", url=page_link), InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)],
@@ -137,7 +141,7 @@ async def gen_link(_id):
             ]
         )
     else:
-        stream_text = LANG.STREAM_TEXT_X.format(safe_name, file_size, safe_stream)
+        stream_text = LANG.STREAM_TEXT_X.format(safe_name, file_size, safe_category, safe_stream)
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)],
@@ -159,7 +163,10 @@ async def gen_linkx(m:Message , _id, name: list):
     audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
     is_streamable = ("video" in mime_type or "audio" in mime_type or ext in video_ext or ext in audio_ext)
 
+    category = file_info.get("category") or detect_category(file_name=file_name, mime_type=mime_type, file_ext=ext)
+
     safe_name = html.escape(file_name)
+    safe_category = html.escape(category)
     if len(safe_name) > 200:
         safe_name = safe_name[:200] + "…"
 
@@ -178,14 +185,14 @@ async def gen_linkx(m:Message , _id, name: list):
     safe_page = html.escape(page_link)
 
     if is_streamable:
-        stream_text= LANG.STREAM_TEXT.format(safe_name, file_size, safe_stream, safe_page)
+        stream_text= LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_stream, safe_page)
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("sᴛʀᴇᴀᴍ", url=page_link), InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)]
             ]
         )
     else:
-        stream_text= LANG.STREAM_TEXT_X.format(safe_name, file_size, safe_stream)
+        stream_text= LANG.STREAM_TEXT_X.format(safe_name, file_size, safe_category, safe_stream)
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)]
