@@ -4,6 +4,9 @@ import speedtest
 from FileStream.utils.messages import LANG
 from FileStream.utils.human_readable import humanbytes
 
+MSG_SPEEDTEST_START = LANG.SPEEDTEST_START
+MSG_SPEEDTEST_ERROR = LANG.SPEEDTEST_ERROR
+
 def _run_speedtest():
     st = speedtest.Speedtest(secure=True)
     try:
