@@ -27,38 +27,53 @@ server = web.AppRunner(web_server())
 
 loop = asyncio.get_event_loop()
 
+async def _sleep_with_progress(total_seconds: int):
+    remaining = max(int(total_seconds), 0)
+    while remaining > 0:
+        step = 60 if remaining > 60 else remaining
+        await asyncio.sleep(step)
+        remaining -= step
+        if remaining > 0:
+            print(f"Startup FloodWait remaining: {remaining}s")
+
+
 async def start_services():
     print()
     if Telegram.SECONDARY:
         print("------------------ Starting as Secondary Server ------------------")
     else:
         print("------------------- Starting as Primary Server -------------------")
+
+    print()
+    print("--------------------- Initializing Web Server ---------------------")
+    await server.setup()
+    await web.TCPSite(server, Server.BIND_ADDRESS, Server.PORT).start()
+    print("------------------------------ DONE ------------------------------")
+
     print()
     print("-------------------- Initializing Telegram Bot --------------------")
-
 
     while True:
         try:
             await FileStream.start()
             break
         except FloodWait as e:
-            print(f"FloodWait during startup: sleeping {e.value}s")
-            await asyncio.sleep(e.value + 1)
+            wait_for = int(getattr(e, "value", 0)) + 1
+            mins = wait_for // 60
+            print(f"FloodWait during startup: sleeping {wait_for}s (~{mins}m)")
+            await _sleep_with_progress(wait_for)
 
     bot_info = await FileStream.get_me()
     FileStream.id = bot_info.id
     FileStream.username = bot_info.username
-    FileStream.fname=bot_info.first_name
+    FileStream.fname = bot_info.first_name
     print("------------------------------ DONE ------------------------------")
+
     print()
     print("---------------------- Initializing Clients ----------------------")
     await initialize_clients()
     print("------------------------------ DONE ------------------------------")
-    print()
-    print("--------------------- Initializing Web Server ---------------------")
-    await server.setup()
-    await web.TCPSite(server, Server.BIND_ADDRESS, Server.PORT).start()
-    print("------------------------------ DONE ------------------------------")
+
     print()
     print("------------------------- Service Started -------------------------")
     print("                        bot =>> {}".format(bot_info.first_name))
@@ -69,8 +84,16 @@ async def start_services():
     await idle()
 
 async def cleanup():
-    await server.cleanup()
-    await FileStream.stop()
+    try:
+        await server.cleanup()
+    except Exception:
+        pass
+
+    try:
+        if FileStream.is_connected:
+            await FileStream.stop()
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     try:
@@ -80,10 +103,8 @@ if __name__ == "__main__":
     except Exception as err:
         logging.error(traceback.format_exc())
     finally:
-        # Check if the loop is still running/connectable before cleanup
         try:
-            if FileStream.is_connected:
-                loop.run_until_complete(cleanup())
+            loop.run_until_complete(cleanup())
         except Exception:
             pass
         loop.stop()
