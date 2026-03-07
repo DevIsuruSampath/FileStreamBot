@@ -120,14 +120,18 @@ class Database:
                 import os
                 updates["file_ext"] = os.path.splitext(file_info.get("file_name") or "")[1].lower()
 
-            # Backfill category if missing
-            if not file_info.get("category"):
-                category = detect_category(
-                    file_name=file_info.get("file_name"),
-                    mime_type=updates.get("mime_type", file_info.get("mime_type")),
-                    file_ext=updates.get("file_ext", file_info.get("file_ext")),
-                )
-                updates["category"] = category
+            detected_category = detect_category(
+                file_name=file_info.get("file_name"),
+                mime_type=updates.get("mime_type", file_info.get("mime_type")),
+                file_ext=updates.get("file_ext", file_info.get("file_ext")),
+            )
+
+            current_category = (file_info.get("category") or "").strip()
+            if not current_category:
+                updates["category"] = detected_category
+            elif current_category in {"Movies", "Other"} and detected_category not in {"Movies", "Other"}:
+                # Auto-correct older generic categories when we can now detect a better one.
+                updates["category"] = detected_category
 
             if updates:
                 await self.file.update_one(

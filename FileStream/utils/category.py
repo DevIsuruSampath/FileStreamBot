@@ -81,7 +81,13 @@ SOFTWARE_EXT = {
 }
 
 RE_TV_SERIES = re.compile(
-    r"(?:s\d{1,2}\s*e\d{1,3}|season\s*\d{1,2}|episode\s*\d{1,3}|\be\d{1,3}\b)",
+    r"(?:"
+    r"s\d{1,2}\s*e\d{1,3}|"
+    r"season\s*(?:\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)|"
+    r"episode\s*(?:\d{1,3}|one|two|three|four|five|six|seven|eight|nine|ten|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)|"
+    r"\bep\s*\d{1,3}\b|"
+    r"\be\d{1,3}\b"
+    r")",
     re.IGNORECASE,
 )
 
@@ -112,6 +118,17 @@ def detect_category(file_name: str | None, mime_type: str | None = None, file_ex
         "dual audio",
         "dub",
         "sub",
+    }
+    anime_theme_words = {
+        "opening theme",
+        "ending theme",
+        "opening song",
+        "ending song",
+        "anime op",
+        "anime ed",
+        "op theme",
+        "ed theme",
+        "anisong",
     }
     sports_words = {
         "sports",
@@ -200,6 +217,10 @@ def detect_category(file_name: str | None, mime_type: str | None = None, file_ex
     }
 
     if _has_any(name, anime_words):
+        return "Anime"
+
+    # Handles names like: "Third Season Opening Theme - ..."
+    if _has_any(name, anime_theme_words):
         return "Anime"
 
     if RE_TV_SERIES.search(name):
