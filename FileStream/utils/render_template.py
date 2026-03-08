@@ -9,7 +9,7 @@ from FileStream.bot import FileStream
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.category import detect_category
-from FileStream.utils.adsterra import is_enabled as adsterra_is_enabled, get_direct_link, get_script_urls
+from FileStream.utils.adsterra import is_enabled as adsterra_is_enabled, get_direct_link, get_script_urls, get_responsive_banner_slots
 from FileStream.utils.adsterra_api import resolve_ad_bundle
 from FileStream.server.exceptions import FileNotFound
 
@@ -124,6 +124,7 @@ async def render_page(db_id):
     web_ads_status = await db.get_web_ads_status()
     adsterra_enabled = adsterra_is_enabled(web_ads_status)
     adsterra_script_urls = get_script_urls() if adsterra_enabled else []
+    adsterra_banner_slots = get_responsive_banner_slots() if adsterra_enabled else {"desktop": [], "mobile": []}
 
     adsterra_action_urls = []
     adsterra_format_urls = {
@@ -170,6 +171,7 @@ async def render_page(db_id):
         adsterra_direct_link=adsterra_direct_link,
         adsterra_action_urls=adsterra_action_urls,
         adsterra_format_urls=adsterra_format_urls,
+        adsterra_banner_slots=adsterra_banner_slots,
         adsterra_script_urls=adsterra_script_urls,
     )
 
@@ -246,6 +248,7 @@ async def render_folder(folder_id: str, title: str = "Folder"):
     web_ads_status = await db.get_web_ads_status()
     adsterra_enabled = adsterra_is_enabled(web_ads_status)
     adsterra_script_urls = get_script_urls() if adsterra_enabled else []
+    adsterra_banner_slots = get_responsive_banner_slots() if adsterra_enabled else {"desktop": [], "mobile": []}
 
     adsterra_action_urls = []
     adsterra_format_urls = {
@@ -288,6 +291,7 @@ async def render_folder(folder_id: str, title: str = "Folder"):
         adsterra_direct_link=adsterra_direct_link,
         adsterra_action_urls=adsterra_action_urls,
         adsterra_format_urls=adsterra_format_urls,
+        adsterra_banner_slots=adsterra_banner_slots,
         adsterra_script_urls=adsterra_script_urls,
     )
 

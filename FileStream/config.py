@@ -78,6 +78,14 @@ class Telegram:
     ADSTERRA_NATIVE_BANNER_SCRIPT_URL = str(env.get("ADSTERRA_NATIVE_BANNER_SCRIPT_URL", "")).strip()
     ADSTERRA_BANNER_SCRIPT_URLS = str(env.get("ADSTERRA_BANNER_SCRIPT_URLS", "")).strip()
 
+    # Responsive iframe banner slots (manual script mode)
+    ADSTERRA_BANNER_300X250_KEY = str(env.get("ADSTERRA_BANNER_300X250_KEY", "")).strip()
+    ADSTERRA_BANNER_300X250_INVOKE_URL = str(env.get("ADSTERRA_BANNER_300X250_INVOKE_URL", "")).strip()
+    ADSTERRA_BANNER_728X90_KEY = str(env.get("ADSTERRA_BANNER_728X90_KEY", "")).strip()
+    ADSTERRA_BANNER_728X90_INVOKE_URL = str(env.get("ADSTERRA_BANNER_728X90_INVOKE_URL", "")).strip()
+    ADSTERRA_BANNER_320X50_KEY = str(env.get("ADSTERRA_BANNER_320X50_KEY", "")).strip()
+    ADSTERRA_BANNER_320X50_INVOKE_URL = str(env.get("ADSTERRA_BANNER_320X50_INVOKE_URL", "")).strip()
+
     # Safety
     ADSTERRA_ALLOW_ADULT = str(env.get("ADSTERRA_ALLOW_ADULT", "false")).lower() in ("1", "true", "t", "yes", "y")
 

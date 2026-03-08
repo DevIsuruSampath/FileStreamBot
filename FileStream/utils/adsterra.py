@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List
+from typing import Any, List
 
 from FileStream.config import Telegram
 
@@ -56,11 +56,71 @@ def get_direct_link() -> str | None:
     return None
 
 
+def _slot(key: str | None, invoke_url: str | None, width: int, height: int) -> dict[str, Any] | None:
+    k = str(key or "").strip()
+    u = _valid_url(invoke_url)
+    if not k or not u:
+        return None
+
+    return {
+        "key": k,
+        "invoke_url": u,
+        "width": int(width),
+        "height": int(height),
+        "format": "iframe",
+    }
+
+
+def get_responsive_banner_slots() -> dict[str, list[dict[str, Any]]]:
+    """Desktop: 728x90 + 300x250; Mobile: 320x50 + 300x250."""
+    slot_300 = _slot(
+        getattr(Telegram, "ADSTERRA_BANNER_300X250_KEY", ""),
+        getattr(Telegram, "ADSTERRA_BANNER_300X250_INVOKE_URL", ""),
+        300,
+        250,
+    )
+    slot_728 = _slot(
+        getattr(Telegram, "ADSTERRA_BANNER_728X90_KEY", ""),
+        getattr(Telegram, "ADSTERRA_BANNER_728X90_INVOKE_URL", ""),
+        728,
+        90,
+    )
+    slot_320 = _slot(
+        getattr(Telegram, "ADSTERRA_BANNER_320X50_KEY", ""),
+        getattr(Telegram, "ADSTERRA_BANNER_320X50_INVOKE_URL", ""),
+        320,
+        50,
+    )
+
+    desktop: list[dict[str, Any]] = []
+    mobile: list[dict[str, Any]] = []
+
+    if slot_728:
+        desktop.append(slot_728)
+    if slot_300:
+        desktop.append(slot_300)
+
+    if slot_320:
+        mobile.append(slot_320)
+    if slot_300:
+        mobile.append(slot_300)
+
+    return {
+        "desktop": desktop,
+        "mobile": mobile,
+    }
+
+
 def has_api_fallback() -> bool:
     return bool(
         getattr(Telegram, "ADSTERRA_API_ENABLE", False)
         and str(getattr(Telegram, "ADSTERRA_API_KEY", "") or "").strip()
     )
+
+
+def has_responsive_banners() -> bool:
+    slots = get_responsive_banner_slots()
+    return bool(slots.get("desktop") or slots.get("mobile"))
 
 
 def is_enabled(web_ads_status: bool) -> bool:
@@ -70,4 +130,4 @@ def is_enabled(web_ads_status: bool) -> bool:
     if not bool(getattr(Telegram, "ADSTERRA_ENABLE", False)):
         return False
 
-    return bool(get_direct_link() or get_script_urls() or has_api_fallback())
+    return bool(get_direct_link() or get_script_urls() or has_responsive_banners() or has_api_fallback())

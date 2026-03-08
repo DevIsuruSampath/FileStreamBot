@@ -124,6 +124,37 @@
             gap: 10px;
         }
 
+
+        .banner-stack {
+            margin-top: 10px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .banner-wrap {
+            display: grid;
+            gap: 10px;
+            justify-items: center;
+        }
+
+        .ad-slot { width: 100%; text-align: center; }
+
+        .ad-slot-inner {
+            margin: 0 auto;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .banner-desktop { display: block; }
+        .banner-mobile { display: none; }
+
+        @media (max-width: 768px) {
+            .banner-desktop { display: none; }
+            .banner-mobile { display: block; }
+        }
+
         .ad-format-wrap {
             margin-top: 10px;
             border-top: 1px solid var(--border);
@@ -253,6 +284,25 @@
         </div>
         {% endif %}
 
+
+
+        {% if adsterra_enabled and (adsterra_banner_slots.desktop or adsterra_banner_slots.mobile) %}
+        <div class="banner-stack">
+            <p class="foot" style="margin:0 0 6px 0;">Banner Ads</p>
+
+            <div id="bannerDesktop" class="banner-wrap banner-desktop">
+                {% for slot in adsterra_banner_slots.desktop %}
+                <div class="ad-slot" data-ad-slot="1" data-key="{{ slot.key }}" data-invoke-url="{{ slot.invoke_url }}" data-width="{{ slot.width }}" data-height="{{ slot.height }}" data-format="{{ slot.format }}"></div>
+                {% endfor %}
+            </div>
+
+            <div id="bannerMobile" class="banner-wrap banner-mobile">
+                {% for slot in adsterra_banner_slots.mobile %}
+                <div class="ad-slot" data-ad-slot="1" data-key="{{ slot.key }}" data-invoke-url="{{ slot.invoke_url }}" data-width="{{ slot.width }}" data-height="{{ slot.height }}" data-format="{{ slot.format }}"></div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
         <p class="foot">This link works until the file is removed.</p>
 
         {% if report_url %}
@@ -268,6 +318,7 @@
         const adsterraDirectLink = {{ adsterra_direct_link | tojson }};
         const adsterraActionUrls = {{ adsterra_action_urls | tojson }};
         const adsterraFormatUrls = {{ adsterra_format_urls | tojson }};
+        const adsterraBannerSlots = {{ adsterra_banner_slots | tojson }};
 
         const selectFile = document.getElementById('selectFile');
         const downloadBtn = document.getElementById('downloadBtn');
@@ -308,6 +359,50 @@
             openAdUrl(url);
         }
 
+
+        function renderBannerSlots(containerId) {
+            const wrap = document.getElementById(containerId);
+            if (!wrap) return;
+
+            wrap.querySelectorAll('[data-ad-slot="1"]').forEach((slot) => {
+                if (slot.dataset.loaded === '1') return;
+
+                const key = slot.getAttribute('data-key');
+                const invokeUrl = slot.getAttribute('data-invoke-url');
+                const width = parseInt(slot.getAttribute('data-width') || '0', 10);
+                const height = parseInt(slot.getAttribute('data-height') || '0', 10);
+                const format = slot.getAttribute('data-format') || 'iframe';
+
+                if (!key || !invokeUrl || !width || !height) return;
+
+                const inner = document.createElement('div');
+                inner.className = 'ad-slot-inner';
+                inner.style.width = `${width}px`;
+                inner.style.height = `${height}px`;
+
+                const s1 = document.createElement('script');
+                s1.text = `atOptions = { key: '${key}', format: '${format}', height: ${height}, width: ${width}, params: {} };`;
+
+                const s2 = document.createElement('script');
+                s2.src = invokeUrl;
+                s2.async = true;
+
+                inner.appendChild(s1);
+                inner.appendChild(s2);
+                slot.appendChild(inner);
+                slot.dataset.loaded = '1';
+            });
+        }
+
+        function renderResponsiveBanners() {
+            const mobile = window.matchMedia('(max-width: 768px)').matches;
+            if (mobile) {
+                renderBannerSlots('bannerMobile');
+            } else {
+                renderBannerSlots('bannerDesktop');
+            }
+        }
+
         selectFile.addEventListener('change', () => setState(selectFile.checked));
 
         downloadBtn.addEventListener('click', () => {
@@ -321,6 +416,12 @@
                 const url = btn.getAttribute('data-ad-url');
                 openAdUrl(url);
             });
+        });
+
+
+        renderResponsiveBanners();
+        window.addEventListener('resize', () => {
+            renderResponsiveBanners();
         });
 
     </script>
