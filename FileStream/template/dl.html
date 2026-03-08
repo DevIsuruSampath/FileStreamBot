@@ -96,7 +96,7 @@
         .desktop-only { display: block; }
         .mobile-only { display: none !important; }
 
-        @media (max-width: 900px) {
+        @media (max-width: 767px) {
             .desktop-only { display: none !important; }
             .mobile-only { display: block !important; }
         }
@@ -310,7 +310,7 @@
 
 <script>
     function isMobileView() {
-        return window.matchMedia('(max-width: 900px)').matches;
+        return window.matchMedia('(max-width: 767px)').matches;
     }
 
     function slotMatchesDevice(slot, mobile) {

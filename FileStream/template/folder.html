@@ -144,7 +144,7 @@
         .desktop-only { display: block; }
         .mobile-only { display: none !important; }
 
-        @media (max-width: 900px) {
+        @media (max-width: 767px) {
             .desktop-only { display: none !important; }
             .mobile-only { display: block !important; }
         }
@@ -465,18 +465,21 @@
                 {% endif %}
             </div>
 
-            <div id="folderInlineBannerSlots" class="ad-slot-grid" style="margin-top:12px;">
-                <div
-                    class="ad-slot"
-                    data-device="desktop"
-                    data-key="49d82824df1bb87901c1aeb13d4a5185"
-                    data-width="300"
-                    data-height="250"
-                    data-invoke-url="https://www.highperformanceformat.com/49d82824df1bb87901c1aeb13d4a5185/invoke.js"
-                ></div>
-            </div>
-
             <p class="hint">Report button is always direct (no ads).</p>
+        </div>
+    </section>
+
+    <section class="card ad-card desktop-only">
+        <p class="ad-label">Sponsored</p>
+        <div id="folderInlineBannerSlots" class="ad-slot-grid">
+            <div
+                class="ad-slot"
+                data-device="desktop"
+                data-key="49d82824df1bb87901c1aeb13d4a5185"
+                data-width="300"
+                data-height="250"
+                data-invoke-url="https://www.highperformanceformat.com/49d82824df1bb87901c1aeb13d4a5185/invoke.js"
+            ></div>
         </div>
     </section>
 
@@ -516,7 +519,7 @@
 
 <script>
     function isMobileView() {
-        return window.matchMedia('(max-width: 900px)').matches;
+        return window.matchMedia('(max-width: 767px)').matches;
     }
 
     function slotMatchesDevice(slot, mobile) {
