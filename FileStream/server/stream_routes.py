@@ -1,12 +1,9 @@
 import time
 import math
-import asyncio
 import logging
 import mimetypes
 import traceback
-import ipaddress
 import os
-import aiohttp
 from aiohttp import web
 from aiohttp.http_exceptions import BadStatusLine
 from FileStream.bot import multi_clients, work_loads, FileStream
@@ -38,7 +35,6 @@ async def root_route_handler(_):
 @routes.get("/watch/{path}", allow_head=True)
 async def watch_handler(request: web.Request):
     try:
-        await _enforce_proxy_guard(request)
         path = request.match_info["path"]
         return web.Response(text=await render_page(path), content_type='text/html')
     except InvalidHash as e:
@@ -53,7 +49,6 @@ async def watch_handler(request: web.Request):
 @routes.get("/folder/{folder_id}", allow_head=True)
 async def folder_handler(request: web.Request):
     try:
-        await _enforce_proxy_guard(request)
         folder_id = request.match_info["folder_id"]
         return web.Response(text=await render_folder(folder_id, title="Folder"), content_type='text/html')
     except FileNotFound as e:
@@ -65,7 +60,6 @@ async def folder_handler(request: web.Request):
 @routes.get("/folderm/{folder_id}", allow_head=True)
 async def folderm_handler(request: web.Request):
     try:
-        await _enforce_proxy_guard(request)
         folder_id = request.match_info["folder_id"]
         return web.Response(text=await render_folder(folder_id, title="Folder"), content_type='text/html')
     except FileNotFound as e:
@@ -76,7 +70,6 @@ async def folderm_handler(request: web.Request):
 @routes.get("/dl/{path}", allow_head=True)
 async def dl_handler(request: web.Request):
     try:
-        await _enforce_proxy_guard(request)
         path = request.match_info["path"]
         return await media_streamer(request, path)
     except InvalidHash as e:
@@ -92,162 +85,6 @@ async def dl_handler(request: web.Request):
         raise web.HTTPInternalServerError(text=str(e))
 
 class_cache = {}
-
-_proxy_cache: dict[str, dict] = {}
-_proxy_cache_lock = asyncio.Lock()
-
-
-def _extract_client_ip(request: web.Request) -> str | None:
-    candidates = []
-
-    xff = request.headers.get("X-Forwarded-For")
-    if xff:
-        candidates.extend([x.strip() for x in xff.split(",") if x.strip()])
-
-    xri = request.headers.get("X-Real-IP")
-    if xri:
-        candidates.append(xri.strip())
-
-    if request.remote:
-        candidates.append(str(request.remote).strip())
-
-    for raw in candidates:
-        ip = raw.strip().strip('"')
-
-        # [IPv6]:port
-        if ip.startswith("[") and "]" in ip:
-            ip = ip[1:ip.index("]")]
-
-        # IPv4:port
-        if ip.count(":") == 1 and "." in ip:
-            host, port = ip.rsplit(":", 1)
-            if port.isdigit():
-                ip = host
-
-        # IPv4-mapped IPv6
-        if ip.lower().startswith("::ffff:"):
-            ip = ip.split(":")[-1]
-
-        try:
-            ip_obj = ipaddress.ip_address(ip)
-            if ip_obj.is_loopback:
-                continue
-            return str(ip_obj)
-        except Exception:
-            continue
-
-    return None
-
-
-async def _detect_anonymous_proxy(ip: str) -> dict:
-    # skip private/link-local checks
-    try:
-        ip_obj = ipaddress.ip_address(ip)
-        if ip_obj.is_private or ip_obj.is_link_local:
-            return {
-                "ip": ip,
-                "checked": False,
-                "blocked": False,
-                "is_proxy": False,
-                "is_vpn": False,
-                "is_tor": False,
-                "is_datacenter": False,
-                "message": "",
-            }
-    except Exception:
-        pass
-
-    now = time.time()
-    async with _proxy_cache_lock:
-        cached = _proxy_cache.get(ip)
-        if cached and float(cached.get("exp", 0)) > now:
-            return dict(cached.get("data", {}))
-
-    api_url = str(getattr(Telegram, "PROXY_CHECK_API_URL", "https://api.ipapi.is/") or "").strip()
-    if not api_url:
-        api_url = "https://api.ipapi.is/"
-
-    result = {
-        "ip": ip,
-        "checked": False,
-        "blocked": False,
-        "is_proxy": False,
-        "is_vpn": False,
-        "is_tor": False,
-        "is_datacenter": False,
-        "message": "",
-    }
-
-    try:
-        timeout = aiohttp.ClientTimeout(total=8)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(api_url, params={"q": ip}) as resp:
-                data = await resp.json(content_type=None)
-
-        is_proxy = bool(data.get("is_proxy", False))
-        is_vpn = bool(data.get("is_vpn", False))
-        is_tor = bool(data.get("is_tor", False))
-        is_dc = bool(data.get("is_datacenter", False))
-
-        blocked = bool(getattr(Telegram, "PROXY_BLOCK_ENABLE", True)) and any([is_proxy, is_vpn, is_tor])
-
-        result.update(
-            {
-                "checked": True,
-                "blocked": blocked,
-                "is_proxy": is_proxy,
-                "is_vpn": is_vpn,
-                "is_tor": is_tor,
-                "is_datacenter": is_dc,
-                "message": "Anonymous Proxy detected. Disable it to continue." if blocked else "",
-            }
-        )
-    except Exception:
-        # fail open
-        result["checked"] = False
-
-    async with _proxy_cache_lock:
-        _proxy_cache[ip] = {
-            "exp": now + 300,
-            "data": dict(result),
-        }
-
-    return result
-
-
-async def _enforce_proxy_guard(request: web.Request):
-    if not bool(getattr(Telegram, "PROXY_BLOCK_ENABLE", True)):
-        return
-
-    ip = _extract_client_ip(request)
-    if not ip:
-        return
-
-    result = await _detect_anonymous_proxy(ip)
-    if result.get("blocked"):
-        raise web.HTTPForbidden(text="Anonymous Proxy detected. Disable it to continue.")
-
-
-@routes.get("/security-check", allow_head=True)
-async def security_check_handler(request: web.Request):
-    ip = _extract_client_ip(request)
-    if not ip:
-        return web.json_response(
-            {
-                "ip": None,
-                "checked": False,
-                "blocked": False,
-                "is_proxy": False,
-                "is_vpn": False,
-                "is_tor": False,
-                "is_datacenter": False,
-                "message": "",
-            }
-        )
-
-    result = await _detect_anonymous_proxy(ip)
-    return web.json_response(result)
-
 
 def _sanitize_filename(name: str) -> str:
     if not isinstance(name, str):

@@ -80,8 +80,6 @@ class Telegram:
 
     # Safety
     ADSTERRA_ALLOW_ADULT = str(env.get("ADSTERRA_ALLOW_ADULT", "false")).lower() in ("1", "true", "t", "yes", "y")
-    PROXY_BLOCK_ENABLE = str(env.get("PROXY_BLOCK_ENABLE", "true")).lower() in ("1", "true", "t", "yes", "y")
-    PROXY_CHECK_API_URL = str(env.get("PROXY_CHECK_API_URL", "https://api.ipapi.is/")).strip()
 
     # Optional Adsterra Publisher API integration
     ADSTERRA_API_ENABLE = str(env.get("ADSTERRA_API_ENABLE", "false")).lower() in ("1", "true", "t", "yes", "y")

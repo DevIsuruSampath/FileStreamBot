@@ -111,8 +111,6 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `ADSTERRA_API_BASE`: API base URL (default `https://api3.adsterratools.com/publisher`).
 - `ADSTERRA_SMARTLINK_ID`: Optional preferred smartlink id.
 - `ADSTERRA_STATS_DAYS`: Stats window for `/webads info` (1-31).
-- `PROXY_BLOCK_ENABLE`: Block VPN/proxy/tor visitors from web pages.
-- `PROXY_CHECK_API_URL`: Proxy check endpoint (default `https://api.ipapi.is/`).
 - `FILE_PIC`: Image for `/files` command.
 - `FOLDERS_PIC`: Image for `/folders` command.
 - `START_PIC`: Image for `/start` command.

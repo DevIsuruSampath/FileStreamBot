@@ -146,15 +146,6 @@
             font-weight: 500;
         }
 
-        .proxy-warning {
-            border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
-            background: color-mix(in srgb, var(--danger) 10%, transparent);
-            color: color-mix(in srgb, var(--danger) 80%, var(--text));
-            border-radius: 10px;
-            padding: 10px 12px;
-            font-size: 0.86rem;
-            margin-bottom: 12px;
-        }
 
         .filters {
             display: flex;
@@ -483,8 +474,6 @@
             <span class="manager-title">File Manager</span>
         </div>
 
-        <div id="proxyWarning" class="proxy-warning hidden">Anonymous Proxy detected. Disable it to continue.</div>
-
         <div class="filters" id="categoryFilters">
             <button class="filter-btn active" type="button" data-category="all">All</button>
             <button class="filter-btn" type="button" data-category="Movies">Movies</button>
@@ -570,7 +559,6 @@
     const actionPanel = document.getElementById('actionPanel');
     const selectedName = document.getElementById('selectedName');
     const selectedMeta = document.getElementById('selectedMeta');
-    const proxyWarning = document.getElementById('proxyWarning');
 
     const playBtn = document.getElementById('playBtn');
     const downloadBtn = document.getElementById('downloadBtn');
@@ -581,7 +569,6 @@
 
     let activeCategory = 'all';
     let selectedId = null;
-    let proxyBlocked = false;
 
     let videoPlayer = null;
     let audioPlayer = null;
@@ -609,36 +596,6 @@
         } catch (_) {}
     }
 
-    function showProxyBlockedWarning(message) {
-        proxyBlocked = true;
-        const msg = message || 'Anonymous Proxy detected. Disable it to continue.';
-        if (proxyWarning) {
-            proxyWarning.textContent = msg;
-            proxyWarning.classList.remove('hidden');
-        }
-        selectedId = null;
-        actionPanel.classList.add('hidden');
-    }
-
-    async function checkProxyStatus() {
-        try {
-            const res = await fetch('/security-check', { cache: 'no-store' });
-            if (!res.ok) return;
-            const data = await res.json();
-            if (data && data.blocked) {
-                showProxyBlockedWarning(data.message);
-            }
-        } catch (_) {
-            // ignore
-        }
-    }
-
-    function guardBlocked() {
-        if (!proxyBlocked) return false;
-        alert('Anonymous Proxy detected. Disable it to continue.');
-        return true;
-    }
-
     function getVisibleItems() {
         if (activeCategory === 'all') return folderItems;
         return folderItems.filter((item) => (item.category || 'Other') === activeCategory);
@@ -650,15 +607,6 @@
     }
 
     function updateActionPanel() {
-        if (proxyBlocked) {
-            actionPanel.classList.add('hidden');
-            selectedName.textContent = '';
-            selectedMeta.textContent = '';
-            playBtn.disabled = true;
-            playBtn.classList.add('disabled');
-            return;
-        }
-
         const item = getSelectedItem();
         if (!item) {
             actionPanel.classList.add('hidden');
@@ -719,12 +667,6 @@
     }
 
     function setSelected(idOrNull) {
-        if (proxyBlocked) {
-            selectedId = null;
-            renderRows();
-            return;
-        }
-
         selectedId = idOrNull;
         renderRows();
     }
@@ -820,7 +762,6 @@
     });
 
     tableBody.addEventListener('click', (e) => {
-        if (guardBlocked()) return;
         const row = e.target.closest('.file-row');
         if (!row) return;
         const id = row.dataset.id;
@@ -828,7 +769,6 @@
     });
 
     playBtn.addEventListener('click', () => {
-        if (guardBlocked()) return;
         const item = getSelectedItem();
         if (!item || !item.playable) return;
         openAdsterraIfEnabled();
@@ -837,7 +777,6 @@
     });
 
     downloadBtn.addEventListener('click', () => {
-        if (guardBlocked()) return;
         const item = getSelectedItem();
         if (!item) return;
         openAdsterraIfEnabled();
@@ -845,7 +784,6 @@
     });
 
     copyBtn.addEventListener('click', async () => {
-        if (guardBlocked()) return;
         const item = getSelectedItem();
         if (!item) return;
 
@@ -866,7 +804,6 @@
     });
 
     renderRows();
-    checkProxyStatus();
 </script>
 
 {% if adsterra_enabled and adsterra_script_urls %}
