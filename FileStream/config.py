@@ -10,49 +10,54 @@ def _float_env(key: str, default: float) -> float:
         return float(default)
 
 
+def _int_or_none(key: str):
+    raw = env.get(key, None)
+    try:
+        return int(raw) if raw not in (None, "") else None
+    except Exception:
+        return None
+
+
 load_dotenv()
+
 
 class Telegram:
     API_ID = int(env.get("API_ID", 0))
     API_HASH = str(env.get("API_HASH"))
     BOT_TOKEN = str(env.get("BOT_TOKEN"))
-    OWNER_ID = int(env.get('OWNER_ID', '7978482443'))
+
+    OWNER_ID = int(env.get("OWNER_ID", "7978482443"))
     WORKERS = int(env.get("WORKERS", env.get("BOT_WORKERS", "6")))
-    DATABASE_URL = str(env.get('DATABASE_URL'))
-    UPDATES_CHANNEL = str(env.get('UPDATES_CHANNEL', "Telegram"))
-    SESSION_NAME = str(env.get('SESSION_NAME', 'FileStream'))
-    FORCE_SUB_ID = env.get('FORCE_SUB_ID', None)
+
+    DATABASE_URL = str(env.get("DATABASE_URL"))
+    SESSION_NAME = str(env.get("SESSION_NAME", "FileStream"))
+
+    UPDATES_CHANNEL = str(env.get("UPDATES_CHANNEL", "Telegram"))
+
+    FORCE_SUB_ID = env.get("FORCE_SUB_ID", None)
     # Support both FORCE_SUB (current) and FORCE_UPDATES_CHANNEL (legacy)
-    FORCE_SUB = env.get('FORCE_SUB', env.get('FORCE_UPDATES_CHANNEL', False))
-    FORCE_SUB = True if str(FORCE_SUB).lower() == "true" else False
+    _force_sub_raw = env.get("FORCE_SUB", env.get("FORCE_UPDATES_CHANNEL", False))
+    FORCE_SUB = str(_force_sub_raw).lower() in ("1", "true", "t", "yes", "y")
+
     SLEEP_THRESHOLD = int(env.get("SLEEP_THRESHOLD", "60"))
-    FILE_PIC = env.get('FILE_PIC', "https://graph.org/file/5bb9935be0229adf98b73.jpg")
-    START_PIC = env.get('START_PIC', "https://graph.org/file/290af25276fa34fa8f0aa.jpg")
-    VERIFY_PIC = env.get('VERIFY_PIC', "https://graph.org/file/736e21cc0efa4d8c2a0e4.jpg")
-    FOLDERS_PIC = env.get('FOLDERS_PIC', "https://graph.org/file/5bb9935be0229adf98b73.jpg")
+
+    FILE_PIC = env.get("FILE_PIC", "https://graph.org/file/5bb9935be0229adf98b73.jpg")
+    START_PIC = env.get("START_PIC", "https://graph.org/file/290af25276fa34fa8f0aa.jpg")
+    VERIFY_PIC = env.get("VERIFY_PIC", "https://graph.org/file/736e21cc0efa4d8c2a0e4.jpg")
+    FOLDERS_PIC = env.get("FOLDERS_PIC", "https://graph.org/file/5bb9935be0229adf98b73.jpg")
+
+    # Runtime flag toggled when multiple clients are initialized
     MULTI_CLIENT = False
-    
-    # Safely handle optional integer env vars
-    _flog = env.get("FLOG_CHANNEL", None)
-    try:
-        FLOG_CHANNEL = int(_flog) if _flog else None
-    except Exception:
-        FLOG_CHANNEL = None
 
-    _ulog = env.get("ULOG_CHANNEL", None)
-    try:
-        ULOG_CHANNEL = int(_ulog) if _ulog else None
-    except Exception:
-        ULOG_CHANNEL = None
-
-    _nlog = env.get("NUDENET_CHANNEL", None)
-    try:
-        NUDENET_CHANNEL = int(_nlog) if _nlog else None
-    except Exception:
-        NUDENET_CHANNEL = None
+    # Optional channels
+    BIN_CHANNEL = _int_or_none("BIN_CHANNEL")
+    FLOG_CHANNEL = _int_or_none("FLOG_CHANNEL")
+    ULOG_CHANNEL = _int_or_none("ULOG_CHANNEL")
+    NUDENET_CHANNEL = _int_or_none("NUDENET_CHANNEL")
 
     MODE = env.get("MODE", "primary")
-    SECONDARY = True if MODE.lower() == "secondary" else False
+    SECONDARY = MODE.lower() == "secondary"
+
     _auth_raw = str(env.get("AUTH_USERS", "")).split()
     AUTH_USERS = []
     for x in _auth_raw:
@@ -63,23 +68,9 @@ class Telegram:
     AUTH_USERS = list(set(AUTH_USERS))
 
     # --- [ URL SHORTENER CONFIG ] ---
-    URL_SHORTENER_API_KEY = env.get('URL_SHORTENER_API_KEY', None)
-    URL_SHORTENER_SITE = env.get('URL_SHORTENER_SITE', None)
+    URL_SHORTENER_API_KEY = env.get("URL_SHORTENER_API_KEY", None)
+    URL_SHORTENER_SITE = env.get("URL_SHORTENER_SITE", None)
 
-    # Direct Link (Smartlink) from Adsterra dashboard
-
-    # Script URLs for ad formats
-
-    # Responsive iframe banner slots (manual script mode)
-
-    # Safety
-
-
-    try:
-    except Exception:
-
-    try:
-    except Exception:
 
 class Server:
     PORT = int(env.get("PORT", 8080))
@@ -94,6 +85,7 @@ class Server:
     URL = "http{}://{}{}/".format(
         "s" if HAS_SSL else "", FQDN, "" if (NO_PORT or has_port) else ":" + str(PORT)
     )
+
 
 class NSFW:
     ENABLE = str(env.get("NUDENET_ENABLE", "true")).lower() in ("1", "true", "t", "yes", "y")

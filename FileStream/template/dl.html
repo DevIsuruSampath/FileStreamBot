@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>Download | {{ file_name }}</title>
     <style>
         :root {
@@ -41,7 +42,6 @@
             background: var(--card);
             border: 1px solid var(--border);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             box-shadow: var(--shadow);
         }
 
@@ -118,12 +118,7 @@
 
         .manager-table tr:last-child td { border-bottom: none; }
 
-        .actions {
-            display: grid;
-            gap: 10px;
-        }
-
-        .ad-chip:hover { border-color: var(--primary); color: var(--text); }
+        .actions { display: grid; gap: 10px; }
 
         .btn {
             min-height: 46px;
@@ -135,21 +130,14 @@
             cursor: pointer;
             background: linear-gradient(135deg, var(--primary), var(--primary-2));
             box-shadow: 0 10px 22px rgba(111, 140, 255, 0.4);
-            transition: transform 0.18s ease, box-shadow 0.18s ease;
         }
-
-        .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 14px 28px rgba(111, 140, 255, 0.5);
-        }
-
-        .btn:active { transform: translateY(0); }
 
         .btn[disabled],
         .btn.disabled {
             opacity: 0.55;
             pointer-events: none;
             transform: none !important;
+            box-shadow: none !important;
         }
 
         .foot {
@@ -173,139 +161,74 @@
             padding: 7px 12px;
             text-decoration: none;
         }
-
-        .report:hover { background: rgba(248, 113, 113, 0.18); }
     </style>
 </head>
 <body>
-    <main class="card">
-        <div class="icon">📄</div>
-        <h1>{{ file_name }}</h1>
+<main class="card">
+    <div class="icon">📄</div>
+    <h1>{{ file_name }}</h1>
 
-        <div class="meta">
-            <span class="chip">💾 {{ file_size }}</span>
-            <span class="chip">🗂️ {{ category or 'Other' }}</span>
-            <span class="chip">👤 {{ uploader or 'Unknown uploader' }}</span>
-            {% if message_id %}<span class="chip">🆔 {{ message_id }}</span>{% endif %}
-        </div>
+    <div class="meta">
+        <span class="chip">💾 {{ file_size }}</span>
+        <span class="chip">🗂️ {{ category or 'Other' }}</span>
+        <span class="chip">👤 {{ uploader or 'Unknown uploader' }}</span>
+        {% if message_id %}<span class="chip">🆔 {{ message_id }}</span>{% endif %}
+    </div>
 
-        <p class="hint">Select file row, then click download.</p>
+    <p class="hint">Select file row, then click download.</p>
 
-        <table class="manager-table" aria-label="File manager">
-            <thead>
-            <tr>
-                <th style="width:48px">Sel</th>
-                <th style="width:44px">#</th>
-                <th style="width:44px">Type</th>
-                <th>Name</th>
-                <th>Size</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr>
-                <td><input id="selectFile" type="checkbox" aria-label="Select file" /></td>
-                <td>1</td>
-                <td>📄</td>
-                <td>{{ file_name }}</td>
-                <td>{{ file_size }}</td>
-            </tr>
-            </tbody>
-        </table>
+    <table class="manager-table" aria-label="File manager">
+        <thead>
+        <tr>
+            <th style="width:48px">Sel</th>
+            <th style="width:44px">#</th>
+            <th style="width:44px">Type</th>
+            <th>Name</th>
+            <th>Size</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td><input id="selectFile" type="checkbox" aria-label="Select file" /></td>
+            <td>1</td>
+            <td>📄</td>
+            <td>{{ file_name }}</td>
+            <td>{{ file_size }}</td>
+        </tr>
+        </tbody>
+    </table>
 
-        <div class="actions">
-            <button id="downloadBtn" class="btn disabled" type="button" disabled>⬇️ Download Selected</button>
-        </div>
-                {% if adsterra_format_urls.social_bar %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.social_bar }}">Social Bar</button>{% endif %}
-                {% if adsterra_format_urls.banner %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.banner }}">Banners</button>{% endif %}
-            </div>
-        </div>
-        {% endif %}
-        <p class="foot">This link works until the file is removed.</p>
+    <div class="actions">
+        <button id="downloadBtn" class="btn disabled" type="button" disabled>⬇️ Download Selected</button>
+    </div>
 
-        {% if report_url %}
-        <div style="text-align:center;">
-            <a href="{{ report_url }}" class="report">🚫 Report Adult Content</a>
-        </div>
-        {% endif %}
-    </main>
+    <p class="foot">This link works until the file is removed.</p>
 
-    <script>
-        const fileUrl = {{ file_url | tojson }};
-
-        const selectFile = document.getElementById('selectFile');
-        const downloadBtn = document.getElementById('downloadBtn');
-        let adIndex = 0;
-
-        function setState(enabled) {
-            downloadBtn.disabled = !enabled;
-            downloadBtn.classList.toggle('disabled', !enabled);
-        }
-
-            if (!urls.length) return null;
-
-            const picked = urls[adIndex % urls.length];
-            adIndex += 1;
-            return picked;
-        }
-
-            const key = slot.getAttribute('data-key');
-            const invokeUrl = slot.getAttribute('data-invoke-url');
-            const width = parseInt(slot.getAttribute('data-width') || '0', 10);
-            const height = parseInt(slot.getAttribute('data-height') || '0', 10);
-            const format = slot.getAttribute('data-format') || 'iframe';
-
-            if (!key || !invokeUrl || !width || !height) {
-                loadNext();
-                return;
-            }
-
-            const inner = document.createElement('div');
-            inner.className = 'ad-slot-inner';
-            inner.style.width = `${width}px`;
-            inner.style.height = `${height}px`;
-
-            const s1 = document.createElement('script');
-            s1.text = `atOptions = { key: '${key}', format: '${format}', height: ${height}, width: ${width}, params: {} };`;
-
-            const s2 = document.createElement('script');
-            s2.src = invokeUrl;
-            s2.async = false;
-            s2.onload = () => {
-                slot.dataset.loaded = '1';
-                loadNext();
-            };
-            s2.onerror = () => {
-                slot.dataset.loaded = '1';
-                loadNext();
-            };
-
-            inner.appendChild(s1);
-            inner.appendChild(s2);
-            slot.appendChild(inner);
-        };
-
-        loadNext();
-    }
-        }
-
-        selectFile.addEventListener('change', () => setState(selectFile.checked));
-
-        downloadBtn.addEventListener('click', () => {
-            if (!selectFile.checked) return;
-                window.location.href = fileUrl;
-        });
-                openAdUrl(url);
-            });
-        });
-        window.addEventListener('resize', () => {
-        });
-
-    </script>
-
-    {% if adsterra_enabled and adsterra_script_urls %}
-        {% for script_url in adsterra_script_urls %}
-        <script async src="{{ script_url }}"></script>
-        {% endfor %}
+    {% if report_url %}
+    <div style="text-align:center;">
+        <a href="{{ report_url }}" class="report">🚫 Report Adult Content</a>
+    </div>
     {% endif %}
+</main>
+
+<script>
+    const fileUrl = {{ file_url | tojson }};
+
+    const selectFile = document.getElementById('selectFile');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    function setState(enabled) {
+        downloadBtn.disabled = !enabled;
+        downloadBtn.classList.toggle('disabled', !enabled);
+    }
+
+    selectFile.addEventListener('change', () => setState(selectFile.checked));
+
+    downloadBtn.addEventListener('click', () => {
+        if (!selectFile.checked) return;
+        window.location.href = fileUrl;
+    });
+</script>
+
 </body>
 </html>

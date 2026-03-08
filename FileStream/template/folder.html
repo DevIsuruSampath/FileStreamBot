@@ -5,12 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>{{ page_title or 'Folder' }} ({{ count }})</title>
-    <link rel="stylesheet" href="/static/plyr.css" />
-    <script src="/static/plyr.js">
-    window.addEventListener('resize', () => {
-    });
-
-</script>
     <style>
         :root {
             --bg: #f8fafc;
@@ -24,10 +18,8 @@
             --danger: #ef4444;
             --border: #e2e8f0;
             --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-            --shadow-hover: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
             --radius: 16px;
             --radius-sm: 12px;
-            --plyr-color-main: var(--primary);
         }
 
         @media (prefers-color-scheme: dark) {
@@ -39,23 +31,21 @@
                 --muted: #94a3b8;
                 --border: #334155;
                 --shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
-                --shadow-hover: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.4);
             }
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-family: Inter, system-ui, -apple-system, sans-serif;
             color: var(--text);
             background: var(--bg);
             min-height: 100vh;
             line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
         }
 
-        a { color: inherit; text-decoration: none; }
         .hidden { display: none !important; }
+        a { color: inherit; text-decoration: none; }
 
         .container { width: min(1080px, 92%); margin: 0 auto; }
 
@@ -65,7 +55,6 @@
             z-index: 20;
             background: color-mix(in srgb, var(--bg) 80%, transparent);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border);
         }
 
@@ -83,7 +72,6 @@
             gap: 12px;
             font-size: 1.1rem;
             font-weight: 700;
-            letter-spacing: -0.01em;
         }
 
         .dot {
@@ -91,31 +79,21 @@
             height: 12px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--accent), var(--primary));
-            box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 40%, transparent);
         }
 
-        .updates-link,
         .count-tag {
             border: 1px solid var(--border);
             border-radius: 999px;
             padding: 6px 16px;
             font-size: 0.85rem;
-            font-weight: 500;
             color: var(--muted);
             background: var(--surface);
-            transition: all 0.2s ease;
-        }
-
-        .updates-link:hover {
-            color: var(--text);
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
         }
 
         .main {
             display: grid;
             gap: 20px;
-            padding: 32px 0;
+            padding: 24px 0;
         }
 
         .card {
@@ -123,11 +101,8 @@
             border: 1px solid var(--border);
             border-radius: var(--radius);
             box-shadow: var(--shadow);
-            padding: 24px;
-            transition: box-shadow 0.3s ease;
+            padding: 20px;
         }
-
-        .card:hover { box-shadow: var(--shadow-hover); }
 
         .manager-head {
             display: flex;
@@ -138,23 +113,14 @@
             flex-wrap: wrap;
         }
 
-        .manager-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--text);
-        }
-
-        .manager-sub {
-            color: var(--muted);
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
+        .manager-title { font-size: 1.05rem; font-weight: 600; }
+        .manager-sub { color: var(--muted); font-size: 0.85rem; }
 
         .filters {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         .filter-btn {
@@ -162,31 +128,22 @@
             background: var(--surface-soft);
             color: var(--muted);
             border-radius: 999px;
-            padding: 6px 16px;
-            font-size: 0.85rem;
-            font-weight: 500;
+            padding: 6px 14px;
+            font-size: 0.84rem;
             cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .filter-btn:hover {
-            border-color: var(--muted);
-            color: var(--text);
         }
 
         .filter-btn.active {
             background: var(--primary);
             border-color: var(--primary);
-            color: #ffffff;
-            box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent);
+            color: #fff;
         }
 
         .table-wrap {
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
             overflow: auto;
-            margin-bottom: 20px;
-            background: var(--surface);
+            margin-bottom: 16px;
         }
 
         .manager-table {
@@ -197,7 +154,7 @@
 
         .manager-table th,
         .manager-table td {
-            padding: 14px 16px;
+            padding: 12px 14px;
             border-bottom: 1px solid var(--border);
             text-align: left;
             font-size: 0.9rem;
@@ -207,41 +164,18 @@
             background: var(--surface-soft);
             color: var(--muted);
             font-size: 0.75rem;
-            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
 
         .manager-table tr:last-child td { border-bottom: none; }
 
-        .file-row {
-            cursor: pointer;
-            transition: background 0.2s ease;
-        }
-
+        .file-row { cursor: pointer; }
         .file-row:hover { background: var(--surface-soft); }
+        .file-row.selected { background: color-mix(in srgb, var(--primary) 10%, var(--surface-soft)); }
 
-        .file-row.selected {
-            background: color-mix(in srgb, var(--primary) 8%, var(--surface-soft));
-        }
-
-        .idx {
-            width: 48px;
-            color: var(--muted);
-            font-weight: 600;
-        }
-
-        .icon,
-        .type-cell {
-            width: 56px;
-            font-size: 1.2rem;
-        }
-
-        .size-cell {
-            white-space: nowrap;
-            color: var(--muted);
-            font-weight: 500;
-        }
+        .idx { width: 48px; color: var(--muted); font-weight: 600; }
+        .icon { width: 56px; font-size: 1.1rem; }
 
         .cat-badge {
             display: inline-flex;
@@ -251,8 +185,7 @@
             background: var(--surface-soft);
             color: var(--muted);
             font-size: 0.75rem;
-            font-weight: 500;
-            padding: 4px 10px;
+            padding: 3px 8px;
         }
 
         .empty {
@@ -260,7 +193,7 @@
             border: 1px dashed var(--border);
             border-radius: var(--radius-sm);
             color: var(--muted);
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             font-size: 0.9rem;
         }
 
@@ -268,132 +201,106 @@
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
             background: var(--surface-soft);
-            padding: 20px;
+            padding: 16px;
         }
 
         .action-label {
             color: var(--muted);
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-transform: uppercase;
+            font-size: 0.8rem;
             letter-spacing: 0.05em;
-            margin-bottom: 12px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
         }
 
         .selected-name {
             font-size: 1rem;
             font-weight: 600;
             margin-bottom: 4px;
-            color: var(--text);
         }
 
         .selected-meta {
             color: var(--muted);
             font-size: 0.85rem;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .actions {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
         }
 
         .btn {
-            min-height: 48px;
-            border-radius: 12px;
-            border: none;
+            min-height: 44px;
+            border-radius: 11px;
+            border: 1px solid transparent;
             font-weight: 600;
-            font-size: 0.95rem;
+            font-size: 0.92rem;
             cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            padding: 0 20px;
+            padding: 0 14px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
             text-decoration: none;
+            color: var(--text);
+            background: transparent;
         }
-
-        .btn:hover { transform: translateY(-2px); }
-        .btn:active { transform: translateY(0); }
 
         .btn-primary {
             background: linear-gradient(135deg, var(--primary), var(--primary-2));
-            color: #ffffff;
-            box-shadow: 0 8px 16px color-mix(in srgb, var(--primary) 25%, transparent);
-        }
-
-        .btn-primary:hover {
-            box-shadow: 0 12px 20px color-mix(in srgb, var(--primary) 35%, transparent);
+            color: #fff;
         }
 
         .btn-secondary {
             background: var(--surface);
-            border: 1px solid var(--border);
-            color: var(--text);
-            box-shadow: 0 2px 4px rgb(0 0 0 / 0.02);
+            border-color: var(--border);
         }
-
-        .btn-secondary:hover { border-color: var(--muted); }
 
         .btn-danger {
             background: color-mix(in srgb, var(--danger) 10%, transparent);
-            border: 1px solid color-mix(in srgb, var(--danger) 20%, transparent);
+            border-color: color-mix(in srgb, var(--danger) 25%, var(--border));
             color: var(--danger);
-        }
-
-        .btn-danger:hover {
-            background: color-mix(in srgb, var(--danger) 15%, transparent);
         }
 
         .btn.disabled,
         .btn[disabled] {
-            opacity: 0.6;
+            opacity: 0.55;
             pointer-events: none;
-            transform: none !important;
-            box-shadow: none !important;
         }
 
-        .ad-hint {
-            margin-top: 12px;
+        .hint {
+            margin-top: 10px;
             color: var(--muted);
             font-size: 0.8rem;
-            text-align: center;
         }
-
-        .ad-chip:hover { color: var(--text); border-color: var(--primary); }
 
         .player-top {
             display: flex;
             align-items: center;
-            gap: 16px;
-            margin-bottom: 20px;
+            gap: 12px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
         }
 
         .player-title {
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 600;
             color: var(--text);
             flex: 1;
+            word-break: break-word;
         }
 
         .back-btn {
-            min-height: 40px;
+            min-height: 38px;
             border-radius: 999px;
             border: 1px solid var(--border);
             background: var(--surface-soft);
             color: var(--text);
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             font-weight: 600;
-            padding: 0 16px;
+            padding: 0 14px;
             cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .back-btn:hover {
-            background: var(--surface);
-            border-color: var(--muted);
         }
 
         .video-shell {
@@ -401,7 +308,6 @@
             border-radius: var(--radius-sm);
             border: 1px solid var(--border);
             background: #000;
-            box-shadow: var(--shadow);
         }
 
         .video-shell video {
@@ -414,51 +320,27 @@
             border-radius: var(--radius-sm);
             border: 1px solid var(--border);
             background: var(--surface-soft);
-            padding: 20px;
+            padding: 16px;
         }
 
         .audio-head {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
+            gap: 10px;
+            margin-bottom: 12px;
             color: var(--text);
             font-weight: 600;
         }
 
         .audio-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
+            width: 36px;
+            height: 36px;
+            border-radius: 9px;
             display: grid;
             place-items: center;
-            background: var(--primary);
-            color: white;
-            font-size: 1.1rem;
-            box-shadow: 0 4px 10px color-mix(in srgb, var(--primary) 30%, transparent);
+            background: color-mix(in srgb, var(--primary) 22%, transparent);
+            border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
         }
-
-        @media (max-width: 860px) {
-            .filters {
-                flex-wrap: nowrap;
-                overflow-x: auto;
-                padding-bottom: 8px;
-                scrollbar-width: none;
-            }
-
-            .filters::-webkit-scrollbar { display: none; }
-
-            .filter-btn {
-                flex: 0 0 auto;
-                white-space: nowrap;
-            }
-
-            .manager-table th:nth-child(4),
-            .manager-table td:nth-child(4),
-            .manager-table th:nth-child(5),
-            .manager-table td:nth-child(5) {
-                display: none;
-            }
     </style>
 </head>
 <body>
@@ -476,6 +358,7 @@
     <section id="managerView" class="card">
         <div class="manager-head">
             <span class="manager-title">File Manager</span>
+            <span class="manager-sub">Select one file to continue</span>
         </div>
 
         <div class="filters" id="categoryFilters">
@@ -497,11 +380,11 @@
                 <thead>
                 <tr>
                     <th class="idx">#</th>
-                    <th class="type-cell">Type</th>
+                    <th class="icon">Type</th>
                     <th>Name</th>
                     <th>Category</th>
                     <th>Uploader</th>
-                    <th class="size-cell">Size</th>
+                    <th style="white-space:nowrap;">Size</th>
                 </tr>
                 </thead>
                 <tbody id="fileTableBody"></tbody>
@@ -522,13 +405,7 @@
                 <a href="{{ report_url }}" class="btn btn-danger">🚫 Report Adult Content</a>
                 {% endif %}
             </div>
-                    {% if adsterra_format_urls.social_bar %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.social_bar }}">Social Bar</button>{% endif %}
-                    {% if adsterra_format_urls.banner %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.banner }}">Banners</button>{% endif %}
-                </div>
-            </div>
-            {% endif %}
-
-            <p class="ad-hint">Report button is always direct (no ads).</p>
+            <p class="hint">Report button is always direct (no ads).</p>
         </div>
     </section>
 
@@ -574,14 +451,11 @@
 
     const videoWrap = document.getElementById('videoWrap');
     const audioWrap = document.getElementById('audioWrap');
+    const videoPlayer = document.getElementById('videoPlayer');
+    const audioPlayer = document.getElementById('audioPlayer');
 
     let activeCategory = 'all';
     let selectedId = null;
-    let adIndex = 0;
-
-    let videoPlayer = null;
-    let audioPlayer = null;
-    let activePlayer = null;
 
     function esc(text) {
         return String(text ?? '')
@@ -596,53 +470,6 @@
         if (kind === 'video') return '🎬';
         if (kind === 'audio') return '🎵';
         return '📄';
-    }
-
-        if (!urls.length) return null;
-
-        const picked = urls[adIndex % urls.length];
-        adIndex += 1;
-        return picked;
-    }
-
-            const key = slot.getAttribute('data-key');
-            const invokeUrl = slot.getAttribute('data-invoke-url');
-            const width = parseInt(slot.getAttribute('data-width') || '0', 10);
-            const height = parseInt(slot.getAttribute('data-height') || '0', 10);
-            const format = slot.getAttribute('data-format') || 'iframe';
-
-            if (!key || !invokeUrl || !width || !height) {
-                loadNext();
-                return;
-            }
-
-            const inner = document.createElement('div');
-            inner.className = 'ad-slot-inner';
-            inner.style.width = `${width}px`;
-            inner.style.height = `${height}px`;
-
-            const s1 = document.createElement('script');
-            s1.text = `atOptions = { key: '${key}', format: '${format}', height: ${height}, width: ${width}, params: {} };`;
-
-            const s2 = document.createElement('script');
-            s2.src = invokeUrl;
-            s2.async = false;
-            s2.onload = () => {
-                slot.dataset.loaded = '1';
-                loadNext();
-            };
-            s2.onerror = () => {
-                slot.dataset.loaded = '1';
-                loadNext();
-            };
-
-            inner.appendChild(s1);
-            inner.appendChild(s2);
-            slot.appendChild(inner);
-        };
-
-        loadNext();
-    }
     }
 
     function getVisibleItems() {
@@ -696,11 +523,11 @@
                 return `
                     <tr class="file-row${selectedClass}" data-id="${esc(item.id)}">
                         <td class="idx">${idx + 1}</td>
-                        <td class="type-cell">${iconFor(item.kind)}</td>
+                        <td class="icon">${iconFor(item.kind)}</td>
                         <td>${esc(item.name)}</td>
                         <td><span class="cat-badge">${esc(item.category || 'Other')}</span></td>
                         <td>${esc(item.uploader || 'Unknown uploader')}</td>
-                        <td class="size-cell">${esc(item.size || '')}</td>
+                        <td style="white-space:nowrap;">${esc(item.size || '')}</td>
                     </tr>
                 `;
             })
@@ -713,48 +540,18 @@
         }
 
         updateActionPanel();
-    }
 
-    function setSelected(idOrNull) {
-        selectedId = idOrNull;
-        renderRows();
-    }
-
-    function toggleSelect(id) {
-        if (String(selectedId) === String(id)) {
-            setSelected(null);
-            return;
-        }
-        setSelected(id);
-    }
-
-    function ensureVideoPlayer() {
-        if (!videoPlayer) {
-            videoPlayer = new Plyr('#videoPlayer', {
-                controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen'],
-                settings: ['speed', 'loop'],
+        tableBody.querySelectorAll('.file-row').forEach((row) => {
+            row.addEventListener('click', () => {
+                const id = row.getAttribute('data-id');
+                if (String(selectedId) === String(id)) {
+                    selectedId = null;
+                } else {
+                    selectedId = id;
+                }
+                renderRows();
             });
-        }
-        return videoPlayer;
-    }
-
-    function ensureAudioPlayer() {
-        if (!audioPlayer) {
-            audioPlayer = new Plyr('#audioPlayer', {
-                controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'loop'],
-                settings: ['speed', 'loop'],
-            });
-        }
-        return audioPlayer;
-    }
-
-    function pauseAllPlayers() {
-        if (videoPlayer) {
-            try { videoPlayer.pause(); } catch (_) {}
-        }
-        if (audioPlayer) {
-            try { audioPlayer.pause(); } catch (_) {}
-        }
+        });
     }
 
     function showPlayerView() {
@@ -764,65 +561,40 @@
     }
 
     function showManagerView() {
+        try { videoPlayer.pause(); } catch (_) {}
+        try { audioPlayer.pause(); } catch (_) {}
         playerView.classList.add('hidden');
         managerView.classList.remove('hidden');
     }
 
-    function loadPlayerForItem(item, autoPlay = true) {
-        if (!item || !item.playable) return;
-
-        const mediaType = item.kind === 'audio' ? 'audio' : 'video';
-        const fallbackMime = mediaType === 'audio' ? 'audio/mpeg' : 'video/mp4';
-
-        playerTitle.textContent = item.name || 'file';
-
-        if (mediaType === 'audio') {
-            videoWrap.classList.add('hidden');
-            audioWrap.classList.remove('hidden');
-            activePlayer = ensureAudioPlayer();
-        } else {
-            audioWrap.classList.add('hidden');
-            videoWrap.classList.remove('hidden');
-            activePlayer = ensureVideoPlayer();
-        }
-
-        activePlayer.source = {
-            type: mediaType,
-            title: item.name,
-            sources: [{ src: item.url, type: item.mime || fallbackMime }],
-        };
-
-        if (autoPlay) {
-            try { activePlayer.play(); } catch (_) {}
-        }
-    }
-
-    filterWrap.addEventListener('click', (e) => {
-        const btn = e.target.closest('.filter-btn');
-        if (!btn) return;
-
-        activeCategory = btn.dataset.category || 'all';
-
-        document.querySelectorAll('.filter-btn').forEach((x) => {
-            x.classList.toggle('active', x === btn);
-        });
-
-        renderRows();
-    });
-
-    tableBody.addEventListener('click', (e) => {
-        const row = e.target.closest('.file-row');
-        if (!row) return;
-        const id = row.dataset.id;
-        toggleSelect(id);
-    });
-
-    playBtn.addEventListener('click', () => {
+    function openSelectedPlayer() {
         const item = getSelectedItem();
         if (!item || !item.playable) return;
+
+        playerTitle.textContent = item.name || 'Player';
+
+        try { videoPlayer.pause(); } catch (_) {}
+        try { audioPlayer.pause(); } catch (_) {}
+
+        if (item.kind === 'audio') {
+            videoWrap.classList.add('hidden');
+            audioWrap.classList.remove('hidden');
+            audioPlayer.src = item.url;
+            showPlayerView();
+            audioPlayer.play().catch(() => {});
+            return;
+        }
+
+        audioWrap.classList.add('hidden');
+        videoWrap.classList.remove('hidden');
+        videoPlayer.src = item.url;
         showPlayerView();
-        loadPlayerForItem(item, true);
-    });
+        videoPlayer.play().catch(() => {});
+    }
+
+    backBtn.addEventListener('click', showManagerView);
+
+    playBtn.addEventListener('click', openSelectedPlayer);
 
     downloadBtn.addEventListener('click', () => {
         const item = getSelectedItem();
@@ -833,7 +605,6 @@
     copyBtn.addEventListener('click', async () => {
         const item = getSelectedItem();
         if (!item) return;
-
         const old = copyBtn.textContent;
         try {
             await navigator.clipboard.writeText(item.url);
@@ -844,13 +615,14 @@
         }
         setTimeout(() => { copyBtn.textContent = old; }, 1700);
     });
-            openAdUrl(url);
-        });
-    });
 
-    backBtn.addEventListener('click', () => {
-        pauseAllPlayers();
-        showManagerView();
+    filterWrap.querySelectorAll('.filter-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            filterWrap.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeCategory = btn.getAttribute('data-category') || 'all';
+            renderRows();
+        });
     });
 
     renderRows();

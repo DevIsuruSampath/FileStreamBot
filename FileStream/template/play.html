@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>Stream</title>
-    <link rel="stylesheet" href="/static/plyr.css" />
-    <script src="/static/plyr.js"></script>
     <style>
         :root {
             --bg: #f4f7fc;
@@ -22,7 +20,6 @@
             --shadow: 0 10px 26px rgba(15, 23, 42, 0.10);
             --radius: 14px;
             --radius-sm: 10px;
-            --plyr-color-main: #4f46e5;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -38,7 +35,6 @@
                 --danger: #f87171;
                 --border: #24314b;
                 --shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
-                --plyr-color-main: #6f8cff;
             }
         }
 
@@ -102,13 +98,7 @@
             font-size: 0.82rem;
             color: var(--muted);
             background: var(--surface-soft);
-            transition: 0.18s ease;
             white-space: nowrap;
-        }
-
-        .updates-link:hover {
-            color: var(--text);
-            border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
         }
 
         .main {
@@ -173,24 +163,12 @@
 
         .manager-table tr:last-child td { border-bottom: none; }
 
-        .file-row {
-            cursor: pointer;
-            transition: background 0.16s ease;
-        }
-
+        .file-row { cursor: pointer; }
         .file-row:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
         .file-row.selected { background: color-mix(in srgb, var(--primary) 14%, transparent); }
 
-        .idx {
-            width: 44px;
-            color: var(--muted);
-            font-weight: 700;
-        }
-
-        .icon {
-            width: 44px;
-            font-size: 1rem;
-        }
+        .idx { width: 44px; color: var(--muted); font-weight: 700; }
+        .icon { width: 44px; font-size: 1rem; }
 
         .action-panel {
             border: 1px solid var(--border);
@@ -213,6 +191,7 @@
 
         @media (max-width: 640px) {
             .actions { grid-template-columns: 1fr; }
+        }
 
         .btn {
             min-height: 42px;
@@ -221,7 +200,6 @@
             font-weight: 650;
             font-size: 0.9rem;
             cursor: pointer;
-            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
             padding: 0 12px;
             color: var(--text);
             background: transparent;
@@ -232,12 +210,8 @@
             text-decoration: none;
         }
 
-        .btn:hover { transform: translateY(-1px); }
-        .btn:active { transform: translateY(0); }
-
         .btn-primary {
             background: linear-gradient(135deg, var(--primary), var(--primary-2));
-            border-color: color-mix(in srgb, var(--primary) 45%, transparent);
             color: #fff;
         }
 
@@ -252,13 +226,11 @@
             color: color-mix(in srgb, var(--danger) 80%, var(--text));
         }
 
-        .ad-hint {
+        .hint {
             margin-top: 8px;
             color: var(--muted);
             font-size: 0.78rem;
         }
-
-        .ad-chip:hover { color: var(--text); border-color: var(--primary); }
 
         .player-top {
             display: flex;
@@ -376,13 +348,7 @@
                 <a href="{{ report_url }}" class="btn btn-danger">🚫 Report Adult Content</a>
                 {% endif %}
             </div>
-                    {% if adsterra_format_urls.social_bar %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.social_bar }}">Social Bar</button>{% endif %}
-                    {% if adsterra_format_urls.banner %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.banner }}">Banners</button>{% endif %}
-                </div>
-            </div>
-            {% endif %}
-
-            <p class="ad-hint">Report button is always direct (no ads).</p>
+            <p class="hint">Report button is always direct (no ads).</p>
         </div>
     </section>
 
@@ -425,68 +391,9 @@
     const playBtn = document.getElementById('playBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const copyBtn = document.getElementById('copyBtn');
+    const player = document.getElementById('player');
 
-    let player = null;
     let selected = false;
-    let adIndex = 0;
-
-    function ensurePlayer() {
-        if (!player) {
-            player = new Plyr('#player', {
-                controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
-                settings: ['captions', 'quality', 'speed', 'loop'],
-            });
-        }
-        return player;
-    }
-
-        if (!urls.length) return null;
-
-        const picked = urls[adIndex % urls.length];
-        adIndex += 1;
-        return picked;
-    }
-    }
-
-            const key = slot.getAttribute('data-key');
-            const invokeUrl = slot.getAttribute('data-invoke-url');
-            const width = parseInt(slot.getAttribute('data-width') || '0', 10);
-            const height = parseInt(slot.getAttribute('data-height') || '0', 10);
-            const format = slot.getAttribute('data-format') || 'iframe';
-
-            if (!key || !invokeUrl || !width || !height) {
-                loadNext();
-                return;
-            }
-
-            const inner = document.createElement('div');
-            inner.className = 'ad-slot-inner';
-            inner.style.width = `${width}px`;
-            inner.style.height = `${height}px`;
-
-            const s1 = document.createElement('script');
-            s1.text = `atOptions = { key: '${key}', format: '${format}', height: ${height}, width: ${width}, params: {} };`;
-
-            const s2 = document.createElement('script');
-            s2.src = invokeUrl;
-            s2.async = false;
-            s2.onload = () => {
-                slot.dataset.loaded = '1';
-                loadNext();
-            };
-            s2.onerror = () => {
-                slot.dataset.loaded = '1';
-                loadNext();
-            };
-
-            inner.appendChild(s1);
-            inner.appendChild(s2);
-            slot.appendChild(inner);
-        };
-
-        loadNext();
-    }
-    }
 
     function setSelected(enable) {
         selected = !!enable;
@@ -501,6 +408,9 @@
     }
 
     function showManagerView() {
+        if (player) {
+            try { player.pause(); } catch (_) {}
+        }
         playerView.classList.add('hidden');
         managerView.classList.remove('hidden');
     }
@@ -512,18 +422,12 @@
     playBtn.addEventListener('click', async () => {
         if (!selected) return;
         showPlayerView();
-        const p = ensurePlayer();
-        try {
-            await p.play();
-        } catch (_) {}
+        if (player) {
+            try { await player.play(); } catch (_) {}
+        }
     });
 
-    backBtn.addEventListener('click', () => {
-        if (player) {
-            try { player.pause(); } catch (_) {}
-        }
-        showManagerView();
-    });
+    backBtn.addEventListener('click', showManagerView);
 
     downloadBtn.addEventListener('click', () => {
         if (!selected) return;
@@ -531,6 +435,7 @@
     });
 
     copyBtn.addEventListener('click', async () => {
+        if (!selected) return;
         const old = copyBtn.textContent;
         try {
             await navigator.clipboard.writeText(fileUrl);
@@ -541,12 +446,6 @@
         }
         setTimeout(() => { copyBtn.textContent = old; }, 1700);
     });
-            openAdUrl(url);
-        });
-    });
-    window.addEventListener('resize', () => {
-    });
-
 </script>
 
 </body>

@@ -1,15 +1,17 @@
 import os
 import re
 import json
-import aiohttp
+import mimetypes
 import jinja2
 import urllib.parse
+
 from FileStream.config import Telegram, Server
 from FileStream.bot import FileStream
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.category import detect_category
 from FileStream.server.exceptions import FileNotFound
+
 
 env = jinja2.Environment(autoescape=True)
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
@@ -66,6 +68,12 @@ def _folder_sort_key(item: dict):
     return (1, _natural_key(raw_name))
 
 
+def _safe_text(value, fallback: str) -> str:
+    text = str(value or fallback)
+    text = text.replace("\n", " ").replace("\r", " ").strip()
+    return text or fallback
+
+
 async def render_page(db_id):
     file_data = await db.get_file(db_id)
     if not file_data:
@@ -86,12 +94,12 @@ async def render_page(db_id):
     mime_type = (file_data.get("mime_type") or "").lower()
     primary = mime_type.split("/")[0].strip() if mime_type else ""
     ext = os.path.splitext(raw_name)[1].lower()
+
     video_ext = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpeg", ".mpg"}
     audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
 
     category = file_data.get("category") or detect_category(file_name=raw_name, mime_type=mime_type, file_ext=ext)
-    uploader = (file_data.get("uploader") or "Unknown uploader").replace("
-", " ").replace("", " ")
+    uploader = _safe_text(file_data.get("uploader"), "Unknown uploader")
     if len(uploader) > 80:
         uploader = uploader[:80] + "…"
 
@@ -105,7 +113,7 @@ async def render_page(db_id):
     elif is_video:
         resolved_mime = mime_type or "video/mp4"
     else:
-        guessed, _ = __import__("mimetypes").guess_type(raw_name)
+        guessed, _ = mimetypes.guess_type(raw_name)
         resolved_mime = guessed or mime_type or "application/octet-stream"
 
     updates_url = None
@@ -138,6 +146,7 @@ async def render_folder(folder_id: str, title: str = "Folder"):
 
     file_ids = folder_doc.get("files") or []
     files = []
+
     for fid in file_ids:
         file_data = await db.get_file(fid)
         if not file_data:
@@ -164,24 +173,25 @@ async def render_folder(folder_id: str, title: str = "Folder"):
 
         playable = kind in ("video", "audio")
         category = file_data.get("category") or detect_category(file_name=raw_name, mime_type=mime, file_ext=ext)
-        uploader = (file_data.get("uploader") or "Unknown uploader").replace("
-", " ").replace("", " ")
+        uploader = _safe_text(file_data.get("uploader"), "Unknown uploader")
         if len(uploader) > 80:
             uploader = uploader[:80] + "…"
 
-        files.append({
-            "id": str(file_data.get("_id")),
-            "name": file_name,
-            "_sort_name": raw_name,
-            "size": humanbytes(file_data.get("file_size") or 0),
-            "mime": mime,
-            "kind": kind,
-            "category": category,
-            "uploader": uploader,
-            "message_id": file_data.get("message_id"),
-            "playable": playable,
-            "url": urllib.parse.urljoin(Server.URL, f"dl/{file_data['_id']}")
-        })
+        files.append(
+            {
+                "id": str(file_data.get("_id")),
+                "name": file_name,
+                "_sort_name": raw_name,
+                "size": humanbytes(file_data.get("file_size") or 0),
+                "mime": mime,
+                "kind": kind,
+                "category": category,
+                "uploader": uploader,
+                "message_id": file_data.get("message_id"),
+                "playable": playable,
+                "url": urllib.parse.urljoin(Server.URL, f"dl/{file_data['_id']}"),
+            }
+        )
 
     if not files:
         raise FileNotFound
