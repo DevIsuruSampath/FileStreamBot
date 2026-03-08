@@ -135,9 +135,14 @@
 
         .ad-slot {
             width: 100%;
-            display: flex;
+            display: none;
             justify-content: center;
+            align-items: center;
             min-height: 50px;
+        }
+
+        .ad-slot.loaded {
+            display: flex;
         }
 
         .ad-slot-inner {
@@ -150,7 +155,7 @@
         .desktop-only { display: block; }
         .mobile-only { display: none !important; }
 
-        @media (max-width: 767px) {
+        @media (max-width: 900px) {
             .desktop-only { display: none !important; }
             .mobile-only { display: block !important; }
         }
@@ -406,7 +411,7 @@
             <div id="inlineBannerSlots" class="ad-slot-grid" style="margin-top:12px;">
                 <div
                     class="ad-slot"
-                    data-device="all"
+                    data-device="desktop"
                     data-key="49d82824df1bb87901c1aeb13d4a5185"
                     data-width="300"
                     data-height="250"
@@ -460,28 +465,53 @@
 
 <script>
     function isMobileView() {
-        return window.matchMedia('(max-width: 767px)').matches;
+        return window.matchMedia('(max-width: 900px)').matches;
     }
 
-    function renderBannerSlots(containerId) {
-        const container = document.getElementById(containerId);
-        if (!container) return;
+    function slotMatchesDevice(slot, mobile) {
+        const device = (slot.getAttribute('data-device') || 'all').toLowerCase();
+        if (device === 'desktop' && mobile) return false;
+        if (device === 'mobile' && !mobile) return false;
+        return true;
+    }
 
+    function hasCreative(slot) {
+        return !!slot.querySelector('iframe, img, ins, object, embed');
+    }
+
+    function refreshAdCards() {
         const mobile = isMobileView();
-        const slots = Array.from(container.querySelectorAll('.ad-slot')).filter((slot) => {
+        document.querySelectorAll('.ad-card').forEach((card) => {
+            const cardSlots = Array.from(card.querySelectorAll('.ad-slot'));
+            if (!cardSlots.length) return;
+
+            const eligible = cardSlots.filter((slot) => slotMatchesDevice(slot, mobile));
+            if (!eligible.length) {
+                card.style.removeProperty('display');
+                return;
+            }
+
+            const hasLoaded = eligible.some((slot) => slot.classList.contains('loaded'));
+            card.style.display = hasLoaded ? '' : 'none';
+        });
+    }
+
+    function renderAllBanners() {
+        const mobile = isMobileView();
+        const slots = Array.from(document.querySelectorAll('.ad-slot')).filter((slot) => {
             if (slot.dataset.loaded === '1') return false;
-            const device = (slot.getAttribute('data-device') || 'all').toLowerCase();
-            if (device === 'desktop' && mobile) return false;
-            if (device === 'mobile' && !mobile) return false;
-            return true;
+            return slotMatchesDevice(slot, mobile);
         });
 
         let index = 0;
 
         const loadNext = () => {
-            if (index >= slots.length) return;
-            const slot = slots[index++];
+            if (index >= slots.length) {
+                refreshAdCards();
+                return;
+            }
 
+            const slot = slots[index++];
             const key = slot.getAttribute('data-key');
             const invokeUrl = slot.getAttribute('data-invoke-url');
             const width = parseInt(slot.getAttribute('data-width') || '0', 10);
@@ -489,9 +519,12 @@
 
             if (!key || !invokeUrl || !width || !height) {
                 slot.dataset.loaded = '1';
+                slot.classList.add('ad-empty');
                 loadNext();
                 return;
             }
+
+            slot.innerHTML = '';
 
             const inner = document.createElement('div');
             inner.className = 'ad-slot-inner';
@@ -507,26 +540,36 @@
             s2.src = invokeUrl;
             s2.async = false;
 
-            const done = () => {
-                slot.dataset.loaded = '1';
-                loadNext();
+            const finalize = (ok) => {
+                window.setTimeout(() => {
+                    slot.dataset.loaded = '1';
+
+                    if (ok && hasCreative(slot)) {
+                        slot.classList.add('loaded');
+                    } else {
+                        slot.classList.remove('loaded');
+                        slot.classList.add('ad-empty');
+                        slot.innerHTML = '';
+                    }
+
+                    loadNext();
+                }, 260);
             };
 
-            s2.onload = done;
-            s2.onerror = done;
+            s2.onload = () => finalize(true);
+            s2.onerror = () => finalize(false);
 
             inner.appendChild(s1);
             inner.appendChild(s2);
             slot.appendChild(inner);
         };
 
-        loadNext();
-    }
+        if (!slots.length) {
+            refreshAdCards();
+            return;
+        }
 
-    function renderAllBanners() {
-        renderBannerSlots('topBannerSlots');
-        renderBannerSlots('inlineBannerSlots');
-        renderBannerSlots('mobileBannerSlots');
+        loadNext();
     }
 
     const fileUrl = {{ file_url | tojson }};
