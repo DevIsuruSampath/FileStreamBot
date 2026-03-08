@@ -125,18 +125,24 @@ async def webads_toggle(c: Client, m: Message):
         await m.reply_text(f"⚠️ **Access Denied.**\nYour ID `{m.from_user.id}` is not in `OWNER_ID` or `AUTH_USERS`.", quote=True)
         return
 
-    configured = bool(getattr(Telegram, "ADSTERRA_ENABLE", False) and getattr(Telegram, "ADSTERRA_DIRECT_LINK", ""))
+    has_direct = bool(getattr(Telegram, "ADSTERRA_DIRECT_LINK", "").strip())
+    has_scripts = bool(getattr(Telegram, "ADSTERRA_SCRIPT_URLS", "").strip())
+    configured = bool(getattr(Telegram, "ADSTERRA_ENABLE", False) and (has_direct or has_scripts))
 
     # /webads -> status
     if len(m.command) < 2:
         status = await db.get_web_ads_status()
         state = "ON" if status else "OFF"
-        config_note = "✅ Adsterra config detected." if configured else "⚠️ Set `ADSTERRA_ENABLE=True` and `ADSTERRA_DIRECT_LINK=...` in env."
+        config_note = (
+            "✅ Adsterra config detected."
+            if configured
+            else "⚠️ Set `ADSTERRA_ENABLE=True` and `ADSTERRA_DIRECT_LINK=...` (or `ADSTERRA_SCRIPT_URLS=...`) in env."
+        )
         await m.reply_text(
             text=(
                 f"**Web Ads are currently:** `{state}`\n"
                 f"{config_note}\n"
-                "Usage: `/webads on` or `/webads off`"
+                "Usage: `/webads on`, `/webads off`, `/webads info`"
             ),
             parse_mode=ParseMode.MARKDOWN,
             quote=True
@@ -155,11 +161,32 @@ async def webads_toggle(c: Client, m: Message):
         )
         return
 
+    if action in {"info", "help", "docs"}:
+        status = await db.get_web_ads_status()
+        state = "ON" if status else "OFF"
+        cfg = "Configured" if configured else "Not configured"
+        await m.reply_text(
+            text=(
+                f"**Web Ads Info**\n"
+                f"Status: `{state}`\n"
+                f"Env Config: `{cfg}`\n\n"
+                "Current integration uses **Adsterra Direct Link / Script URLs** (no API required).\n"
+                "Docs (Partners API): https://docs.adsterratools.com/public/v3/partners-api\n\n"
+                "Required env:\n"
+                "`ADSTERRA_ENABLE=True`\n"
+                "`ADSTERRA_DIRECT_LINK=https://...` (or `ADSTERRA_SCRIPT_URLS=...`)"
+            ),
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=True,
+            quote=True
+        )
+        return
+
     if action == "on":
         await db.update_web_ads_status(True)
         msg = "**✅ Web Ads have been enabled.**"
         if not configured:
-            msg += "\n\n⚠️ Add `ADSTERRA_ENABLE=True` and `ADSTERRA_DIRECT_LINK=...` in env to activate Adsterra."
+            msg += "\n\n⚠️ Add `ADSTERRA_ENABLE=True` and `ADSTERRA_DIRECT_LINK=...` (or `ADSTERRA_SCRIPT_URLS=...`) in env to activate Adsterra."
         await m.reply_text(text=msg, parse_mode=ParseMode.MARKDOWN, quote=True)
     elif action == "off":
         await db.update_web_ads_status(False)

@@ -3,25 +3,43 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>Stream | {{ file_name }}</title>
     <link rel="stylesheet" href="/static/plyr.css" />
     <script src="/static/plyr.js"></script>
     <style>
         :root {
-            --bg: #0a1020;
-            --card: rgba(255, 255, 255, 0.08);
-            --card-soft: rgba(255, 255, 255, 0.05);
-            --text: #e8edff;
-            --muted: #b4bfdc;
-            --primary: #6f8cff;
-            --primary-2: #7a5cff;
-            --accent: #2dd4bf;
-            --danger: #f87171;
-            --border: rgba(255, 255, 255, 0.16);
-            --shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
-            --radius: 16px;
-            --radius-sm: 12px;
-            --header-h: 70px;
+            --bg: #f4f7fc;
+            --surface: #ffffff;
+            --surface-soft: #f8faff;
+            --text: #111827;
+            --muted: #6b7280;
+            --primary: #4f46e5;
+            --primary-2: #6366f1;
+            --accent: #0ea5e9;
+            --danger: #dc2626;
+            --border: #dbe3f2;
+            --shadow: 0 10px 26px rgba(15, 23, 42, 0.10);
+            --radius: 14px;
+            --radius-sm: 10px;
+            --plyr-color-main: #4f46e5;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0b1220;
+                --surface: #111a2d;
+                --surface-soft: #0f1729;
+                --text: #e5ecff;
+                --muted: #a6b2cf;
+                --primary: #6f8cff;
+                --primary-2: #7a5cff;
+                --accent: #2dd4bf;
+                --danger: #f87171;
+                --border: #24314b;
+                --shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+                --plyr-color-main: #6f8cff;
+            }
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -29,53 +47,43 @@
         body {
             font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
             color: var(--text);
-            background:
-                radial-gradient(1000px 520px at -10% -10%, rgba(111, 140, 255, 0.28), transparent 60%),
-                radial-gradient(900px 500px at 100% 0%, rgba(122, 92, 255, 0.2), transparent 60%),
-                linear-gradient(180deg, #0a1020 0%, #080d1a 100%);
+            background: var(--bg);
             min-height: 100vh;
+            line-height: 1.35;
         }
 
         a { color: inherit; text-decoration: none; }
+        .hidden { display: none !important; }
 
         .container {
-            width: min(1180px, 92%);
+            width: min(980px, 92%);
             margin: 0 auto;
-        }
-
-        .glass {
-            background: var(--card);
-            border: 1px solid var(--border);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            box-shadow: var(--shadow);
         }
 
         .header {
             position: sticky;
             top: 0;
             z-index: 20;
-            height: var(--header-h);
             border-bottom: 1px solid var(--border);
-            background: rgba(8, 12, 24, 0.82);
+            background: color-mix(in srgb, var(--surface) 86%, transparent);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
         }
 
         .header-inner {
-            height: 100%;
+            min-height: 64px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
+            gap: 10px;
         }
 
         .brand {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
+            gap: 9px;
+            font-size: 1rem;
             font-weight: 800;
-            font-size: 1.03rem;
             letter-spacing: 0.2px;
         }
 
@@ -84,88 +92,41 @@
             height: 10px;
             border-radius: 999px;
             background: linear-gradient(135deg, var(--accent), var(--primary));
-            box-shadow: 0 0 0 6px rgba(45, 212, 191, 0.16);
+            box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 25%, transparent);
         }
 
         .updates-link {
             border: 1px solid var(--border);
             border-radius: 999px;
-            padding: 9px 14px;
-            font-size: 0.84rem;
-            color: #d9e2ff;
-            background: rgba(255, 255, 255, 0.06);
-            transition: 0.2s ease;
+            padding: 8px 12px;
+            font-size: 0.82rem;
+            color: var(--muted);
+            background: var(--surface-soft);
+            transition: 0.18s ease;
             white-space: nowrap;
         }
 
-        .updates-link:hover { background: rgba(255, 255, 255, 0.12); }
+        .updates-link:hover {
+            color: var(--text);
+            border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+        }
 
         .main {
             display: grid;
-            gap: 18px;
-            padding: 18px 0 28px;
+            gap: 14px;
+            padding: 18px 0 26px;
         }
 
-        .layout {
-            display: grid;
-            gap: 16px;
-        }
-
-        @media (min-width: 980px) {
-            .layout {
-                grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.85fr);
-                align-items: start;
-            }
-
-            .sidebar {
-                position: sticky;
-                top: calc(var(--header-h) + 14px);
-            }
-        }
-
-        .player-shell {
-            overflow: hidden;
-            border-radius: var(--radius);
+        .card {
+            background: var(--surface);
             border: 1px solid var(--border);
-            background: #000;
-        }
-
-        .player-shell video { width: 100%; display: block; aspect-ratio: 16/9; }
-
-        .audio-shell {
             border-radius: var(--radius);
-            padding: 18px;
-            border: 1px solid var(--border);
-            background: rgba(255, 255, 255, 0.06);
-        }
-
-        .audio-head {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 12px;
-            color: #d8e3ff;
-            font-size: 0.95rem;
-        }
-
-        .audio-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: grid;
-            place-items: center;
-            background: rgba(111, 140, 255, 0.22);
-            border: 1px solid rgba(111, 140, 255, 0.35);
-        }
-
-        .meta-card {
-            border-radius: var(--radius);
+            box-shadow: var(--shadow);
             padding: 16px;
-            margin-top: 14px;
         }
 
         .file-name {
-            font-size: clamp(1.05rem, 3vw, 1.45rem);
+            font-size: clamp(1rem, 2.6vw, 1.28rem);
             line-height: 1.35;
             font-weight: 700;
             margin-bottom: 10px;
@@ -182,13 +143,13 @@
         .tag {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            border-radius: 999px;
             border: 1px solid var(--border);
-            background: rgba(255, 255, 255, 0.05);
-            color: #d8e3ff;
+            border-radius: 999px;
+            background: var(--surface-soft);
+            color: var(--muted);
             padding: 5px 10px;
             font-size: 0.8rem;
+            white-space: nowrap;
         }
 
         .hint {
@@ -201,9 +162,9 @@
             width: 100%;
             border-collapse: collapse;
             border: 1px solid var(--border);
-            border-radius: 12px;
+            border-radius: var(--radius-sm);
             overflow: hidden;
-            background: var(--card-soft);
+            margin-bottom: 12px;
         }
 
         .manager-table th,
@@ -211,64 +172,64 @@
             padding: 10px 8px;
             border-bottom: 1px solid var(--border);
             text-align: left;
-            font-size: 0.82rem;
+            font-size: 0.84rem;
             vertical-align: middle;
         }
 
         .manager-table th {
-            color: #c5cff0;
+            color: var(--muted);
+            font-size: 0.74rem;
             text-transform: uppercase;
-            letter-spacing: 0.06em;
-            font-size: 0.72rem;
+            letter-spacing: 0.05em;
         }
 
         .manager-table tr:last-child td { border-bottom: none; }
-        .manager-table .idx {
+
+        .file-row {
+            cursor: pointer;
+            transition: background 0.16s ease;
+        }
+
+        .file-row:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+        .file-row.selected { background: color-mix(in srgb, var(--primary) 14%, transparent); }
+
+        .idx {
             width: 44px;
             color: var(--muted);
             font-weight: 700;
         }
 
-        .manager-table .icon {
+        .icon {
             width: 44px;
             font-size: 1rem;
         }
 
-        .panel {
-            border-radius: var(--radius);
-            padding: 16px;
-        }
-
-        .panel h3 {
-            font-size: 0.86rem;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: #c5cff0;
-            margin-bottom: 12px;
-        }
-
-        .actions,
-        .players-grid {
+        .actions {
             display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px;
         }
 
+        @media (max-width: 640px) {
+            .actions { grid-template-columns: 1fr; }
+        }
+
         .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
             min-height: 42px;
             border-radius: 11px;
             border: 1px solid transparent;
-            color: var(--text);
             font-weight: 650;
-            font-size: 0.92rem;
+            font-size: 0.9rem;
             cursor: pointer;
-            transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
             padding: 0 12px;
-            text-decoration: none;
+            color: var(--text);
             background: transparent;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            text-decoration: none;
         }
 
         .btn:hover { transform: translateY(-1px); }
@@ -276,31 +237,27 @@
 
         .btn-primary {
             background: linear-gradient(135deg, var(--primary), var(--primary-2));
-            border-color: rgba(132, 146, 255, 0.45);
+            border-color: color-mix(in srgb, var(--primary) 45%, transparent);
             color: #fff;
         }
 
         .btn-secondary {
-            background: rgba(255, 255, 255, 0.06);
+            background: var(--surface-soft);
             border-color: var(--border);
-            color: #e5ecff;
         }
 
         .btn-danger {
-            background: rgba(248, 113, 113, 0.12);
-            border-color: rgba(248, 113, 113, 0.34);
-            color: #fecaca;
+            background: color-mix(in srgb, var(--danger) 12%, transparent);
+            border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+            color: color-mix(in srgb, var(--danger) 80%, var(--text));
         }
 
         .btn.disabled,
         .btn[disabled] {
-            opacity: 0.55;
+            opacity: 0.56;
             pointer-events: none;
             transform: none !important;
         }
-
-        .players-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .players-grid .btn { min-height: 38px; font-size: 0.84rem; }
 
         .ad-hint {
             margin-top: 8px;
@@ -308,7 +265,71 @@
             font-size: 0.78rem;
         }
 
-        :root { --plyr-color-main: #6f8cff; }
+        .player-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .player-title {
+            font-size: 0.95rem;
+            color: var(--muted);
+            word-break: break-word;
+        }
+
+        .back-btn {
+            min-height: 36px;
+            border-radius: 9px;
+            border: 1px solid var(--border);
+            background: var(--surface-soft);
+            color: var(--text);
+            font-size: 0.85rem;
+            font-weight: 650;
+            padding: 0 12px;
+            cursor: pointer;
+        }
+
+        .video-shell {
+            overflow: hidden;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: #000;
+        }
+
+        .video-shell video {
+            width: 100%;
+            display: block;
+            aspect-ratio: 16/9;
+        }
+
+        .audio-shell {
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--surface-soft);
+            padding: 14px;
+        }
+
+        .audio-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .audio-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            display: grid;
+            place-items: center;
+            background: color-mix(in srgb, var(--primary) 20%, transparent);
+            border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+        }
     </style>
 </head>
 <body>
@@ -325,107 +346,102 @@
 </header>
 
 <main class="container main">
-    <div class="layout">
-        <section>
-            {% if is_audio %}
-            <div class="audio-shell glass">
-                <div class="audio-head">
-                    <span class="audio-icon">🎵</span>
-                    <span>Audio Stream</span>
-                </div>
-                <audio id="player" controls preload="metadata" style="width:100%">
-                    <source src="{{ file_url }}" type="{{ mime_type }}" />
-                </audio>
-            </div>
-            {% else %}
-            <div class="player-shell glass">
-                <video id="player" playsinline controls preload="metadata">
-                    <source src="{{ file_url }}" type="{{ mime_type }}" />
-                </video>
-            </div>
+    <section id="managerView" class="card">
+        <h1 class="file-name">{{ file_name }}</h1>
+        <div class="meta-row">
+            <span class="tag">💾 {{ file_size }}</span>
+            <span class="tag">🗂️ {{ category or 'Other' }}</span>
+            <span class="tag">👤 {{ uploader or 'Unknown uploader' }}</span>
+            {% if message_id %}<span class="tag">🆔 {{ message_id }}</span>{% endif %}
+            <span class="tag">🛡️ Secure Link</span>
+        </div>
+
+        <p class="hint">Click file row to select. Then use Play / Download / Copy / Report.</p>
+
+        <table class="manager-table" aria-label="File manager">
+            <thead>
+            <tr>
+                <th style="width:48px">Sel</th>
+                <th class="idx">#</th>
+                <th class="icon">Type</th>
+                <th>Name</th>
+                <th style="white-space:nowrap;">Size</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr id="fileRow" class="file-row">
+                <td><input id="selectFile" type="checkbox" aria-label="Select file" /></td>
+                <td class="idx">1</td>
+                <td class="icon">{% if is_audio %}🎵{% else %}🎬{% endif %}</td>
+                <td>{{ file_name }}</td>
+                <td style="white-space:nowrap;">{{ file_size }}</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div class="actions">
+            <button id="playBtn" class="btn btn-primary disabled" disabled>▶️ Play Selected</button>
+            <button id="downloadBtn" class="btn btn-secondary disabled" disabled>⬇️ Download Selected</button>
+            <button id="copyBtn" class="btn btn-secondary">📋 Copy Stream Link</button>
+            {% if report_url %}
+            <a href="{{ report_url }}" class="btn btn-danger">🚫 Report Adult Content</a>
             {% endif %}
+        </div>
+        <p class="ad-hint">Report button is always direct (no ads).</p>
+    </section>
 
-            <article class="meta-card glass">
-                <h1 class="file-name">{{ file_name }}</h1>
-                <div class="meta-row">
-                    <span class="tag">💾 {{ file_size }}</span>
-                    <span class="tag">🗂️ {{ category or 'Other' }}</span>
-                    <span class="tag">👤 {{ uploader or 'Unknown uploader' }}</span>
-                    {% if message_id %}<span class="tag">🆔 {{ message_id }}</span>{% endif %}
-                    <span class="tag">🛡️ Secure Link</span>
-                </div>
-                <p class="hint">Select file row, then use Play/Download actions.</p>
+    <section id="playerView" class="card hidden">
+        <div class="player-top">
+            <button id="backBtn" class="back-btn" type="button">⬅ Back</button>
+            <div class="player-title">{{ file_name }}</div>
+        </div>
 
-                <table class="manager-table" aria-label="File manager">
-                    <thead>
-                    <tr>
-                        <th style="width:48px">Sel</th>
-                        <th class="idx">#</th>
-                        <th class="icon">Type</th>
-                        <th>Name</th>
-                        <th style="white-space:nowrap;">Size</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr>
-                        <td><input id="selectFile" type="checkbox" aria-label="Select file" /></td>
-                        <td class="idx">1</td>
-                        <td class="icon">{% if is_audio %}🎵{% else %}🎬{% endif %}</td>
-                        <td>{{ file_name }}</td>
-                        <td style="white-space:nowrap;">{{ file_size }}</td>
-                    </tr>
-                    </tbody>
-                </table>
-            </article>
-        </section>
-
-        <aside class="sidebar" style="display:grid; gap:12px;">
-            <section class="panel glass">
-                <h3>Selected File Actions</h3>
-                <div class="actions">
-                    <button id="playBtn" class="btn btn-primary disabled" disabled>▶️ Play Selected</button>
-                    <button id="downloadBtn" class="btn btn-secondary disabled" disabled>⬇️ Download Selected</button>
-                    <button onclick="copyLink()" id="copyBtn" class="btn btn-secondary">📋 Copy Stream Link</button>
-                    {% if report_url %}
-                    <a href="{{ report_url }}" class="btn btn-danger">🚫 Report Adult Content</a>
-                    {% endif %}
-                </div>
-                <p class="ad-hint">Report button is always direct (no ads).</p>
-            </section>
-
-            <section class="panel glass">
-                <h3>Open in External Player</h3>
-                <div class="players-grid">
-                    <button onclick="openPlayer('vlc')" class="btn btn-secondary">VLC</button>
-                    <button onclick="openPlayer('mx')" class="btn btn-secondary">MX</button>
-                    <button onclick="openPlayer('nplayer')" class="btn btn-secondary">nPlayer</button>
-                    <button onclick="openPlayer('km')" class="btn btn-secondary">KM</button>
-                </div>
-            </section>
-        </aside>
-    </div>
+        {% if is_audio %}
+        <div class="audio-shell">
+            <div class="audio-head">
+                <span class="audio-icon">🎵</span>
+                <span>Audio Player</span>
+            </div>
+            <audio id="player" controls preload="metadata" style="width:100%">
+                <source src="{{ file_url }}" type="{{ mime_type }}" />
+            </audio>
+        </div>
+        {% else %}
+        <div class="video-shell">
+            <video id="player" playsinline controls preload="metadata">
+                <source src="{{ file_url }}" type="{{ mime_type }}" />
+            </video>
+        </div>
+        {% endif %}
+    </section>
 </main>
 
 <script>
-    const player = new Plyr('#player', {
-        controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
-        settings: ['captions', 'quality', 'speed', 'loop'],
-    });
-
     const fileUrl = {{ file_url | tojson }};
-    const fileName = {{ file_name | tojson }};
     const adsterraEnabled = {{ adsterra_enabled | tojson }};
     const adsterraDirectLink = {{ adsterra_direct_link | tojson }};
 
+    const managerView = document.getElementById('managerView');
+    const playerView = document.getElementById('playerView');
+    const backBtn = document.getElementById('backBtn');
+
+    const fileRow = document.getElementById('fileRow');
     const selectFile = document.getElementById('selectFile');
+
     const playBtn = document.getElementById('playBtn');
     const downloadBtn = document.getElementById('downloadBtn');
+    const copyBtn = document.getElementById('copyBtn');
 
-    function setActionState(enabled) {
-        playBtn.disabled = !enabled;
-        downloadBtn.disabled = !enabled;
-        playBtn.classList.toggle('disabled', !enabled);
-        downloadBtn.classList.toggle('disabled', !enabled);
+    let player = null;
+
+    function ensurePlayer() {
+        if (!player) {
+            player = new Plyr('#player', {
+                controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
+                settings: ['captions', 'quality', 'speed', 'loop'],
+            });
+        }
+        return player;
     }
 
     function openAdsterraIfEnabled() {
@@ -437,16 +453,51 @@
         }
     }
 
+    function updateSelection(enabled) {
+        selectFile.checked = enabled;
+        fileRow.classList.toggle('selected', enabled);
+
+        playBtn.disabled = !enabled;
+        downloadBtn.disabled = !enabled;
+        playBtn.classList.toggle('disabled', !enabled);
+        downloadBtn.classList.toggle('disabled', !enabled);
+    }
+
+    function showPlayerView() {
+        managerView.classList.add('hidden');
+        playerView.classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showManagerView() {
+        playerView.classList.add('hidden');
+        managerView.classList.remove('hidden');
+    }
+
+    fileRow.addEventListener('click', (e) => {
+        if (e.target.closest('a') || e.target.closest('button')) return;
+        updateSelection(true);
+    });
+
     selectFile.addEventListener('change', () => {
-        setActionState(selectFile.checked);
+        updateSelection(selectFile.checked);
     });
 
     playBtn.addEventListener('click', async () => {
         if (!selectFile.checked) return;
         openAdsterraIfEnabled();
+        showPlayerView();
+        const p = ensurePlayer();
         try {
-            await player.play();
+            await p.play();
         } catch (_) {}
+    });
+
+    backBtn.addEventListener('click', () => {
+        if (player) {
+            try { player.pause(); } catch (_) {}
+        }
+        showManagerView();
     });
 
     downloadBtn.addEventListener('click', () => {
@@ -455,37 +506,17 @@
         window.location.href = fileUrl;
     });
 
-    async function copyLink() {
-        const btn = document.getElementById('copyBtn');
-        const old = btn.textContent;
+    copyBtn.addEventListener('click', async () => {
+        const old = copyBtn.textContent;
         try {
             await navigator.clipboard.writeText(fileUrl);
-            btn.textContent = '✅ Copied';
-        } catch (e) {
+            copyBtn.textContent = '✅ Copied';
+        } catch (_) {
             window.prompt('Copy this link:', fileUrl);
-            btn.textContent = '📋 Link Ready';
+            copyBtn.textContent = '📋 Link Ready';
         }
-        setTimeout(() => { btn.textContent = old; }, 1700);
-    }
-
-    function openPlayer(app) {
-        if (!selectFile.checked) {
-            alert('Select file first.');
-            return;
-        }
-        openAdsterraIfEnabled();
-
-        const safeUrl = encodeURI(fileUrl);
-        const safeTitle = encodeURIComponent(fileName);
-        let scheme = '';
-        switch (app) {
-            case 'vlc': scheme = `vlc://${safeUrl}`; break;
-            case 'mx': scheme = `intent:${safeUrl}#Intent;package=com.mxtech.videoplayer.ad;S.title=${safeTitle};end`; break;
-            case 'nplayer': scheme = `nplayer-${safeUrl}`; break;
-            case 'km': scheme = `intent:${safeUrl}#Intent;package=com.kmplayer;end`; break;
-        }
-        if (scheme) window.location.href = scheme;
-    }
+        setTimeout(() => { copyBtn.textContent = old; }, 1700);
+    });
 </script>
 
 {% if adsterra_enabled and adsterra_script_urls %}
