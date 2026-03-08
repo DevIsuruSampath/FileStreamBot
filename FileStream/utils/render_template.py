@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import aiohttp
 import jinja2
@@ -13,6 +14,58 @@ from FileStream.server.exceptions import FileNotFound
 
 env = jinja2.Environment(autoescape=True)
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
+
+
+_NAT_NUM_RE = re.compile(r"(\d+)")
+_SERIES_RE_1 = re.compile(r"[sS](\d{1,2})[\s._-]*[eE](\d{1,3})")
+_SERIES_RE_2 = re.compile(r"\b(\d{1,2})x(\d{1,3})\b", re.IGNORECASE)
+_EPISODE_ONLY_RE = re.compile(r"\b(?:ep|episode)[\s._-]*(\d{1,3})\b", re.IGNORECASE)
+
+
+def _natural_key(text: str):
+    cleaned = str(text or "").replace("_", " ").strip().lower()
+    parts = _NAT_NUM_RE.split(cleaned)
+    key = []
+    for part in parts:
+        if not part:
+            continue
+        if part.isdigit():
+            key.append((0, int(part)))
+        else:
+            key.append((1, part))
+    return tuple(key)
+
+
+def _series_episode_key(name: str):
+    base = os.path.splitext(str(name or ""))[0]
+
+    m = _SERIES_RE_1.search(base)
+    if m:
+        return int(m.group(1)), int(m.group(2))
+
+    m = _SERIES_RE_2.search(base)
+    if m:
+        return int(m.group(1)), int(m.group(2))
+
+    m = _EPISODE_ONLY_RE.search(base)
+    if m:
+        return 0, int(m.group(1))
+
+    return None
+
+
+def _folder_sort_key(item: dict):
+    raw_name = item.get("_sort_name") or item.get("name") or ""
+    category = str(item.get("category") or "").lower()
+
+    if category in {"tv-series", "anime"}:
+        series_key = _series_episode_key(raw_name)
+        if series_key:
+            season, episode = series_key
+            return (0, season, episode, _natural_key(raw_name))
+
+    return (1, _natural_key(raw_name))
+
 
 async def render_page(db_id):
     file_data=await db.get_file(db_id)
@@ -125,6 +178,7 @@ async def render_folder(folder_id: str, title: str = "Folder"):
         files.append({
             "id": str(file_data.get("_id")),
             "name": file_name,
+            "_sort_name": raw_name,
             "size": humanbytes(file_data.get("file_size") or 0),
             "mime": mime,
             "kind": kind,
@@ -137,6 +191,12 @@ async def render_folder(folder_id: str, title: str = "Folder"):
 
     if not files:
         raise FileNotFound
+
+    files.sort(key=_folder_sort_key)
+
+    # Internal sort helper key should not leak to templates/json
+    for item in files:
+        item.pop("_sort_name", None)
 
     base_dir = os.path.dirname(os.path.dirname(__file__))  # FileStream/
     template_file = os.path.join(base_dir, "template", "folder.html")
