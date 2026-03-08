@@ -241,19 +241,6 @@
             <button id="downloadBtn" class="btn disabled" type="button" disabled>⬇️ Download Selected</button>
         </div>
 
-        {% if adsterra_format_urls.smartlink or adsterra_format_urls.popunder or adsterra_format_urls.social_bar or adsterra_format_urls.native_banner or adsterra_format_urls.banner %}
-        <div class="ad-format-wrap">
-            <p class="foot" style="margin:0 0 6px 0;">Ad formats</p>
-            <div class="ad-format-grid">
-                {% if adsterra_format_urls.smartlink %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.smartlink }}">Smartlink</button>{% endif %}
-                {% if adsterra_format_urls.popunder %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.popunder }}">Popunder</button>{% endif %}
-                {% if adsterra_format_urls.social_bar %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.social_bar }}">Social Bar</button>{% endif %}
-                {% if adsterra_format_urls.native_banner %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.native_banner }}">Native</button>{% endif %}
-                {% if adsterra_format_urls.banner %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.banner }}">Banner</button>{% endif %}
-            </div>
-        </div>
-        {% endif %}
-
         <p class="foot">This link works until the file is removed.</p>
 
         {% if report_url %}
@@ -314,13 +301,6 @@
             if (!selectFile.checked) return;
             openAdsterraIfEnabled();
             window.location.href = fileUrl;
-        });
-
-        document.querySelectorAll('.ad-open-btn').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const url = btn.getAttribute('data-ad-url');
-                openAdUrl(url);
-            });
         });
 
     </script>
