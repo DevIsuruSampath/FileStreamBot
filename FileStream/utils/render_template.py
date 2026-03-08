@@ -10,7 +10,7 @@ from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.category import detect_category
 from FileStream.utils.adsterra import is_enabled as adsterra_is_enabled, get_direct_link, get_script_urls
-from FileStream.utils.adsterra_api import resolve_smartlink_url
+from FileStream.utils.adsterra_api import resolve_action_ad_urls
 from FileStream.server.exceptions import FileNotFound
 
 env = jinja2.Environment(autoescape=True)
@@ -123,13 +123,23 @@ async def render_page(db_id):
 
     web_ads_status = await db.get_web_ads_status()
     adsterra_enabled = adsterra_is_enabled(web_ads_status)
-    adsterra_direct_link = get_direct_link() if adsterra_enabled else None
-    if adsterra_enabled and not adsterra_direct_link:
-        try:
-            adsterra_direct_link = await resolve_smartlink_url()
-        except Exception:
-            adsterra_direct_link = None
     adsterra_script_urls = get_script_urls() if adsterra_enabled else []
+
+    adsterra_action_urls = []
+    if adsterra_enabled:
+        direct = get_direct_link()
+        if direct:
+            adsterra_action_urls.append(direct)
+
+        try:
+            api_urls = await resolve_action_ad_urls(max_urls=8)
+            for u in api_urls:
+                if u and u not in adsterra_action_urls:
+                    adsterra_action_urls.append(u)
+        except Exception:
+            pass
+
+    adsterra_direct_link = adsterra_action_urls[0] if adsterra_action_urls else None
 
     return template.render(
         file_name=file_name,
@@ -144,6 +154,7 @@ async def render_page(db_id):
         report_url=report_url,
         adsterra_enabled=adsterra_enabled,
         adsterra_direct_link=adsterra_direct_link,
+        adsterra_action_urls=adsterra_action_urls,
         adsterra_script_urls=adsterra_script_urls,
     )
 
@@ -219,13 +230,23 @@ async def render_folder(folder_id: str, title: str = "Folder"):
 
     web_ads_status = await db.get_web_ads_status()
     adsterra_enabled = adsterra_is_enabled(web_ads_status)
-    adsterra_direct_link = get_direct_link() if adsterra_enabled else None
-    if adsterra_enabled and not adsterra_direct_link:
-        try:
-            adsterra_direct_link = await resolve_smartlink_url()
-        except Exception:
-            adsterra_direct_link = None
     adsterra_script_urls = get_script_urls() if adsterra_enabled else []
+
+    adsterra_action_urls = []
+    if adsterra_enabled:
+        direct = get_direct_link()
+        if direct:
+            adsterra_action_urls.append(direct)
+
+        try:
+            api_urls = await resolve_action_ad_urls(max_urls=8)
+            for u in api_urls:
+                if u and u not in adsterra_action_urls:
+                    adsterra_action_urls.append(u)
+        except Exception:
+            pass
+
+    adsterra_direct_link = adsterra_action_urls[0] if adsterra_action_urls else None
 
     return template.render(
         folder_id=str(folder_id),
@@ -236,6 +257,7 @@ async def render_folder(folder_id: str, title: str = "Folder"):
         report_url=report_url,
         adsterra_enabled=adsterra_enabled,
         adsterra_direct_link=adsterra_direct_link,
+        adsterra_action_urls=adsterra_action_urls,
         adsterra_script_urls=adsterra_script_urls,
     )
 

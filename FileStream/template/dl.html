@@ -228,19 +228,40 @@
         const fileUrl = {{ file_url | tojson }};
         const adsterraEnabled = {{ adsterra_enabled | tojson }};
         const adsterraDirectLink = {{ adsterra_direct_link | tojson }};
+        const adsterraActionUrls = {{ adsterra_action_urls | tojson }};
 
         const selectFile = document.getElementById('selectFile');
         const downloadBtn = document.getElementById('downloadBtn');
+        let adIndex = 0;
 
         function setState(enabled) {
             downloadBtn.disabled = !enabled;
             downloadBtn.classList.toggle('disabled', !enabled);
         }
 
+        function pickAdUrl() {
+            const urls = Array.isArray(adsterraActionUrls)
+                ? adsterraActionUrls.filter((u) => typeof u === 'string' && u.length > 0)
+                : [];
+
+            if (adsterraDirectLink && !urls.includes(adsterraDirectLink)) {
+                urls.unshift(adsterraDirectLink);
+            }
+
+            if (!urls.length) return null;
+
+            const picked = urls[adIndex % urls.length];
+            adIndex += 1;
+            return picked;
+        }
+
         function openAdsterraIfEnabled() {
-            if (!adsterraEnabled || !adsterraDirectLink) return;
+            if (!adsterraEnabled) return;
+            const url = pickAdUrl();
+            if (!url) return;
+
             try {
-                window.open(adsterraDirectLink, '_blank', 'noopener,noreferrer');
+                window.open(url, '_blank', 'noopener,noreferrer');
             } catch (_) {}
         }
 

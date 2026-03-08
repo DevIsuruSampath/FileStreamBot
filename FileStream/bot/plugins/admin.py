@@ -19,7 +19,13 @@ from FileStream.server.exceptions import FileNotFound
 from FileStream.config import Telegram
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.speedtest import run_speedtest, format_speedtest, MSG_SPEEDTEST_START, MSG_SPEEDTEST_ERROR
-from FileStream.utils.adsterra_api import is_api_ready as adsterra_api_ready, resolve_smartlink_url, fetch_stats_summary, AdsterraAPIError
+from FileStream.utils.adsterra_api import (
+    is_api_ready as adsterra_api_ready,
+    resolve_action_ad_urls,
+    fetch_placement_inventory,
+    fetch_stats_summary,
+    AdsterraAPIError,
+)
 
 speedtest_lock = asyncio.Lock()
 _last_speedtest_at = 0
@@ -181,14 +187,26 @@ async def webads_toggle(c: Client, m: Message):
         api_block = ""
         if has_api:
             try:
-                ad_url = await resolve_smartlink_url()
+                ad_urls = await resolve_action_ad_urls(max_urls=8)
+                inv = await fetch_placement_inventory()
                 stats = await fetch_stats_summary(getattr(Telegram, "ADSTERRA_STATS_DAYS", 7))
 
                 lines = ["API: `Ready`"]
-                if ad_url:
-                    lines.append(f"Ad URL: `{ad_url}`")
+                if ad_urls:
+                    lines.append(f"Resolved Ad URLs: `{len(ad_urls)}`")
+                    lines.append(f"Primary Ad URL: `{ad_urls[0]}`")
                 else:
                     lines.append("Ad URL: `Not found (no active SmartLink/direct placement)`")
+
+                if inv and isinstance(inv, dict):
+                    c = inv.get("counts") or {}
+                    lines.append(
+                        "Placement URLs -> "
+                        f"Popunder `{c.get('popunder', 0)}` | "
+                        f"Social `{c.get('social_bar', 0)}` | "
+                        f"Native `{c.get('native_banner', 0)}` | "
+                        f"Banner `{c.get('banner', 0)}`"
+                    )
 
                 if stats:
                     lines.append(

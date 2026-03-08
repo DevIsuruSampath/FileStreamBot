@@ -15,6 +15,7 @@ class AdsterraAPIError(Exception):
 
 
 _cache_smartlink: dict[str, Any] = {"url": None, "exp": 0.0}
+_cache_inventory: dict[str, Any] = {"value": None, "exp": 0.0}
 _cache_lock: asyncio.Lock | None = None
 
 
@@ -136,26 +137,120 @@ def _is_adult_smartlink(item: dict[str, Any]) -> bool:
         pass
 
     txt = str(traffic or "").strip().lower()
-    if "adult" in txt:
-        return True
-
-    return False
+    return "adult" in txt
 
 
-def _filter_non_adult(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _is_adult_text(text: str) -> bool:
+    t = (text or "").lower()
+    signals = ["adult", "xxx", "porn", "sex", "erotic", "18+"]
+    return any(x in t for x in signals)
+
+
+def _filter_non_adult_smartlinks(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if getattr(Telegram, "ADSTERRA_ALLOW_ADULT", False):
         return items
     return [x for x in items if not _is_adult_smartlink(x)]
 
 
-async def resolve_smartlink_url() -> str | None:
-    """Resolve ad destination URL from Adsterra API with short TTL cache.
+def _filter_non_adult_placements(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if getattr(Telegram, "ADSTERRA_ALLOW_ADULT", False):
+        return items
 
-    Priority:
-    1) Active SmartLinks (status=3)
-    2) Any SmartLink
-    3) Placement direct_url fallback
-    """
+    out: list[dict[str, Any]] = []
+    for p in items:
+        title = str(p.get("title") or "")
+        alias = str(p.get("alias") or "")
+        if _is_adult_text(title) or _is_adult_text(alias):
+            continue
+        out.append(p)
+    return out
+
+
+def _placement_format(item: dict[str, Any]) -> str:
+    text = f"{item.get('title', '')} {item.get('alias', '')}".lower()
+
+    if any(k in text for k in ("popunder", "pop-under", "pop under")):
+        return "popunder"
+    if any(k in text for k in ("socialbar", "social bar")):
+        return "social_bar"
+    if "native" in text:
+        return "native_banner"
+    if "banner" in text:
+        return "banner"
+
+    return "generic"
+
+
+def _dedupe_keep_order(urls: list[str]) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for u in urls:
+        if u in seen:
+            continue
+        seen.add(u)
+        out.append(u)
+    return out
+
+
+def _build_inventory(placements: list[dict[str, Any]]) -> dict[str, Any]:
+    buckets: dict[str, list[str]] = {
+        "popunder": [],
+        "social_bar": [],
+        "native_banner": [],
+        "banner": [],
+        "generic": [],
+    }
+
+    for item in placements:
+        url = _valid_url(item.get("direct_url"))
+        if not url:
+            continue
+
+        kind = _placement_format(item)
+        buckets[kind].append(url)
+        buckets["generic"].append(url)
+
+    for k in list(buckets.keys()):
+        buckets[k] = _dedupe_keep_order(buckets[k])
+
+    return {
+        "popunder": buckets["popunder"],
+        "social_bar": buckets["social_bar"],
+        "native_banner": buckets["native_banner"],
+        "banner": buckets["banner"],
+        "generic": buckets["generic"],
+        "counts": {
+            "popunder": len(buckets["popunder"]),
+            "social_bar": len(buckets["social_bar"]),
+            "native_banner": len(buckets["native_banner"]),
+            "banner": len(buckets["banner"]),
+            "generic": len(buckets["generic"]),
+        },
+    }
+
+
+async def fetch_placement_inventory() -> dict[str, Any] | None:
+    if not is_api_ready():
+        return None
+
+    now = time.time()
+    lock = _get_lock()
+
+    async with lock:
+        if _cache_inventory.get("value") is not None and float(_cache_inventory.get("exp", 0)) > now:
+            return dict(_cache_inventory["value"])
+
+        placements = await fetch_placements()
+        placements = _filter_non_adult_placements(placements)
+        inventory = _build_inventory(placements)
+
+        _cache_inventory["value"] = dict(inventory)
+        _cache_inventory["exp"] = now + 300  # 5 min cache
+        return inventory
+
+
+async def resolve_smartlink_url() -> str | None:
+    """Resolve smartlink URL (mainstream by default)."""
     if not is_api_ready():
         return None
 
@@ -167,34 +262,58 @@ async def resolve_smartlink_url() -> str | None:
             return str(_cache_smartlink["url"])
 
         preferred_id = getattr(Telegram, "ADSTERRA_SMARTLINK_ID", None)
-        url: str | None = None
         allow_adult = bool(getattr(Telegram, "ADSTERRA_ALLOW_ADULT", False))
 
-        # 1) Active smartlinks first (prefer mainstream)
+        url: str | None = None
+
         links_active = await fetch_smartlinks(status=3, traffic_type=None if allow_adult else 1)
-        links_active = _filter_non_adult(links_active)
+        links_active = _filter_non_adult_smartlinks(links_active)
         chosen = _pick_by_id(links_active, preferred_id) or (links_active[0] if links_active else None)
         if chosen:
             url = _valid_url(chosen.get("url"))
 
-        # 2) Fallback to any smartlink if none active
         if not url:
             links_any = await fetch_smartlinks(status=None, traffic_type=None if allow_adult else 1)
-            links_any = _filter_non_adult(links_any)
+            links_any = _filter_non_adult_smartlinks(links_any)
             chosen_any = _pick_by_id(links_any, preferred_id) or (links_any[0] if links_any else None)
             if chosen_any:
                 url = _valid_url(chosen_any.get("url"))
 
-        # 3) Fallback to placement direct_url
-        if not url:
-            placements = await fetch_placements()
-            placement_with_url = next((p for p in placements if _valid_url(p.get("direct_url"))), None)
-            if placement_with_url:
-                url = _valid_url(placement_with_url.get("direct_url"))
-
         _cache_smartlink["url"] = url
         _cache_smartlink["exp"] = now + 600  # 10 min cache
         return url
+
+
+async def resolve_action_ad_urls(max_urls: int = 8) -> list[str]:
+    """Return prioritized ad URLs for click actions.
+
+    Priority:
+    1) SmartLink
+    2) Popunder placements
+    3) Social bar placements
+    4) Native banner placements
+    5) Banner placements
+    6) Generic placements
+    """
+    if not is_api_ready():
+        return []
+
+    urls: list[str] = []
+
+    smart = await resolve_smartlink_url()
+    if smart:
+        urls.append(smart)
+
+    inv = await fetch_placement_inventory()
+    if inv:
+        urls.extend(inv.get("popunder", []))
+        urls.extend(inv.get("social_bar", []))
+        urls.extend(inv.get("native_banner", []))
+        urls.extend(inv.get("banner", []))
+        urls.extend(inv.get("generic", []))
+
+    urls = _dedupe_keep_order([u for u in urls if _valid_url(u)])
+    return urls[: max(1, int(max_urls or 8))]
 
 
 async def fetch_stats_summary(days: int | None = None) -> dict[str, Any] | None:
