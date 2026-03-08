@@ -77,6 +77,10 @@ def _extract_items(payload: Any) -> list[dict[str, Any]]:
         if isinstance(items, list):
             return [x for x in items if isinstance(x, dict)]
 
+        data = payload.get("data")
+        if isinstance(data, dict) and isinstance(data.get("items"), list):
+            return [x for x in data["items"] if isinstance(x, dict)]
+
         value = payload.get("value")
         if isinstance(value, dict):
             data = value.get("data")
@@ -86,13 +90,49 @@ def _extract_items(payload: Any) -> list[dict[str, Any]]:
     return []
 
 
-async def fetch_smartlinks(status: int = 3) -> list[dict[str, Any]]:
-    payload = await _request_json("/smart-links.json", params={"status": status})
+async def fetch_smartlinks(status: int | None = 3, traffic_type: int | None = None) -> list[dict[str, Any]]:
+    params: dict[str, Any] = {}
+    if status is not None:
+        params["status"] = int(status)
+    if traffic_type is not None:
+        params["traffic_type"] = int(traffic_type)
+
+    payload = await _request_json("/smart-links.json", params=params or None)
     return _extract_items(payload)
 
 
+async def fetch_placements() -> list[dict[str, Any]]:
+    payload = await _request_json("/placements.json")
+    return _extract_items(payload)
+
+
+def _valid_url(value: Any) -> str | None:
+    raw = str(value or "").strip()
+    if raw.startswith("http://") or raw.startswith("https://") or raw.startswith("//"):
+        return raw
+    return None
+
+
+def _pick_by_id(items: list[dict[str, Any]], preferred_id: int | None) -> dict[str, Any] | None:
+    if preferred_id is None:
+        return None
+    for item in items:
+        try:
+            if int(item.get("id")) == int(preferred_id):
+                return item
+        except Exception:
+            continue
+    return None
+
+
 async def resolve_smartlink_url() -> str | None:
-    """Resolve a smartlink URL from Adsterra API with short TTL cache."""
+    """Resolve ad destination URL from Adsterra API with short TTL cache.
+
+    Priority:
+    1) Active SmartLinks (status=3)
+    2) Any SmartLink
+    3) Placement direct_url fallback
+    """
     if not is_api_ready():
         return None
 
@@ -104,26 +144,27 @@ async def resolve_smartlink_url() -> str | None:
             return str(_cache_smartlink["url"])
 
         preferred_id = getattr(Telegram, "ADSTERRA_SMARTLINK_ID", None)
-        links = await fetch_smartlinks(status=3)
-        chosen: dict[str, Any] | None = None
+        url: str | None = None
 
-        if preferred_id is not None:
-            for item in links:
-                try:
-                    if int(item.get("id")) == int(preferred_id):
-                        chosen = item
-                        break
-                except Exception:
-                    continue
-
-        if chosen is None and links:
-            chosen = links[0]
-
-        url = None
+        # 1) Active smartlinks first
+        links_active = await fetch_smartlinks(status=3)
+        chosen = _pick_by_id(links_active, preferred_id) or (links_active[0] if links_active else None)
         if chosen:
-            raw = str(chosen.get("url") or "").strip()
-            if raw.startswith("http://") or raw.startswith("https://") or raw.startswith("//"):
-                url = raw
+            url = _valid_url(chosen.get("url"))
+
+        # 2) Fallback to any smartlink if none active
+        if not url:
+            links_any = await fetch_smartlinks(status=None)
+            chosen_any = _pick_by_id(links_any, preferred_id) or (links_any[0] if links_any else None)
+            if chosen_any:
+                url = _valid_url(chosen_any.get("url"))
+
+        # 3) Fallback to placement direct_url
+        if not url:
+            placements = await fetch_placements()
+            placement_with_url = next((p for p in placements if _valid_url(p.get("direct_url"))), None)
+            if placement_with_url:
+                url = _valid_url(placement_with_url.get("direct_url"))
 
         _cache_smartlink["url"] = url
         _cache_smartlink["exp"] = now + 600  # 10 min cache
@@ -146,7 +187,7 @@ async def fetch_stats_summary(days: int | None = None) -> dict[str, Any] | None:
     params = {
         "start_date": start.isoformat(),
         "finish_date": end.isoformat(),
-        "group_by": "date",
+        "group_by": ["date"],
     }
 
     payload = await _request_json("/stats.json", params=params)

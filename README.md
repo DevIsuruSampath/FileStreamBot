@@ -117,7 +117,7 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `/urlshortener on|off` → Enable/disable URL shortener monetization.
 - `/webads` → Show web ads status.
 - `/webads on|off` → Enable/disable Adsterra ads on web pages.
-- `/webads info` → Show web ads info + docs link.
+- `/webads info` → Show web ads info + docs link + API health/smartlink/placement resolution.
 
 > Legacy `/ads` is still accepted as an alias for `/urlshortener`.
 

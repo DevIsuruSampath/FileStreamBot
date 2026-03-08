@@ -174,20 +174,22 @@ async def webads_toggle(c: Client, m: Message):
         api_block = ""
         if has_api:
             try:
-                smartlink = await resolve_smartlink_url()
+                ad_url = await resolve_smartlink_url()
                 stats = await fetch_stats_summary(getattr(Telegram, "ADSTERRA_STATS_DAYS", 7))
 
                 lines = ["API: `Ready`"]
-                if smartlink:
-                    lines.append(f"SmartLink: `{smartlink}`")
+                if ad_url:
+                    lines.append(f"Ad URL: `{ad_url}`")
                 else:
-                    lines.append("SmartLink: `Not found (check status/traffic in account)`")
+                    lines.append("Ad URL: `Not found (no active SmartLink/direct placement)`")
 
                 if stats:
                     lines.append(
                         f"Stats {stats['start_date']} → {stats['finish_date']}: "
                         f"Impr `{stats['impressions']}` | Clicks `{stats['clicks']}` | Revenue `${stats['revenue']}`"
                     )
+                    if int(stats.get('impressions', 0) or 0) == 0 and int(stats.get('clicks', 0) or 0) == 0:
+                        lines.append("Hint: `0 stats usually means no serving traffic yet (or wrong publisher account/key).`")
 
                 api_block = "\n" + "\n".join(lines)
             except AdsterraAPIError as e:
