@@ -291,13 +291,13 @@
             <p class="foot" style="margin:0 0 6px 0;">Banner Ads</p>
 
             <div id="bannerDesktop" class="banner-wrap banner-desktop">
-                {% for slot in adsterra_banner_slots.desktop %}
+                {% for slot in (adsterra_banner_slots.desktop or adsterra_banner_slots.mobile) %}
                 <div class="ad-slot" data-ad-slot="1" data-key="{{ slot.key }}" data-invoke-url="{{ slot.invoke_url }}" data-width="{{ slot.width }}" data-height="{{ slot.height }}" data-format="{{ slot.format }}"></div>
                 {% endfor %}
             </div>
 
             <div id="bannerMobile" class="banner-wrap banner-mobile">
-                {% for slot in adsterra_banner_slots.mobile %}
+                {% for slot in (adsterra_banner_slots.mobile or adsterra_banner_slots.desktop) %}
                 <div class="ad-slot" data-ad-slot="1" data-key="{{ slot.key }}" data-invoke-url="{{ slot.invoke_url }}" data-width="{{ slot.width }}" data-height="{{ slot.height }}" data-format="{{ slot.format }}"></div>
                 {% endfor %}
             </div>
