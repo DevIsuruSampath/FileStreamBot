@@ -9,8 +9,6 @@ from FileStream.bot import FileStream
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.category import detect_category
-from FileStream.utils.adsterra import is_enabled as adsterra_is_enabled, get_direct_link, get_script_urls, get_responsive_banner_slots
-from FileStream.utils.adsterra_api import resolve_ad_bundle
 from FileStream.server.exceptions import FileNotFound
 
 env = jinja2.Environment(autoescape=True)
@@ -69,92 +67,55 @@ def _folder_sort_key(item: dict):
 
 
 async def render_page(db_id):
-    file_data=await db.get_file(db_id)
-    src = urllib.parse.urljoin(Server.URL, f'dl/{file_data["_id"]}')
-    file_size = humanbytes(file_data.get('file_size') or 0)
-    raw_name = (file_data.get('file_name') or 'file')
-    file_name = raw_name.replace("_", " ")
-    file_name = file_name.replace("\n", " ").replace("\r", " ")
-    if len(file_name) > 150:
-        file_name = file_name[:150] + "…"
+    file_data = await db.get_file(db_id)
+    if not file_data:
+        raise FileNotFound
 
-    base_dir = os.path.dirname(os.path.dirname(__file__))  # FileStream/
-    mime_type = (file_data.get('mime_type') or '').lower()
-    primary = mime_type.split('/')[0].strip() if mime_type else ""
+    template_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "template", "play.html")
+    with open(template_file, "r", encoding="utf-8") as f:
+        template = env.from_string(f.read())
+
+    raw_name = file_data.get("file_name") or "file"
+    file_name = raw_name.replace("_", " ")
+    if len(file_name) > 75:
+        file_name = file_name[:75] + "…"
+
+    src = urllib.parse.urljoin(Server.URL, f"dl/{db_id}")
+    file_size = humanbytes(file_data.get("file_size") or 0)
+
+    mime_type = (file_data.get("mime_type") or "").lower()
+    primary = mime_type.split("/")[0].strip() if mime_type else ""
     ext = os.path.splitext(raw_name)[1].lower()
     video_ext = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpeg", ".mpg"}
     audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
 
     category = file_data.get("category") or detect_category(file_name=raw_name, mime_type=mime_type, file_ext=ext)
-    uploader = (file_data.get("uploader") or "Unknown uploader").replace("\n", " ").replace("\r", " ")
+    uploader = (file_data.get("uploader") or "Unknown uploader").replace("
+", " ").replace("", " ")
     if len(uploader) > 80:
         uploader = uploader[:80] + "…"
 
     message_id = file_data.get("message_id")
 
     is_audio = primary == "audio" or ext in audio_ext
-    if primary in ("video", "audio") or ext in video_ext or ext in audio_ext:
-        template_file = os.path.join(base_dir, "template", "play.html")
+    is_video = primary == "video" or ext in video_ext
+
+    if is_audio:
+        resolved_mime = mime_type or "audio/mpeg"
+    elif is_video:
+        resolved_mime = mime_type or "video/mp4"
     else:
-        template_file = os.path.join(base_dir, "template", "dl.html")
+        guessed, _ = __import__("mimetypes").guess_type(raw_name)
+        resolved_mime = guessed or mime_type or "application/octet-stream"
 
-    # Fallback to Content-Length when size is missing/zero
-    if not file_data.get('file_size'):
-        try:
-            timeout = aiohttp.ClientTimeout(total=5)
-            async with aiohttp.ClientSession(timeout=timeout) as s:
-                async with s.head(src) as u:
-                    length = u.headers.get('Content-Length')
-                    file_size = humanbytes(int(length)) if length else file_size
-        except Exception:
-            pass
-
-    with open(template_file, encoding="utf-8") as f:
-        template = env.from_string(f.read())
-
-    resolved_mime = mime_type or ("audio/mpeg" if is_audio else "video/mp4")
-
-    updates_channel = (Telegram.UPDATES_CHANNEL or "").lstrip("@").strip()
-    updates_url = f"https://t.me/{updates_channel}" if updates_channel else None
+    updates_url = None
+    if Telegram.UPDATES_CHANNEL:
+        channel = str(Telegram.UPDATES_CHANNEL).replace("-100", "").replace("@", "")
+        updates_url = f"https://t.me/{channel}"
 
     report_url = None
     if getattr(FileStream, "username", None):
         report_url = f"https://t.me/{FileStream.username}?start=report_file_{db_id}"
-
-    web_ads_status = await db.get_web_ads_status()
-    adsterra_enabled = adsterra_is_enabled(web_ads_status)
-    adsterra_script_urls = get_script_urls() if adsterra_enabled else []
-    adsterra_banner_slots = get_responsive_banner_slots() if adsterra_enabled else {"desktop": [], "mobile": []}
-
-    adsterra_action_urls = []
-    adsterra_format_urls = {
-        "smartlink": None,
-        "popunder": None,
-        "social_bar": None,
-        "native_banner": None,
-        "banner": None,
-    }
-
-    if adsterra_enabled:
-        direct = get_direct_link()
-        if direct:
-            adsterra_action_urls.append(direct)
-            adsterra_format_urls["smartlink"] = direct
-
-        try:
-            bundle = await resolve_ad_bundle(max_urls=8)
-            for u in bundle.get("action_urls", []):
-                if u and u not in adsterra_action_urls:
-                    adsterra_action_urls.append(u)
-
-            fmt = bundle.get("format_urls") or {}
-            for k in adsterra_format_urls.keys():
-                if fmt.get(k):
-                    adsterra_format_urls[k] = fmt.get(k)
-        except Exception:
-            pass
-
-    adsterra_direct_link = adsterra_action_urls[0] if adsterra_action_urls else None
 
     return template.render(
         file_name=file_name,
@@ -167,45 +128,44 @@ async def render_page(db_id):
         is_audio=is_audio,
         updates_url=updates_url,
         report_url=report_url,
-        adsterra_enabled=adsterra_enabled,
-        adsterra_direct_link=adsterra_direct_link,
-        adsterra_action_urls=adsterra_action_urls,
-        adsterra_format_urls=adsterra_format_urls,
-        adsterra_banner_slots=adsterra_banner_slots,
-        adsterra_script_urls=adsterra_script_urls,
     )
 
 
 async def render_folder(folder_id: str, title: str = "Folder"):
-    folder = await db.get_folder(folder_id)
+    folder_doc = await db.get_folder(folder_id)
+    if not folder_doc:
+        raise FileNotFound
+
+    file_ids = folder_doc.get("files") or []
     files = []
-    seen = set()
-    for fid in folder.get("files", []):
-        if fid in seen:
+    for fid in file_ids:
+        file_data = await db.get_file(fid)
+        if not file_data:
             continue
-        seen.add(fid)
-        try:
-            file_data = await db.get_file(fid)
-        except Exception:
-            continue
-        raw_name = (file_data.get("file_name") or "file")
+
+        raw_name = file_data.get("file_name") or "file"
         file_name = raw_name.replace("_", " ")
-        file_name = file_name.replace("\n", " ").replace("\r", " ")
-        if len(file_name) > 150:
-            file_name = file_name[:150] + "…"
         mime = (file_data.get("mime_type") or "").lower()
-        kind = "video" if mime.startswith("video/") else "audio" if mime.startswith("audio/") else "other"
+        primary = mime.split("/")[0].strip() if mime else ""
         ext = os.path.splitext(raw_name)[1].lower()
+
         video_ext = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpeg", ".mpg"}
         audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
-        if kind == "other":
-            if ext in video_ext:
-                kind = "video"
-            elif ext in audio_ext:
-                kind = "audio"
+
+        kind = "file"
+        if primary == "video" or ext in video_ext:
+            kind = "video"
+            if not mime:
+                mime = "video/mp4"
+        elif primary == "audio" or ext in audio_ext:
+            kind = "audio"
+            if not mime:
+                mime = "audio/mpeg"
+
         playable = kind in ("video", "audio")
         category = file_data.get("category") or detect_category(file_name=raw_name, mime_type=mime, file_ext=ext)
-        uploader = (file_data.get("uploader") or "Unknown uploader").replace("\n", " ").replace("\r", " ")
+        uploader = (file_data.get("uploader") or "Unknown uploader").replace("
+", " ").replace("", " ")
         if len(uploader) > 80:
             uploader = uploader[:80] + "…"
 
@@ -227,58 +187,18 @@ async def render_folder(folder_id: str, title: str = "Folder"):
         raise FileNotFound
 
     files.sort(key=_folder_sort_key)
-
-    # Internal sort helper key should not leak to templates/json
     for item in files:
         item.pop("_sort_name", None)
 
-    base_dir = os.path.dirname(os.path.dirname(__file__))  # FileStream/
-    template_file = os.path.join(base_dir, "template", "folder.html")
+    folder_json = json.dumps(files)
 
-    with open(template_file, encoding="utf-8") as f:
+    template_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "template", "folder.html")
+    with open(template_file, "r", encoding="utf-8") as f:
         template = env.from_string(f.read())
-
-    folder_json = json.dumps(files, ensure_ascii=False)
-    folder_json = folder_json.replace("</", "<\\/")
 
     report_url = None
     if getattr(FileStream, "username", None):
         report_url = f"https://t.me/{FileStream.username}?start=report_folder_{folder_id}"
-
-    web_ads_status = await db.get_web_ads_status()
-    adsterra_enabled = adsterra_is_enabled(web_ads_status)
-    adsterra_script_urls = get_script_urls() if adsterra_enabled else []
-    adsterra_banner_slots = get_responsive_banner_slots() if adsterra_enabled else {"desktop": [], "mobile": []}
-
-    adsterra_action_urls = []
-    adsterra_format_urls = {
-        "smartlink": None,
-        "popunder": None,
-        "social_bar": None,
-        "native_banner": None,
-        "banner": None,
-    }
-
-    if adsterra_enabled:
-        direct = get_direct_link()
-        if direct:
-            adsterra_action_urls.append(direct)
-            adsterra_format_urls["smartlink"] = direct
-
-        try:
-            bundle = await resolve_ad_bundle(max_urls=8)
-            for u in bundle.get("action_urls", []):
-                if u and u not in adsterra_action_urls:
-                    adsterra_action_urls.append(u)
-
-            fmt = bundle.get("format_urls") or {}
-            for k in adsterra_format_urls.keys():
-                if fmt.get(k):
-                    adsterra_format_urls[k] = fmt.get(k)
-        except Exception:
-            pass
-
-    adsterra_direct_link = adsterra_action_urls[0] if adsterra_action_urls else None
 
     return template.render(
         folder_id=str(folder_id),
@@ -287,13 +207,4 @@ async def render_folder(folder_id: str, title: str = "Folder"):
         count=len(files),
         page_title=title,
         report_url=report_url,
-        adsterra_enabled=adsterra_enabled,
-        adsterra_direct_link=adsterra_direct_link,
-        adsterra_action_urls=adsterra_action_urls,
-        adsterra_format_urls=adsterra_format_urls,
-        adsterra_banner_slots=adsterra_banner_slots,
-        adsterra_script_urls=adsterra_script_urls,
     )
-
-
-# alias removed

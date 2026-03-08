@@ -98,22 +98,6 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `NUDENET_ENABLE`: Set to `True` to enable NSFW scanning.
 - `URL_SHORTENER_SITE`: Shortener domain (e.g., `api.gplinks.com`).
 - `URL_SHORTENER_API_KEY`: API Key for the shortener.
-- `ADSTERRA_ENABLE`: Enable Adsterra integration on web pages (`True`/`False`).
-- `ADSTERRA_DIRECT_LINK`: Adsterra Smartlink/Direct Link URL.
-- `ADSTERRA_SCRIPT_URLS`: Comma-separated Adsterra script URLs (generic).
-- `ADSTERRA_POPUNDER_SCRIPT_URL`: Popunder script URL.
-- `ADSTERRA_SOCIAL_BAR_SCRIPT_URL`: Social Bar script URL.
-- `ADSTERRA_NATIVE_BANNER_SCRIPT_URL`: Native Banner script URL.
-- `ADSTERRA_BANNER_SCRIPT_URLS`: Comma-separated classic banner script URLs.
-- `ADSTERRA_BANNER_300X250_KEY` + `ADSTERRA_BANNER_300X250_INVOKE_URL`: 300x250 responsive slot pair.
-- `ADSTERRA_BANNER_728X90_KEY` + `ADSTERRA_BANNER_728X90_INVOKE_URL`: 728x90 responsive slot pair.
-- `ADSTERRA_BANNER_320X50_KEY` + `ADSTERRA_BANNER_320X50_INVOKE_URL`: 320x50 responsive slot pair.
-- `ADSTERRA_ALLOW_ADULT`: Keep `False` to avoid adult ad traffic.
-- `ADSTERRA_API_ENABLE`: Enable Adsterra Publisher API mode (`True`/`False`).
-- `ADSTERRA_API_KEY`: API key for `X-API-Key` header.
-- `ADSTERRA_API_BASE`: API base URL (default `https://api3.adsterratools.com/publisher`).
-- `ADSTERRA_SMARTLINK_ID`: Optional preferred smartlink id.
-- `ADSTERRA_STATS_DAYS`: Stats window for `/webads info` (1-31).
 - `FILE_PIC`: Image for `/files` command.
 - `FOLDERS_PIC`: Image for `/folders` command.
 - `START_PIC`: Image for `/start` command.
@@ -123,9 +107,6 @@ Create a `.env` file with the following (or set them in your cloud provider):
 
 - `/urlshortener` → Show URL shortener status.
 - `/urlshortener on|off` → Enable/disable URL shortener monetization.
-- `/webads` → Show web ads status.
-- `/webads on|off` → Enable/disable Adsterra ads on web pages.
-- `/webads info` → Show web ads info + docs link + API health/smartlink/placement resolution.
 
 > Legacy `/ads` is still accepted as an alias for `/urlshortener`.
 

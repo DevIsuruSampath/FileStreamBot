@@ -66,44 +66,20 @@ class Telegram:
     URL_SHORTENER_API_KEY = env.get('URL_SHORTENER_API_KEY', None)
     URL_SHORTENER_SITE = env.get('URL_SHORTENER_SITE', None)
 
-    # --- [ ADSTERRA PUBLISHER INTEGRATION ] ---
-    ADSTERRA_ENABLE = str(env.get("ADSTERRA_ENABLE", "false")).lower() in ("1", "true", "t", "yes", "y")
     # Direct Link (Smartlink) from Adsterra dashboard
-    ADSTERRA_DIRECT_LINK = str(env.get("ADSTERRA_DIRECT_LINK", "")).strip()
 
     # Script URLs for ad formats
-    ADSTERRA_SCRIPT_URLS = str(env.get("ADSTERRA_SCRIPT_URLS", "")).strip()  # generic csv
-    ADSTERRA_POPUNDER_SCRIPT_URL = str(env.get("ADSTERRA_POPUNDER_SCRIPT_URL", "")).strip()
-    ADSTERRA_SOCIAL_BAR_SCRIPT_URL = str(env.get("ADSTERRA_SOCIAL_BAR_SCRIPT_URL", "")).strip()
-    ADSTERRA_NATIVE_BANNER_SCRIPT_URL = str(env.get("ADSTERRA_NATIVE_BANNER_SCRIPT_URL", "")).strip()
-    ADSTERRA_BANNER_SCRIPT_URLS = str(env.get("ADSTERRA_BANNER_SCRIPT_URLS", "")).strip()
 
     # Responsive iframe banner slots (manual script mode)
-    ADSTERRA_BANNER_300X250_KEY = str(env.get("ADSTERRA_BANNER_300X250_KEY", "")).strip()
-    ADSTERRA_BANNER_300X250_INVOKE_URL = str(env.get("ADSTERRA_BANNER_300X250_INVOKE_URL", "")).strip()
-    ADSTERRA_BANNER_728X90_KEY = str(env.get("ADSTERRA_BANNER_728X90_KEY", "")).strip()
-    ADSTERRA_BANNER_728X90_INVOKE_URL = str(env.get("ADSTERRA_BANNER_728X90_INVOKE_URL", "")).strip()
-    ADSTERRA_BANNER_320X50_KEY = str(env.get("ADSTERRA_BANNER_320X50_KEY", "")).strip()
-    ADSTERRA_BANNER_320X50_INVOKE_URL = str(env.get("ADSTERRA_BANNER_320X50_INVOKE_URL", "")).strip()
 
     # Safety
-    ADSTERRA_ALLOW_ADULT = str(env.get("ADSTERRA_ALLOW_ADULT", "false")).lower() in ("1", "true", "t", "yes", "y")
 
-    # Optional Adsterra Publisher API integration
-    ADSTERRA_API_ENABLE = str(env.get("ADSTERRA_API_ENABLE", "false")).lower() in ("1", "true", "t", "yes", "y")
-    ADSTERRA_API_KEY = str(env.get("ADSTERRA_API_KEY", "")).strip()
-    ADSTERRA_API_BASE = str(env.get("ADSTERRA_API_BASE", "https://api3.adsterratools.com/publisher")).strip()
-
-    _smartlink_id = str(env.get("ADSTERRA_SMARTLINK_ID", "")).strip()
-    try:
-        ADSTERRA_SMARTLINK_ID = int(_smartlink_id) if _smartlink_id else None
-    except Exception:
-        ADSTERRA_SMARTLINK_ID = None
 
     try:
-        ADSTERRA_STATS_DAYS = int(env.get("ADSTERRA_STATS_DAYS", "7"))
     except Exception:
-        ADSTERRA_STATS_DAYS = 7
+
+    try:
+    except Exception:
 
 class Server:
     PORT = int(env.get("PORT", 8080))

@@ -19,13 +19,6 @@ from FileStream.server.exceptions import FileNotFound
 from FileStream.config import Telegram
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.speedtest import run_speedtest, format_speedtest, MSG_SPEEDTEST_START, MSG_SPEEDTEST_ERROR
-from FileStream.utils.adsterra_api import (
-    is_api_ready as adsterra_api_ready,
-    resolve_action_ad_urls,
-    fetch_placement_inventory,
-    fetch_stats_summary,
-    AdsterraAPIError,
-)
 
 speedtest_lock = asyncio.Lock()
 _last_speedtest_at = 0
@@ -125,12 +118,6 @@ async def urlshortener_toggle(c: Client, m: Message):
         )
 
 
-# ---------------------[ WEB ADS TOGGLE COMMAND ]---------------------#
-@FileStream.on_message(filters.command("webads") & filters.private)
-async def webads_toggle(c: Client, m: Message):
-    if m.from_user.id not in ADMIN_IDS:
-        await m.reply_text(f"⚠️ **Access Denied.**\nYour ID `{m.from_user.id}` is not in `OWNER_ID` or `AUTH_USERS`.", quote=True)
-        return
 
     has_direct = bool(getattr(Telegram, "ADSTERRA_DIRECT_LINK", "").strip())
     has_scripts = bool(getattr(Telegram, "ADSTERRA_SCRIPT_URLS", "").strip())

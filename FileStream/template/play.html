@@ -146,7 +146,6 @@
             font-size: 0.78rem;
         }
 
-
         .manager-table {
             width: 100%;
             border-collapse: collapse;
@@ -173,31 +172,6 @@
         }
 
         .manager-table tr:last-child td { border-bottom: none; }
-
-        .banner-stack {
-            margin-bottom: 12px;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            background: var(--surface-soft);
-            padding: 10px;
-        }
-
-        .banner-wrap {
-            display: grid;
-            gap: 10px;
-            justify-items: center;
-        }
-
-        .ad-slot {
-            width: 100%;
-            text-align: center;
-        }
-
-        .ad-slot-inner {
-            margin: 0 auto;
-            max-width: 100%;
-            overflow: hidden;
-        }
 
         .file-row {
             cursor: pointer;
@@ -237,18 +211,8 @@
             gap: 10px;
         }
 
-        .banner-desktop { display: block; }
-        .banner-mobile { display: none; }
-
-        @media (max-width: 768px) {
-            .banner-desktop { display: none; }
-            .banner-mobile { display: block; }
-        }
-
         @media (max-width: 640px) {
             .actions { grid-template-columns: 1fr; }
-            .ad-format-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        }
 
         .btn {
             min-height: 42px;
@@ -292,30 +256,6 @@
             margin-top: 8px;
             color: var(--muted);
             font-size: 0.78rem;
-        }
-
-        .ad-format-wrap {
-            margin-top: 10px;
-            border-top: 1px solid var(--border);
-            padding-top: 10px;
-        }
-
-        .ad-format-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .ad-chip {
-            min-height: 36px;
-            border-radius: 9px;
-            border: 1px solid var(--border);
-            background: var(--surface-soft);
-            color: var(--muted);
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
         }
 
         .ad-chip:hover { color: var(--text); border-color: var(--primary); }
@@ -426,24 +366,6 @@
             </tbody>
         </table>
 
-        {% if adsterra_enabled and (adsterra_banner_slots.desktop or adsterra_banner_slots.mobile) %}
-        <div class="banner-stack">
-            <p class="action-label" style="margin-bottom:8px;">Banner Ads</p>
-
-            <div id="bannerDesktop" class="banner-wrap banner-desktop">
-                {% for slot in (adsterra_banner_slots.desktop or adsterra_banner_slots.mobile) %}
-                <div class="ad-slot" data-ad-slot="1" data-key="{{ slot.key }}" data-invoke-url="{{ slot.invoke_url }}" data-width="{{ slot.width }}" data-height="{{ slot.height }}" data-format="{{ slot.format }}"></div>
-                {% endfor %}
-            </div>
-
-            <div id="bannerMobile" class="banner-wrap banner-mobile">
-                {% for slot in (adsterra_banner_slots.mobile or adsterra_banner_slots.desktop) %}
-                <div class="ad-slot" data-ad-slot="1" data-key="{{ slot.key }}" data-invoke-url="{{ slot.invoke_url }}" data-width="{{ slot.width }}" data-height="{{ slot.height }}" data-format="{{ slot.format }}"></div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
         <div id="actionPanel" class="action-panel hidden">
             <p class="action-label">Selected file actions</p>
             <div class="actions">
@@ -454,14 +376,7 @@
                 <a href="{{ report_url }}" class="btn btn-danger">🚫 Report Adult Content</a>
                 {% endif %}
             </div>
-
-            {% if adsterra_format_urls.popunder or adsterra_format_urls.social_bar or adsterra_format_urls.native_banner or adsterra_format_urls.banner %}
-            <div class="ad-format-wrap">
-                <p class="action-label" style="margin-bottom:0;">Ad types</p>
-                <div class="ad-format-grid">
-                    {% if adsterra_format_urls.popunder %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.popunder }}">Popunder</button>{% endif %}
                     {% if adsterra_format_urls.social_bar %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.social_bar }}">Social Bar</button>{% endif %}
-                    {% if adsterra_format_urls.native_banner %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.native_banner }}">Native Banner</button>{% endif %}
                     {% if adsterra_format_urls.banner %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.banner }}">Banners</button>{% endif %}
                 </div>
             </div>
@@ -499,11 +414,6 @@
 
 <script>
     const fileUrl = {{ file_url | tojson }};
-    const adsterraEnabled = {{ adsterra_enabled | tojson }};
-    const adsterraDirectLink = {{ adsterra_direct_link | tojson }};
-    const adsterraActionUrls = {{ adsterra_action_urls | tojson }};
-    const adsterraBannerSlots = {{ adsterra_banner_slots | tojson }};
-    const adsterraFormatUrls = {{ adsterra_format_urls | tojson }};
 
     const managerView = document.getElementById('managerView');
     const playerView = document.getElementById('playerView');
@@ -530,53 +440,13 @@
         return player;
     }
 
-    function pickAdUrl() {
-        const urls = Array.isArray(adsterraActionUrls)
-            ? adsterraActionUrls.filter((u) => typeof u === 'string' && u.length > 0)
-            : [];
-
-        if (adsterraDirectLink && !urls.includes(adsterraDirectLink)) {
-            urls.unshift(adsterraDirectLink);
-        }
-
         if (!urls.length) return null;
 
         const picked = urls[adIndex % urls.length];
         adIndex += 1;
         return picked;
     }
-
-    function openAdUrl(url) {
-        if (!url) return;
-        try {
-            window.open(url, '_blank', 'noopener,noreferrer');
-        } catch (_) {
-            // ignore
-        }
     }
-
-    function openAdsterraIfEnabled() {
-        if (!adsterraEnabled) return;
-        const url = pickAdUrl();
-        if (!url) return;
-        openAdUrl(url);
-    }
-
-    function renderBannerSlots(containerId) {
-        const wrap = document.getElementById(containerId);
-        if (!wrap) return;
-
-        const slots = Array.from(wrap.querySelectorAll('[data-ad-slot="1"]'));
-        let idx = 0;
-
-        const loadNext = () => {
-            if (idx >= slots.length) return;
-
-            const slot = slots[idx++];
-            if (slot.dataset.loaded === '1') {
-                loadNext();
-                return;
-            }
 
             const key = slot.getAttribute('data-key');
             const invokeUrl = slot.getAttribute('data-invoke-url');
@@ -616,14 +486,6 @@
 
         loadNext();
     }
-
-    function renderResponsiveBanners() {
-        const mobile = window.matchMedia('(max-width: 768px)').matches;
-        if (mobile) {
-            renderBannerSlots('bannerMobile');
-        } else {
-            renderBannerSlots('bannerDesktop');
-        }
     }
 
     function setSelected(enable) {
@@ -649,7 +511,6 @@
 
     playBtn.addEventListener('click', async () => {
         if (!selected) return;
-        openAdsterraIfEnabled();
         showPlayerView();
         const p = ensurePlayer();
         try {
@@ -666,7 +527,6 @@
 
     downloadBtn.addEventListener('click', () => {
         if (!selected) return;
-        openAdsterraIfEnabled();
         window.location.href = fileUrl;
     });
 
@@ -681,25 +541,13 @@
         }
         setTimeout(() => { copyBtn.textContent = old; }, 1700);
     });
-
-    document.querySelectorAll('.ad-open-btn').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const url = btn.getAttribute('data-ad-url');
             openAdUrl(url);
         });
     });
-
-    renderResponsiveBanners();
     window.addEventListener('resize', () => {
-        renderResponsiveBanners();
     });
 
 </script>
 
-{% if adsterra_enabled and adsterra_script_urls %}
-    {% for script_url in adsterra_script_urls %}
-    <script async src="{{ script_url }}"></script>
-    {% endfor %}
-{% endif %}
 </body>
 </html>
