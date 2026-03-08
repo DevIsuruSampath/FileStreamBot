@@ -63,33 +63,114 @@ async def get_id(c: Client, m: Message):
         quote=True
     )
 
-# ---------------------[ ADS TOGGLE COMMAND ]---------------------#
-@FileStream.on_message(filters.command("ads") & filters.private)
-async def ads_toggle(c: Client, m: Message):
+# ---------------------[ URL SHORTENER TOGGLE COMMAND ]---------------------#
+@FileStream.on_message(filters.command(["urlshortener", "ads"]) & filters.private)
+async def urlshortener_toggle(c: Client, m: Message):
     if m.from_user.id not in ADMIN_IDS:
         await m.reply_text(f"⚠️ **Access Denied.**\nYour ID `{m.from_user.id}` is not in `OWNER_ID` or `AUTH_USERS`.", quote=True)
         return
 
+    # /urlshortener (or legacy /ads) -> status
     if len(m.command) < 2:
-        status = await db.get_ads_status()
+        status = await db.get_urlshortener_status()
         state = "ON" if status else "OFF"
         await m.reply_text(
-            text=f"**Ads are currently:** `{state}`\nUsage: `/ads on` or `/ads off`",
+            text=(
+                f"**URL Shortener is currently:** `{state}`\n"
+                "Usage: `/urlshortener on` or `/urlshortener off`"
+            ),
             parse_mode=ParseMode.MARKDOWN,
             quote=True
         )
         return
 
     action = m.command[1].strip().lower()
+
+    if action in {"status", "state"}:
+        status = await db.get_urlshortener_status()
+        state = "ON" if status else "OFF"
+        await m.reply_text(
+            text=f"**URL Shortener:** `{state}`",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+        return
+
     if action == "on":
-        await db.update_ads_status(True)
-        await m.reply_text(text="**✅ Ads have been enabled.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+        await db.update_urlshortener_status(True)
+        await m.reply_text(
+            text="**✅ URL Shortener has been enabled.**",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
     elif action == "off":
-        await db.update_ads_status(False)
-        await m.reply_text(text="**❌ Ads have been disabled.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+        await db.update_urlshortener_status(False)
+        await m.reply_text(
+            text="**❌ URL Shortener has been disabled.**",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
     else:
         await m.reply_text(
-            text="Usage: `/ads on` or `/ads off`",
+            text="Usage: `/urlshortener on` or `/urlshortener off`",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+
+
+# ---------------------[ WEB ADS TOGGLE COMMAND ]---------------------#
+@FileStream.on_message(filters.command("webads") & filters.private)
+async def webads_toggle(c: Client, m: Message):
+    if m.from_user.id not in ADMIN_IDS:
+        await m.reply_text(f"⚠️ **Access Denied.**\nYour ID `{m.from_user.id}` is not in `OWNER_ID` or `AUTH_USERS`.", quote=True)
+        return
+
+    configured = bool(getattr(Telegram, "ADSTERRA_ENABLE", False) and getattr(Telegram, "ADSTERRA_DIRECT_LINK", ""))
+
+    # /webads -> status
+    if len(m.command) < 2:
+        status = await db.get_web_ads_status()
+        state = "ON" if status else "OFF"
+        config_note = "✅ Adsterra config detected." if configured else "⚠️ Set `ADSTERRA_ENABLE=True` and `ADSTERRA_DIRECT_LINK=...` in env."
+        await m.reply_text(
+            text=(
+                f"**Web Ads are currently:** `{state}`\n"
+                f"{config_note}\n"
+                "Usage: `/webads on` or `/webads off`"
+            ),
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+        return
+
+    action = m.command[1].strip().lower()
+
+    if action in {"status", "state"}:
+        status = await db.get_web_ads_status()
+        state = "ON" if status else "OFF"
+        await m.reply_text(
+            text=f"**Web Ads:** `{state}`",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+        return
+
+    if action == "on":
+        await db.update_web_ads_status(True)
+        msg = "**✅ Web Ads have been enabled.**"
+        if not configured:
+            msg += "\n\n⚠️ Add `ADSTERRA_ENABLE=True` and `ADSTERRA_DIRECT_LINK=...` in env to activate Adsterra."
+        await m.reply_text(text=msg, parse_mode=ParseMode.MARKDOWN, quote=True)
+    elif action == "off":
+        await db.update_web_ads_status(False)
+        await m.reply_text(
+            text="**❌ Web Ads have been disabled.**",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+    else:
+        await m.reply_text(
+            text="Usage: `/webads on` or `/webads off`",
             parse_mode=ParseMode.MARKDOWN,
             quote=True
         )

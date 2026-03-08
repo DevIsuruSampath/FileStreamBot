@@ -190,19 +190,46 @@ class Database:
             update = {"$setOnInsert": {"join_date": time.time()}, "$inc": {"Links": 1}}
             await self.col.update_one({"id": id}, update, upsert=True)
 
-# ---------------------[ ADS SETTINGS ]---------------------#
-    async def update_ads_status(self, status: bool):
+# ---------------------[ URL SHORTENER / WEB ADS SETTINGS ]---------------------#
+    async def update_urlshortener_status(self, status: bool):
         await self.settings.update_one(
-            {"_id": "ads"},
+            {"_id": "urlshortener"},
             {"$set": {"status": bool(status)}},
             upsert=True
         )
 
-    async def get_ads_status(self):
-        settings = await self.settings.find_one({"_id": "ads"})
+    async def get_urlshortener_status(self):
+        # New key
+        settings = await self.settings.find_one({"_id": "urlshortener"})
+        if settings is not None:
+            return bool(settings.get("status", False))
+
+        # Backward compatibility with legacy key
+        legacy = await self.settings.find_one({"_id": "ads"})
+        if legacy is not None:
+            return bool(legacy.get("status", False))
+
+        return False
+
+    async def update_web_ads_status(self, status: bool):
+        await self.settings.update_one(
+            {"_id": "webads"},
+            {"$set": {"status": bool(status)}},
+            upsert=True
+        )
+
+    async def get_web_ads_status(self):
+        settings = await self.settings.find_one({"_id": "webads"})
         if not settings:
             return False
         return bool(settings.get("status", False))
+
+    # ---- Backward compatibility helpers (legacy /ads command code paths) ----
+    async def update_ads_status(self, status: bool):
+        await self.update_urlshortener_status(status)
+
+    async def get_ads_status(self):
+        return await self.get_urlshortener_status()
 
 # ---------------------[ FOLDERS ]---------------------#
     async def create_folder(self, user_id: int, file_list: list[str]):

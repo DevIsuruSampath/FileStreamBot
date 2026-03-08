@@ -121,8 +121,8 @@ async def gen_link(_id):
     stream_link = f"{Server.URL}dl/{_id}"
     file_link = f"https://t.me/{FileStream.username}?start=file_{_id}"
 
-    # 2. Check Database for ADS Status
-    if await db.get_ads_status():
+    # 2. Check Database for URL shortener status
+    if await db.get_urlshortener_status():
         # Only shorten links that will actually be shown
         if is_streamable:
             page_link = await shorten(page_link)
@@ -174,8 +174,8 @@ async def gen_linkx(m:Message , _id, name: list):
     page_link = f"{Server.URL}watch/{_id}"
     stream_link = f"{Server.URL}dl/{_id}"
     
-    # 2. Check Database for ADS Status
-    if await db.get_ads_status():
+    # 2. Check Database for URL shortener status
+    if await db.get_urlshortener_status():
         # Only shorten links that will actually be shown
         if is_streamable:
             page_link = await shorten(page_link)

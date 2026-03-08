@@ -224,7 +224,7 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     stream_link = f"{Server.URL}dl/{myfile_info['_id']}"
 
     # Check database status and Shorten if enabled
-    if await db.get_ads_status():
+    if await db.get_urlshortener_status():
         # Only shorten links that will actually be shown
         if is_streamable:
             page_link = await shorten(page_link)

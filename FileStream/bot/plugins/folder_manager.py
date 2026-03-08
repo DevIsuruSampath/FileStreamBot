@@ -170,7 +170,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
         count = len(folder.get("files", []))
         created = _fmt_date(folder.get("created_at"))
         link = f"{Server.URL}folder/{folder_id}"
-        if await db.get_ads_status():
+        if await db.get_urlshortener_status():
             link = await shorten(link)
 
         safe_title = html.escape(title)
@@ -295,7 +295,7 @@ async def rename_folder_text(bot: Client, message: Message):
         count = len(folder.get("files", []))
         created = _fmt_date(folder.get("created_at"))
         link = f"{Server.URL}folder/{folder_id}"
-        if await db.get_ads_status():
+        if await db.get_urlshortener_status():
             link = await shorten(link)
         safe_title = html.escape(_fmt_title(folder))
         buttons = [

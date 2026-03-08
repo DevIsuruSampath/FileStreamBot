@@ -29,8 +29,8 @@ def get_direct_link() -> str | None:
     return None
 
 
-def is_enabled(ads_status: bool) -> bool:
-    if not ads_status:
+def is_enabled(web_ads_status: bool) -> bool:
+    if not web_ads_status:
         return False
 
     if not bool(getattr(Telegram, "ADSTERRA_ENABLE", False)):

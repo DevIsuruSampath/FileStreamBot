@@ -261,7 +261,7 @@ async def finish_folderm(bot: Client, message: Message, user_id: int | None = No
     folderm_sessions.pop(user_id, None)
 
     link = f"{Server.URL}folder/{folder_id}"
-    if await db.get_ads_status():
+    if await db.get_urlshortener_status():
         link = await shorten(link)
     await message.reply_text(
         f"✅ Folder created!\n"

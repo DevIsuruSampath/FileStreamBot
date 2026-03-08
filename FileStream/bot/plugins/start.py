@@ -28,18 +28,6 @@ async def start(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
 
-    # ---------------------[ ADS CHECK ]---------------------#
-    if await db.get_ads_status():
-        # Check if the user is an admin. Admins should bypass the ad check.
-        if message.from_user.id != Telegram.OWNER_ID and message.from_user.id not in Telegram.AUTH_USERS:
-            await message.reply_text(
-                text="<b>⚠️ MAINTENANCE / ADS MODE</b>\n\nBot usage is currently paused by the Admin.",
-                parse_mode=ParseMode.HTML,
-                disable_web_page_preview=True,
-                quote=True
-            )
-            return
-    # --------------------------------------------------------#
 
     payload = ""
     if " " in message.text:

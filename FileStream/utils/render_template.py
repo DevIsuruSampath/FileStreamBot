@@ -67,8 +67,8 @@ async def render_page(db_id):
     if getattr(FileStream, "username", None):
         report_url = f"https://t.me/{FileStream.username}?start=report_file_{db_id}"
 
-    ads_status = await db.get_ads_status()
-    adsterra_enabled = adsterra_is_enabled(ads_status)
+    web_ads_status = await db.get_web_ads_status()
+    adsterra_enabled = adsterra_is_enabled(web_ads_status)
     adsterra_direct_link = get_direct_link() if adsterra_enabled else None
     adsterra_script_urls = get_script_urls() if adsterra_enabled else []
 
@@ -151,8 +151,8 @@ async def render_folder(folder_id: str, title: str = "Folder"):
     if getattr(FileStream, "username", None):
         report_url = f"https://t.me/{FileStream.username}?start=report_folder_{folder_id}"
 
-    ads_status = await db.get_ads_status()
-    adsterra_enabled = adsterra_is_enabled(ads_status)
+    web_ads_status = await db.get_web_ads_status()
+    adsterra_enabled = adsterra_is_enabled(web_ads_status)
     adsterra_direct_link = get_direct_link() if adsterra_enabled else None
     adsterra_script_urls = get_script_urls() if adsterra_enabled else []
 

@@ -99,12 +99,21 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `URL_SHORTENER_SITE`: Shortener domain (e.g., `api.gplinks.com`).
 - `URL_SHORTENER_API_KEY`: API Key for the shortener.
 - `ADSTERRA_ENABLE`: Enable Adsterra integration on web pages (`True`/`False`).
-- `ADSTERRA_DIRECT_LINK`: Adsterra Smartlink/Direct Link URL.
+- `ADSTERRA_DIRECT_LINK`: Adsterra Smartlink/Direct Link URL (no API required).
 - `ADSTERRA_SCRIPT_URLS`: Comma-separated Adsterra script URLs for page ads.
 - `FILE_PIC`: Image for `/files` command.
 - `FOLDERS_PIC`: Image for `/folders` command.
 - `START_PIC`: Image for `/start` command.
 - `VERIFY_PIC`: Image for force subscribe verification.
+
+## 🧰 Admin Toggles
+
+- `/urlshortener` → Show URL shortener status.
+- `/urlshortener on|off` → Enable/disable URL shortener monetization.
+- `/webads` → Show web ads status.
+- `/webads on|off` → Enable/disable Adsterra ads on web pages.
+
+> Legacy `/ads` is still accepted as an alias for `/urlshortener`.
 
 ## 🤝 Contributing
 
