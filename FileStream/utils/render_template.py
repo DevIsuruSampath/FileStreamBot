@@ -10,7 +10,7 @@ from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.category import detect_category
 from FileStream.utils.adsterra import is_enabled as adsterra_is_enabled, get_direct_link, get_script_urls
-from FileStream.utils.adsterra_api import resolve_action_ad_urls
+from FileStream.utils.adsterra_api import resolve_ad_bundle
 from FileStream.server.exceptions import FileNotFound
 
 env = jinja2.Environment(autoescape=True)
@@ -126,16 +126,30 @@ async def render_page(db_id):
     adsterra_script_urls = get_script_urls() if adsterra_enabled else []
 
     adsterra_action_urls = []
+    adsterra_format_urls = {
+        "smartlink": None,
+        "popunder": None,
+        "social_bar": None,
+        "native_banner": None,
+        "banner": None,
+    }
+
     if adsterra_enabled:
         direct = get_direct_link()
         if direct:
             adsterra_action_urls.append(direct)
+            adsterra_format_urls["smartlink"] = direct
 
         try:
-            api_urls = await resolve_action_ad_urls(max_urls=8)
-            for u in api_urls:
+            bundle = await resolve_ad_bundle(max_urls=8)
+            for u in bundle.get("action_urls", []):
                 if u and u not in adsterra_action_urls:
                     adsterra_action_urls.append(u)
+
+            fmt = bundle.get("format_urls") or {}
+            for k in adsterra_format_urls.keys():
+                if fmt.get(k):
+                    adsterra_format_urls[k] = fmt.get(k)
         except Exception:
             pass
 
@@ -155,6 +169,7 @@ async def render_page(db_id):
         adsterra_enabled=adsterra_enabled,
         adsterra_direct_link=adsterra_direct_link,
         adsterra_action_urls=adsterra_action_urls,
+        adsterra_format_urls=adsterra_format_urls,
         adsterra_script_urls=adsterra_script_urls,
     )
 
@@ -233,16 +248,30 @@ async def render_folder(folder_id: str, title: str = "Folder"):
     adsterra_script_urls = get_script_urls() if adsterra_enabled else []
 
     adsterra_action_urls = []
+    adsterra_format_urls = {
+        "smartlink": None,
+        "popunder": None,
+        "social_bar": None,
+        "native_banner": None,
+        "banner": None,
+    }
+
     if adsterra_enabled:
         direct = get_direct_link()
         if direct:
             adsterra_action_urls.append(direct)
+            adsterra_format_urls["smartlink"] = direct
 
         try:
-            api_urls = await resolve_action_ad_urls(max_urls=8)
-            for u in api_urls:
+            bundle = await resolve_ad_bundle(max_urls=8)
+            for u in bundle.get("action_urls", []):
                 if u and u not in adsterra_action_urls:
                     adsterra_action_urls.append(u)
+
+            fmt = bundle.get("format_urls") or {}
+            for k in adsterra_format_urls.keys():
+                if fmt.get(k):
+                    adsterra_format_urls[k] = fmt.get(k)
         except Exception:
             pass
 
@@ -258,6 +287,7 @@ async def render_folder(folder_id: str, title: str = "Folder"):
         adsterra_enabled=adsterra_enabled,
         adsterra_direct_link=adsterra_direct_link,
         adsterra_action_urls=adsterra_action_urls,
+        adsterra_format_urls=adsterra_format_urls,
         adsterra_script_urls=adsterra_script_urls,
     )
 

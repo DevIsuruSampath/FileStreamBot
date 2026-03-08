@@ -359,6 +359,32 @@
             text-align: center;
         }
 
+        .ad-format-wrap {
+            margin-top: 10px;
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+        }
+
+        .ad-format-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .ad-chip {
+            min-height: 36px;
+            border-radius: 9px;
+            border: 1px solid var(--border);
+            background: var(--surface-soft);
+            color: var(--muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .ad-chip:hover { color: var(--text); border-color: var(--primary); }
+
         .player-top {
             display: flex;
             align-items: center;
@@ -454,6 +480,8 @@
             .manager-table td:nth-child(5) {
                 display: none;
             }
+
+            .ad-format-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
     </style>
 </head>
@@ -518,6 +546,20 @@
                 <a href="{{ report_url }}" class="btn btn-danger">🚫 Report Adult Content</a>
                 {% endif %}
             </div>
+
+            {% if adsterra_format_urls.smartlink or adsterra_format_urls.popunder or adsterra_format_urls.social_bar or adsterra_format_urls.native_banner or adsterra_format_urls.banner %}
+            <div class="ad-format-wrap">
+                <p class="action-label" style="margin-bottom:0;">Ad formats</p>
+                <div class="ad-format-grid">
+                    {% if adsterra_format_urls.smartlink %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.smartlink }}">Smartlink</button>{% endif %}
+                    {% if adsterra_format_urls.popunder %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.popunder }}">Popunder</button>{% endif %}
+                    {% if adsterra_format_urls.social_bar %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.social_bar }}">Social Bar</button>{% endif %}
+                    {% if adsterra_format_urls.native_banner %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.native_banner }}">Native</button>{% endif %}
+                    {% if adsterra_format_urls.banner %}<button type="button" class="ad-chip ad-open-btn" data-ad-url="{{ adsterra_format_urls.banner }}">Banner</button>{% endif %}
+                </div>
+            </div>
+            {% endif %}
+
             <p class="ad-hint">Report button is always direct (no ads).</p>
         </div>
     </section>
@@ -607,14 +649,18 @@
         return picked;
     }
 
+    function openAdUrl(url) {
+        if (!url) return;
+        try {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        } catch (_) {}
+    }
+
     function openAdsterraIfEnabled() {
         if (!adsterraEnabled) return;
         const url = pickAdUrl();
         if (!url) return;
-
-        try {
-            window.open(url, '_blank', 'noopener,noreferrer');
-        } catch (_) {}
+        openAdUrl(url);
     }
 
     function getVisibleItems() {
@@ -817,6 +863,13 @@
             copyBtn.textContent = '📋 Link Ready';
         }
         setTimeout(() => { copyBtn.textContent = old; }, 1700);
+    });
+
+    document.querySelectorAll('.ad-open-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const url = btn.getAttribute('data-ad-url');
+            openAdUrl(url);
+        });
     });
 
     backBtn.addEventListener('click', () => {

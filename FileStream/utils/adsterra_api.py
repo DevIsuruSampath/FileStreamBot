@@ -295,25 +295,74 @@ async def resolve_action_ad_urls(max_urls: int = 8) -> list[str]:
     5) Banner placements
     6) Generic placements
     """
+    bundle = await resolve_ad_bundle(max_urls=max_urls)
+    return list(bundle.get("action_urls", []))
+
+
+async def resolve_ad_bundle(max_urls: int = 8) -> dict[str, Any]:
+    """Resolve all useful ad URLs by format for UI and action routing."""
     if not is_api_ready():
-        return []
+        return {
+            "action_urls": [],
+            "format_urls": {
+                "smartlink": None,
+                "popunder": None,
+                "social_bar": None,
+                "native_banner": None,
+                "banner": None,
+            },
+            "counts": {
+                "popunder": 0,
+                "social_bar": 0,
+                "native_banner": 0,
+                "banner": 0,
+                "generic": 0,
+            },
+        }
 
     urls: list[str] = []
-
     smart = await resolve_smartlink_url()
     if smart:
         urls.append(smart)
 
-    inv = await fetch_placement_inventory()
-    if inv:
-        urls.extend(inv.get("popunder", []))
-        urls.extend(inv.get("social_bar", []))
-        urls.extend(inv.get("native_banner", []))
-        urls.extend(inv.get("banner", []))
-        urls.extend(inv.get("generic", []))
+    inv = await fetch_placement_inventory() or {}
+
+    popunder = list(inv.get("popunder", []))
+    social = list(inv.get("social_bar", []))
+    native = list(inv.get("native_banner", []))
+    banner = list(inv.get("banner", []))
+    generic = list(inv.get("generic", []))
+
+    urls.extend(popunder)
+    urls.extend(social)
+    urls.extend(native)
+    urls.extend(banner)
+    urls.extend(generic)
 
     urls = _dedupe_keep_order([u for u in urls if _valid_url(u)])
-    return urls[: max(1, int(max_urls or 8))]
+    urls = urls[: max(1, int(max_urls or 8))]
+
+    format_urls = {
+        "smartlink": smart,
+        "popunder": popunder[0] if popunder else None,
+        "social_bar": social[0] if social else None,
+        "native_banner": native[0] if native else None,
+        "banner": banner[0] if banner else None,
+    }
+
+    counts = inv.get("counts") or {
+        "popunder": len(popunder),
+        "social_bar": len(social),
+        "native_banner": len(native),
+        "banner": len(banner),
+        "generic": len(generic),
+    }
+
+    return {
+        "action_urls": urls,
+        "format_urls": format_urls,
+        "counts": counts,
+    }
 
 
 async def fetch_stats_summary(days: int | None = None) -> dict[str, Any] | None:
