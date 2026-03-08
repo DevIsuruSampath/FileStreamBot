@@ -73,6 +73,22 @@ class Telegram:
     # Comma-separated script URLs from Adsterra (banner/social bar scripts)
     ADSTERRA_SCRIPT_URLS = str(env.get("ADSTERRA_SCRIPT_URLS", "")).strip()
 
+    # Optional Adsterra Publisher API integration
+    ADSTERRA_API_ENABLE = str(env.get("ADSTERRA_API_ENABLE", "false")).lower() in ("1", "true", "t", "yes", "y")
+    ADSTERRA_API_KEY = str(env.get("ADSTERRA_API_KEY", "")).strip()
+    ADSTERRA_API_BASE = str(env.get("ADSTERRA_API_BASE", "https://api3.adsterratools.com/publisher")).strip()
+
+    _smartlink_id = str(env.get("ADSTERRA_SMARTLINK_ID", "")).strip()
+    try:
+        ADSTERRA_SMARTLINK_ID = int(_smartlink_id) if _smartlink_id else None
+    except Exception:
+        ADSTERRA_SMARTLINK_ID = None
+
+    try:
+        ADSTERRA_STATS_DAYS = int(env.get("ADSTERRA_STATS_DAYS", "7"))
+    except Exception:
+        ADSTERRA_STATS_DAYS = 7
+
 class Server:
     PORT = int(env.get("PORT", 8080))
     BIND_ADDRESS = str(env.get("BIND_ADDRESS", "0.0.0.0"))

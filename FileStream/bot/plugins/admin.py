@@ -19,6 +19,7 @@ from FileStream.server.exceptions import FileNotFound
 from FileStream.config import Telegram
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.speedtest import run_speedtest, format_speedtest, MSG_SPEEDTEST_START, MSG_SPEEDTEST_ERROR
+from FileStream.utils.adsterra_api import is_api_ready as adsterra_api_ready, resolve_smartlink_url, fetch_stats_summary, AdsterraAPIError
 
 speedtest_lock = asyncio.Lock()
 _last_speedtest_at = 0
@@ -127,7 +128,8 @@ async def webads_toggle(c: Client, m: Message):
 
     has_direct = bool(getattr(Telegram, "ADSTERRA_DIRECT_LINK", "").strip())
     has_scripts = bool(getattr(Telegram, "ADSTERRA_SCRIPT_URLS", "").strip())
-    configured = bool(getattr(Telegram, "ADSTERRA_ENABLE", False) and (has_direct or has_scripts))
+    has_api = adsterra_api_ready()
+    configured = bool(getattr(Telegram, "ADSTERRA_ENABLE", False) and (has_direct or has_scripts or has_api))
 
     # /webads -> status
     if len(m.command) < 2:
@@ -136,7 +138,10 @@ async def webads_toggle(c: Client, m: Message):
         config_note = (
             "✅ Adsterra config detected."
             if configured
-            else "⚠️ Set `ADSTERRA_ENABLE=True` and `ADSTERRA_DIRECT_LINK=...` (or `ADSTERRA_SCRIPT_URLS=...`) in env."
+            else (
+                "⚠️ Set `ADSTERRA_ENABLE=True` and one of: "
+                "`ADSTERRA_DIRECT_LINK=...`, `ADSTERRA_SCRIPT_URLS=...`, or API settings (`ADSTERRA_API_ENABLE=True` + `ADSTERRA_API_KEY=...`)."
+            )
         )
         await m.reply_text(
             text=(
@@ -165,16 +170,48 @@ async def webads_toggle(c: Client, m: Message):
         status = await db.get_web_ads_status()
         state = "ON" if status else "OFF"
         cfg = "Configured" if configured else "Not configured"
+
+        api_block = ""
+        if has_api:
+            try:
+                smartlink = await resolve_smartlink_url()
+                stats = await fetch_stats_summary(getattr(Telegram, "ADSTERRA_STATS_DAYS", 7))
+
+                lines = ["API: `Ready`"]
+                if smartlink:
+                    lines.append(f"SmartLink: `{smartlink}`")
+                else:
+                    lines.append("SmartLink: `Not found (check status/traffic in account)`")
+
+                if stats:
+                    lines.append(
+                        f"Stats {stats['start_date']} → {stats['finish_date']}: "
+                        f"Impr `{stats['impressions']}` | Clicks `{stats['clicks']}` | Revenue `${stats['revenue']}`"
+                    )
+
+                api_block = "\n" + "\n".join(lines)
+            except AdsterraAPIError as e:
+                api_block = f"\nAPI: `Error`\n`{str(e)[:300]}`"
+            except Exception as e:
+                api_block = f"\nAPI: `Error`\n`{str(e)[:300]}`"
+        else:
+            api_block = "\nAPI: `Disabled or not configured`"
+
         await m.reply_text(
             text=(
                 f"**Web Ads Info**\n"
                 f"Status: `{state}`\n"
-                f"Env Config: `{cfg}`\n\n"
-                "Current integration uses **Adsterra Direct Link / Script URLs** (no API required).\n"
-                "Docs (Partners API): https://docs.adsterratools.com/public/v3/partners-api\n\n"
-                "Required env:\n"
+                f"Env Config: `{cfg}`\n"
+                f"Direct Link Configured: `{'Yes' if has_direct else 'No'}`\n"
+                f"Script URLs Configured: `{'Yes' if has_scripts else 'No'}`\n"
+                f"API Configured: `{'Yes' if has_api else 'No'}`"
+                f"{api_block}\n\n"
+                "Docs (Partners API): https://docs.adsterratools.com/public/v3/partners-api\n"
+                "Docs (Publishers API): https://docs.adsterratools.com/public/v3/publishers-api\n\n"
+                "Env options:\n"
                 "`ADSTERRA_ENABLE=True`\n"
-                "`ADSTERRA_DIRECT_LINK=https://...` (or `ADSTERRA_SCRIPT_URLS=...`)"
+                "`ADSTERRA_DIRECT_LINK=https://...` OR `ADSTERRA_SCRIPT_URLS=...`\n"
+                "`ADSTERRA_API_ENABLE=True` + `ADSTERRA_API_KEY=...` (optional API mode)"
             ),
             parse_mode=ParseMode.MARKDOWN,
             disable_web_page_preview=True,
@@ -186,7 +223,10 @@ async def webads_toggle(c: Client, m: Message):
         await db.update_web_ads_status(True)
         msg = "**✅ Web Ads have been enabled.**"
         if not configured:
-            msg += "\n\n⚠️ Add `ADSTERRA_ENABLE=True` and `ADSTERRA_DIRECT_LINK=...` (or `ADSTERRA_SCRIPT_URLS=...`) in env to activate Adsterra."
+            msg += (
+                "\n\n⚠️ Add `ADSTERRA_ENABLE=True` and one of: `ADSTERRA_DIRECT_LINK=...`, "
+                "`ADSTERRA_SCRIPT_URLS=...`, or API settings (`ADSTERRA_API_ENABLE=True` + `ADSTERRA_API_KEY=...`)."
+            )
         await m.reply_text(text=msg, parse_mode=ParseMode.MARKDOWN, quote=True)
     elif action == "off":
         await db.update_web_ads_status(False)
@@ -197,7 +237,7 @@ async def webads_toggle(c: Client, m: Message):
         )
     else:
         await m.reply_text(
-            text="Usage: `/webads on` or `/webads off`",
+            text="Usage: `/webads on`, `/webads off`, `/webads info`",
             parse_mode=ParseMode.MARKDOWN,
             quote=True
         )

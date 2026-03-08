@@ -10,6 +10,7 @@ from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.category import detect_category
 from FileStream.utils.adsterra import is_enabled as adsterra_is_enabled, get_direct_link, get_script_urls
+from FileStream.utils.adsterra_api import resolve_smartlink_url
 from FileStream.server.exceptions import FileNotFound
 
 env = jinja2.Environment(autoescape=True)
@@ -123,6 +124,11 @@ async def render_page(db_id):
     web_ads_status = await db.get_web_ads_status()
     adsterra_enabled = adsterra_is_enabled(web_ads_status)
     adsterra_direct_link = get_direct_link() if adsterra_enabled else None
+    if adsterra_enabled and not adsterra_direct_link:
+        try:
+            adsterra_direct_link = await resolve_smartlink_url()
+        except Exception:
+            adsterra_direct_link = None
     adsterra_script_urls = get_script_urls() if adsterra_enabled else []
 
     return template.render(
@@ -214,6 +220,11 @@ async def render_folder(folder_id: str, title: str = "Folder"):
     web_ads_status = await db.get_web_ads_status()
     adsterra_enabled = adsterra_is_enabled(web_ads_status)
     adsterra_direct_link = get_direct_link() if adsterra_enabled else None
+    if adsterra_enabled and not adsterra_direct_link:
+        try:
+            adsterra_direct_link = await resolve_smartlink_url()
+        except Exception:
+            adsterra_direct_link = None
     adsterra_script_urls = get_script_urls() if adsterra_enabled else []
 
     return template.render(

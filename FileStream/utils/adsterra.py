@@ -29,6 +29,13 @@ def get_direct_link() -> str | None:
     return None
 
 
+def has_api_fallback() -> bool:
+    return bool(
+        getattr(Telegram, "ADSTERRA_API_ENABLE", False)
+        and str(getattr(Telegram, "ADSTERRA_API_KEY", "") or "").strip()
+    )
+
+
 def is_enabled(web_ads_status: bool) -> bool:
     if not web_ads_status:
         return False
@@ -36,4 +43,4 @@ def is_enabled(web_ads_status: bool) -> bool:
     if not bool(getattr(Telegram, "ADSTERRA_ENABLE", False)):
         return False
 
-    return bool(get_direct_link() or get_script_urls())
+    return bool(get_direct_link() or get_script_urls() or has_api_fallback())
