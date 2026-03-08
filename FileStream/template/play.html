@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
-    <title>Stream | {{ file_name }}</title>
+    <title>Stream</title>
     <link rel="stylesheet" href="/static/plyr.css" />
     <script src="/static/plyr.js"></script>
     <style>
@@ -125,37 +125,25 @@
             padding: 16px;
         }
 
-        .file-name {
-            font-size: clamp(1rem, 2.6vw, 1.28rem);
-            line-height: 1.35;
-            font-weight: 700;
-            margin-bottom: 10px;
-            word-break: break-word;
-        }
-
-        .meta-row {
+        .manager-head {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-
-        .tag {
-            display: inline-flex;
             align-items: center;
-            border: 1px solid var(--border);
-            border-radius: 999px;
-            background: var(--surface-soft);
-            color: var(--muted);
-            padding: 5px 10px;
-            font-size: 0.8rem;
-            white-space: nowrap;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
         }
 
-        .hint {
+        .manager-title {
+            font-size: 0.94rem;
+            font-weight: 700;
             color: var(--muted);
-            font-size: 0.86rem;
-            margin-bottom: 10px;
+            letter-spacing: 0.02em;
+        }
+
+        .manager-sub {
+            color: var(--muted);
+            font-size: 0.78rem;
         }
 
         .manager-table {
@@ -202,6 +190,19 @@
         .icon {
             width: 44px;
             font-size: 1rem;
+        }
+
+        .action-panel {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--surface-soft);
+            padding: 12px;
+        }
+
+        .action-label {
+            color: var(--muted);
+            font-size: 0.8rem;
+            margin-bottom: 10px;
         }
 
         .actions {
@@ -252,13 +253,6 @@
             color: color-mix(in srgb, var(--danger) 80%, var(--text));
         }
 
-        .btn.disabled,
-        .btn[disabled] {
-            opacity: 0.56;
-            pointer-events: none;
-            transform: none !important;
-        }
-
         .ad-hint {
             margin-top: 8px;
             color: var(--muted);
@@ -275,7 +269,7 @@
         }
 
         .player-title {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             color: var(--muted);
             word-break: break-word;
         }
@@ -347,21 +341,14 @@
 
 <main class="container main">
     <section id="managerView" class="card">
-        <h1 class="file-name">{{ file_name }}</h1>
-        <div class="meta-row">
-            <span class="tag">💾 {{ file_size }}</span>
-            <span class="tag">🗂️ {{ category or 'Other' }}</span>
-            <span class="tag">👤 {{ uploader or 'Unknown uploader' }}</span>
-            {% if message_id %}<span class="tag">🆔 {{ message_id }}</span>{% endif %}
-            <span class="tag">🛡️ Secure Link</span>
+        <div class="manager-head">
+            <span class="manager-title">File Manager</span>
+            <span class="manager-sub">1 file</span>
         </div>
-
-        <p class="hint">Click file row to select. Then use Play / Download / Copy / Report.</p>
 
         <table class="manager-table" aria-label="File manager">
             <thead>
             <tr>
-                <th style="width:48px">Sel</th>
                 <th class="idx">#</th>
                 <th class="icon">Type</th>
                 <th>Name</th>
@@ -370,7 +357,6 @@
             </thead>
             <tbody>
             <tr id="fileRow" class="file-row">
-                <td><input id="selectFile" type="checkbox" aria-label="Select file" /></td>
                 <td class="idx">1</td>
                 <td class="icon">{% if is_audio %}🎵{% else %}🎬{% endif %}</td>
                 <td>{{ file_name }}</td>
@@ -379,15 +365,18 @@
             </tbody>
         </table>
 
-        <div class="actions">
-            <button id="playBtn" class="btn btn-primary disabled" disabled>▶️ Play Selected</button>
-            <button id="downloadBtn" class="btn btn-secondary disabled" disabled>⬇️ Download Selected</button>
-            <button id="copyBtn" class="btn btn-secondary">📋 Copy Stream Link</button>
-            {% if report_url %}
-            <a href="{{ report_url }}" class="btn btn-danger">🚫 Report Adult Content</a>
-            {% endif %}
+        <div id="actionPanel" class="action-panel hidden">
+            <p class="action-label">Selected file actions</p>
+            <div class="actions">
+                <button id="playBtn" class="btn btn-primary">▶️ Play</button>
+                <button id="downloadBtn" class="btn btn-secondary">⬇️ Download</button>
+                <button id="copyBtn" class="btn btn-secondary">📋 Copy Stream Link</button>
+                {% if report_url %}
+                <a href="{{ report_url }}" class="btn btn-danger">🚫 Report Adult Content</a>
+                {% endif %}
+            </div>
+            <p class="ad-hint">Report button is always direct (no ads).</p>
         </div>
-        <p class="ad-hint">Report button is always direct (no ads).</p>
     </section>
 
     <section id="playerView" class="card hidden">
@@ -426,13 +415,14 @@
     const backBtn = document.getElementById('backBtn');
 
     const fileRow = document.getElementById('fileRow');
-    const selectFile = document.getElementById('selectFile');
+    const actionPanel = document.getElementById('actionPanel');
 
     const playBtn = document.getElementById('playBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const copyBtn = document.getElementById('copyBtn');
 
     let player = null;
+    let selected = false;
 
     function ensurePlayer() {
         if (!player) {
@@ -453,14 +443,10 @@
         }
     }
 
-    function updateSelection(enabled) {
-        selectFile.checked = enabled;
-        fileRow.classList.toggle('selected', enabled);
-
-        playBtn.disabled = !enabled;
-        downloadBtn.disabled = !enabled;
-        playBtn.classList.toggle('disabled', !enabled);
-        downloadBtn.classList.toggle('disabled', !enabled);
+    function setSelected(enable) {
+        selected = !!enable;
+        fileRow.classList.toggle('selected', selected);
+        actionPanel.classList.toggle('hidden', !selected);
     }
 
     function showPlayerView() {
@@ -474,17 +460,12 @@
         managerView.classList.remove('hidden');
     }
 
-    fileRow.addEventListener('click', (e) => {
-        if (e.target.closest('a') || e.target.closest('button')) return;
-        updateSelection(true);
-    });
-
-    selectFile.addEventListener('change', () => {
-        updateSelection(selectFile.checked);
+    fileRow.addEventListener('click', () => {
+        setSelected(true);
     });
 
     playBtn.addEventListener('click', async () => {
-        if (!selectFile.checked) return;
+        if (!selected) return;
         openAdsterraIfEnabled();
         showPlayerView();
         const p = ensurePlayer();
@@ -501,7 +482,7 @@
     });
 
     downloadBtn.addEventListener('click', () => {
-        if (!selectFile.checked) return;
+        if (!selected) return;
         openAdsterraIfEnabled();
         window.location.href = fileUrl;
     });
