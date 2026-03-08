@@ -125,6 +125,29 @@ def _pick_by_id(items: list[dict[str, Any]], preferred_id: int | None) -> dict[s
     return None
 
 
+def _is_adult_smartlink(item: dict[str, Any]) -> bool:
+    traffic = item.get("traffic_type")
+
+    # Numeric forms from API docs: 1=mainstream, 2=adult
+    try:
+        if traffic is not None and int(traffic) == 2:
+            return True
+    except Exception:
+        pass
+
+    txt = str(traffic or "").strip().lower()
+    if "adult" in txt:
+        return True
+
+    return False
+
+
+def _filter_non_adult(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if getattr(Telegram, "ADSTERRA_ALLOW_ADULT", False):
+        return items
+    return [x for x in items if not _is_adult_smartlink(x)]
+
+
 async def resolve_smartlink_url() -> str | None:
     """Resolve ad destination URL from Adsterra API with short TTL cache.
 
@@ -145,16 +168,19 @@ async def resolve_smartlink_url() -> str | None:
 
         preferred_id = getattr(Telegram, "ADSTERRA_SMARTLINK_ID", None)
         url: str | None = None
+        allow_adult = bool(getattr(Telegram, "ADSTERRA_ALLOW_ADULT", False))
 
-        # 1) Active smartlinks first
-        links_active = await fetch_smartlinks(status=3)
+        # 1) Active smartlinks first (prefer mainstream)
+        links_active = await fetch_smartlinks(status=3, traffic_type=None if allow_adult else 1)
+        links_active = _filter_non_adult(links_active)
         chosen = _pick_by_id(links_active, preferred_id) or (links_active[0] if links_active else None)
         if chosen:
             url = _valid_url(chosen.get("url"))
 
         # 2) Fallback to any smartlink if none active
         if not url:
-            links_any = await fetch_smartlinks(status=None)
+            links_any = await fetch_smartlinks(status=None, traffic_type=None if allow_adult else 1)
+            links_any = _filter_non_adult(links_any)
             chosen_any = _pick_by_id(links_any, preferred_id) or (links_any[0] if links_any else None)
             if chosen_any:
                 url = _valid_url(chosen_any.get("url"))

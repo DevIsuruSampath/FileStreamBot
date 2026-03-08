@@ -90,6 +90,17 @@
             text-align: center;
         }
 
+        .proxy-warning {
+            border: 1px solid rgba(248, 113, 113, 0.34);
+            background: rgba(248, 113, 113, 0.12);
+            color: #fecaca;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 0.84rem;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
         .manager-table {
             width: 100%;
             border-collapse: collapse;
@@ -189,6 +200,8 @@
 
         <p class="hint">Select file row, then click download.</p>
 
+        <div id="proxyWarning" class="proxy-warning" style="display:none;">Anonymous Proxy detected. Disable it to continue.</div>
+
         <table class="manager-table" aria-label="File manager">
             <thead>
             <tr>
@@ -230,10 +243,14 @@
 
         const selectFile = document.getElementById('selectFile');
         const downloadBtn = document.getElementById('downloadBtn');
+        const proxyWarning = document.getElementById('proxyWarning');
+
+        let proxyBlocked = false;
 
         function setState(enabled) {
-            downloadBtn.disabled = !enabled;
-            downloadBtn.classList.toggle('disabled', !enabled);
+            const allow = !!enabled && !proxyBlocked;
+            downloadBtn.disabled = !allow;
+            downloadBtn.classList.toggle('disabled', !allow);
         }
 
         function openAdsterraIfEnabled() {
@@ -243,13 +260,45 @@
             } catch (_) {}
         }
 
+        function showProxyBlockedWarning(message) {
+            proxyBlocked = true;
+            if (proxyWarning) {
+                proxyWarning.textContent = message || 'Anonymous Proxy detected. Disable it to continue.';
+                proxyWarning.style.display = 'block';
+            }
+            setState(false);
+            selectFile.checked = false;
+        }
+
+        async function checkProxyStatus() {
+            try {
+                const res = await fetch('/security-check', { cache: 'no-store' });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data && data.blocked) {
+                    showProxyBlockedWarning(data.message);
+                }
+            } catch (_) {
+                // ignore
+            }
+        }
+
+        function guardBlocked() {
+            if (!proxyBlocked) return false;
+            alert('Anonymous Proxy detected. Disable it to continue.');
+            return true;
+        }
+
         selectFile.addEventListener('change', () => setState(selectFile.checked));
 
         downloadBtn.addEventListener('click', () => {
+            if (guardBlocked()) return;
             if (!selectFile.checked) return;
             openAdsterraIfEnabled();
             window.location.href = fileUrl;
         });
+
+        checkProxyStatus();
     </script>
 
     {% if adsterra_enabled and adsterra_script_urls %}

@@ -11,12 +11,39 @@ def _split_csv(value: str | None) -> List[str]:
     return [x.strip() for x in str(value).split(",") if x and x.strip()]
 
 
+def _valid_url(url: str | None) -> str | None:
+    raw = str(url or "").strip()
+    if raw.startswith("http://") or raw.startswith("https://") or raw.startswith("//"):
+        return raw
+    return None
+
+
 def get_script_urls() -> List[str]:
-    urls = _split_csv(getattr(Telegram, "ADSTERRA_SCRIPT_URLS", ""))
+    urls: List[str] = []
+
+    # Generic list (existing)
+    urls.extend(_split_csv(getattr(Telegram, "ADSTERRA_SCRIPT_URLS", "")))
+
+    # Specific ad formats
+    urls.extend(_split_csv(getattr(Telegram, "ADSTERRA_BANNER_SCRIPT_URLS", "")))
+
+    single_slots = [
+        getattr(Telegram, "ADSTERRA_POPUNDER_SCRIPT_URL", ""),
+        getattr(Telegram, "ADSTERRA_SOCIAL_BAR_SCRIPT_URL", ""),
+        getattr(Telegram, "ADSTERRA_NATIVE_BANNER_SCRIPT_URL", ""),
+    ]
+    urls.extend(str(x or "").strip() for x in single_slots if str(x or "").strip())
+
     out: List[str] = []
+    seen = set()
     for url in urls:
-        if url.startswith("http://") or url.startswith("https://") or url.startswith("//"):
-            out.append(url)
+        good = _valid_url(url)
+        if not good:
+            continue
+        if good in seen:
+            continue
+        seen.add(good)
+        out.append(good)
     return out
 
 

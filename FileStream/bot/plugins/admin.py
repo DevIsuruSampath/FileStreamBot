@@ -128,8 +128,15 @@ async def webads_toggle(c: Client, m: Message):
 
     has_direct = bool(getattr(Telegram, "ADSTERRA_DIRECT_LINK", "").strip())
     has_scripts = bool(getattr(Telegram, "ADSTERRA_SCRIPT_URLS", "").strip())
+    has_popunder = bool(getattr(Telegram, "ADSTERRA_POPUNDER_SCRIPT_URL", "").strip())
+    has_social_bar = bool(getattr(Telegram, "ADSTERRA_SOCIAL_BAR_SCRIPT_URL", "").strip())
+    has_native_banner = bool(getattr(Telegram, "ADSTERRA_NATIVE_BANNER_SCRIPT_URL", "").strip())
+    has_banners = bool(getattr(Telegram, "ADSTERRA_BANNER_SCRIPT_URLS", "").strip())
     has_api = adsterra_api_ready()
-    configured = bool(getattr(Telegram, "ADSTERRA_ENABLE", False) and (has_direct or has_scripts or has_api))
+    configured = bool(
+        getattr(Telegram, "ADSTERRA_ENABLE", False)
+        and (has_direct or has_scripts or has_popunder or has_social_bar or has_native_banner or has_banners or has_api)
+    )
 
     # /webads -> status
     if len(m.command) < 2:
@@ -140,7 +147,7 @@ async def webads_toggle(c: Client, m: Message):
             if configured
             else (
                 "⚠️ Set `ADSTERRA_ENABLE=True` and one of: "
-                "`ADSTERRA_DIRECT_LINK=...`, `ADSTERRA_SCRIPT_URLS=...`, or API settings (`ADSTERRA_API_ENABLE=True` + `ADSTERRA_API_KEY=...`)."
+                "`ADSTERRA_DIRECT_LINK=...`, script vars (`ADSTERRA_SCRIPT_URLS`/`ADSTERRA_POPUNDER_SCRIPT_URL`/`ADSTERRA_SOCIAL_BAR_SCRIPT_URL`/`ADSTERRA_NATIVE_BANNER_SCRIPT_URL`/`ADSTERRA_BANNER_SCRIPT_URLS`), or API settings (`ADSTERRA_API_ENABLE=True` + `ADSTERRA_API_KEY=...`)."
             )
         )
         await m.reply_text(
@@ -205,15 +212,21 @@ async def webads_toggle(c: Client, m: Message):
                 f"Status: `{state}`\n"
                 f"Env Config: `{cfg}`\n"
                 f"Direct Link Configured: `{'Yes' if has_direct else 'No'}`\n"
-                f"Script URLs Configured: `{'Yes' if has_scripts else 'No'}`\n"
-                f"API Configured: `{'Yes' if has_api else 'No'}`"
+                f"Generic Script URLs: `{'Yes' if has_scripts else 'No'}`\n"
+                f"Popunder Script: `{'Yes' if has_popunder else 'No'}`\n"
+                f"Social Bar Script: `{'Yes' if has_social_bar else 'No'}`\n"
+                f"Native Banner Script: `{'Yes' if has_native_banner else 'No'}`\n"
+                f"Banner Scripts: `{'Yes' if has_banners else 'No'}`\n"
+                f"API Configured: `{'Yes' if has_api else 'No'}`\n"
+                f"Adult Ads Allowed: `{'Yes' if getattr(Telegram, 'ADSTERRA_ALLOW_ADULT', False) else 'No'}`"
                 f"{api_block}\n\n"
                 "Docs (Partners API): https://docs.adsterratools.com/public/v3/partners-api\n"
                 "Docs (Publishers API): https://docs.adsterratools.com/public/v3/publishers-api\n\n"
                 "Env options:\n"
                 "`ADSTERRA_ENABLE=True`\n"
-                "`ADSTERRA_DIRECT_LINK=https://...` OR `ADSTERRA_SCRIPT_URLS=...`\n"
-                "`ADSTERRA_API_ENABLE=True` + `ADSTERRA_API_KEY=...` (optional API mode)"
+                "`ADSTERRA_DIRECT_LINK=https://...` OR any script vars (`ADSTERRA_SCRIPT_URLS`, `ADSTERRA_POPUNDER_SCRIPT_URL`, `ADSTERRA_SOCIAL_BAR_SCRIPT_URL`, `ADSTERRA_NATIVE_BANNER_SCRIPT_URL`, `ADSTERRA_BANNER_SCRIPT_URLS`)\n"
+                "`ADSTERRA_API_ENABLE=True` + `ADSTERRA_API_KEY=...` (optional API mode)\n"
+                "`ADSTERRA_ALLOW_ADULT=False` (recommended)"
             ),
             parse_mode=ParseMode.MARKDOWN,
             disable_web_page_preview=True,
@@ -227,7 +240,8 @@ async def webads_toggle(c: Client, m: Message):
         if not configured:
             msg += (
                 "\n\n⚠️ Add `ADSTERRA_ENABLE=True` and one of: `ADSTERRA_DIRECT_LINK=...`, "
-                "`ADSTERRA_SCRIPT_URLS=...`, or API settings (`ADSTERRA_API_ENABLE=True` + `ADSTERRA_API_KEY=...`)."
+                "script vars (`ADSTERRA_SCRIPT_URLS`/`ADSTERRA_POPUNDER_SCRIPT_URL`/`ADSTERRA_SOCIAL_BAR_SCRIPT_URL`/`ADSTERRA_NATIVE_BANNER_SCRIPT_URL`/`ADSTERRA_BANNER_SCRIPT_URLS`), "
+                "or API settings (`ADSTERRA_API_ENABLE=True` + `ADSTERRA_API_KEY=...`)."
             )
         await m.reply_text(text=msg, parse_mode=ParseMode.MARKDOWN, quote=True)
     elif action == "off":

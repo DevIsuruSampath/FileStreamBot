@@ -146,6 +146,16 @@
             font-size: 0.78rem;
         }
 
+        .proxy-warning {
+            border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+            background: color-mix(in srgb, var(--danger) 10%, transparent);
+            color: color-mix(in srgb, var(--danger) 80%, var(--text));
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 0.86rem;
+            margin-bottom: 12px;
+        }
+
         .manager-table {
             width: 100%;
             border-collapse: collapse;
@@ -346,6 +356,8 @@
             <span class="manager-sub">1 file</span>
         </div>
 
+        <div id="proxyWarning" class="proxy-warning hidden">Anonymous Proxy detected. Disable it to continue.</div>
+
         <table class="manager-table" aria-label="File manager">
             <thead>
             <tr>
@@ -416,6 +428,7 @@
 
     const fileRow = document.getElementById('fileRow');
     const actionPanel = document.getElementById('actionPanel');
+    const proxyWarning = document.getElementById('proxyWarning');
 
     const playBtn = document.getElementById('playBtn');
     const downloadBtn = document.getElementById('downloadBtn');
@@ -423,6 +436,7 @@
 
     let player = null;
     let selected = false;
+    let proxyBlocked = false;
 
     function ensurePlayer() {
         if (!player) {
@@ -443,7 +457,43 @@
         }
     }
 
+    function showProxyBlockedWarning(message) {
+        proxyBlocked = true;
+        const msg = message || 'Anonymous Proxy detected. Disable it to continue.';
+        if (proxyWarning) {
+            proxyWarning.textContent = msg;
+            proxyWarning.classList.remove('hidden');
+        }
+        setSelected(false);
+    }
+
+    async function checkProxyStatus() {
+        try {
+            const res = await fetch('/security-check', { cache: 'no-store' });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data && data.blocked) {
+                showProxyBlockedWarning(data.message);
+            }
+        } catch (_) {
+            // ignore check errors
+        }
+    }
+
+    function guardBlocked() {
+        if (!proxyBlocked) return false;
+        alert('Anonymous Proxy detected. Disable it to continue.');
+        return true;
+    }
+
     function setSelected(enable) {
+        if (proxyBlocked) {
+            selected = false;
+            fileRow.classList.remove('selected');
+            actionPanel.classList.add('hidden');
+            return;
+        }
+
         selected = !!enable;
         fileRow.classList.toggle('selected', selected);
         actionPanel.classList.toggle('hidden', !selected);
@@ -461,10 +511,12 @@
     }
 
     fileRow.addEventListener('click', () => {
+        if (guardBlocked()) return;
         setSelected(!selected);
     });
 
     playBtn.addEventListener('click', async () => {
+        if (guardBlocked()) return;
         if (!selected) return;
         openAdsterraIfEnabled();
         showPlayerView();
@@ -482,12 +534,14 @@
     });
 
     downloadBtn.addEventListener('click', () => {
+        if (guardBlocked()) return;
         if (!selected) return;
         openAdsterraIfEnabled();
         window.location.href = fileUrl;
     });
 
     copyBtn.addEventListener('click', async () => {
+        if (guardBlocked()) return;
         const old = copyBtn.textContent;
         try {
             await navigator.clipboard.writeText(fileUrl);
@@ -498,6 +552,8 @@
         }
         setTimeout(() => { copyBtn.textContent = old; }, 1700);
     });
+
+    checkProxyStatus();
 </script>
 
 {% if adsterra_enabled and adsterra_script_urls %}

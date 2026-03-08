@@ -100,12 +100,19 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `URL_SHORTENER_API_KEY`: API Key for the shortener.
 - `ADSTERRA_ENABLE`: Enable Adsterra integration on web pages (`True`/`False`).
 - `ADSTERRA_DIRECT_LINK`: Adsterra Smartlink/Direct Link URL.
-- `ADSTERRA_SCRIPT_URLS`: Comma-separated Adsterra script URLs for page ads.
+- `ADSTERRA_SCRIPT_URLS`: Comma-separated Adsterra script URLs (generic).
+- `ADSTERRA_POPUNDER_SCRIPT_URL`: Popunder script URL.
+- `ADSTERRA_SOCIAL_BAR_SCRIPT_URL`: Social Bar script URL.
+- `ADSTERRA_NATIVE_BANNER_SCRIPT_URL`: Native Banner script URL.
+- `ADSTERRA_BANNER_SCRIPT_URLS`: Comma-separated classic banner script URLs.
+- `ADSTERRA_ALLOW_ADULT`: Keep `False` to avoid adult ad traffic.
 - `ADSTERRA_API_ENABLE`: Enable Adsterra Publisher API mode (`True`/`False`).
 - `ADSTERRA_API_KEY`: API key for `X-API-Key` header.
 - `ADSTERRA_API_BASE`: API base URL (default `https://api3.adsterratools.com/publisher`).
 - `ADSTERRA_SMARTLINK_ID`: Optional preferred smartlink id.
 - `ADSTERRA_STATS_DAYS`: Stats window for `/webads info` (1-31).
+- `PROXY_BLOCK_ENABLE`: Block VPN/proxy/tor visitors from web pages.
+- `PROXY_CHECK_API_URL`: Proxy check endpoint (default `https://api.ipapi.is/`).
 - `FILE_PIC`: Image for `/files` command.
 - `FOLDERS_PIC`: Image for `/folders` command.
 - `START_PIC`: Image for `/start` command.

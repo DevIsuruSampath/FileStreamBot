@@ -70,8 +70,18 @@ class Telegram:
     ADSTERRA_ENABLE = str(env.get("ADSTERRA_ENABLE", "false")).lower() in ("1", "true", "t", "yes", "y")
     # Direct Link (Smartlink) from Adsterra dashboard
     ADSTERRA_DIRECT_LINK = str(env.get("ADSTERRA_DIRECT_LINK", "")).strip()
-    # Comma-separated script URLs from Adsterra (banner/social bar scripts)
-    ADSTERRA_SCRIPT_URLS = str(env.get("ADSTERRA_SCRIPT_URLS", "")).strip()
+
+    # Script URLs for ad formats
+    ADSTERRA_SCRIPT_URLS = str(env.get("ADSTERRA_SCRIPT_URLS", "")).strip()  # generic csv
+    ADSTERRA_POPUNDER_SCRIPT_URL = str(env.get("ADSTERRA_POPUNDER_SCRIPT_URL", "")).strip()
+    ADSTERRA_SOCIAL_BAR_SCRIPT_URL = str(env.get("ADSTERRA_SOCIAL_BAR_SCRIPT_URL", "")).strip()
+    ADSTERRA_NATIVE_BANNER_SCRIPT_URL = str(env.get("ADSTERRA_NATIVE_BANNER_SCRIPT_URL", "")).strip()
+    ADSTERRA_BANNER_SCRIPT_URLS = str(env.get("ADSTERRA_BANNER_SCRIPT_URLS", "")).strip()
+
+    # Safety
+    ADSTERRA_ALLOW_ADULT = str(env.get("ADSTERRA_ALLOW_ADULT", "false")).lower() in ("1", "true", "t", "yes", "y")
+    PROXY_BLOCK_ENABLE = str(env.get("PROXY_BLOCK_ENABLE", "true")).lower() in ("1", "true", "t", "yes", "y")
+    PROXY_CHECK_API_URL = str(env.get("PROXY_CHECK_API_URL", "https://api.ipapi.is/")).strip()
 
     # Optional Adsterra Publisher API integration
     ADSTERRA_API_ENABLE = str(env.get("ADSTERRA_API_ENABLE", "false")).lower() in ("1", "true", "t", "yes", "y")
