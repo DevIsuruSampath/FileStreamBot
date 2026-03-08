@@ -115,6 +115,46 @@
             padding: 16px;
         }
 
+        .ad-card {
+            padding: 12px;
+        }
+
+        .ad-label {
+            color: var(--muted);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .ad-slot-grid {
+            display: grid;
+            gap: 10px;
+            justify-items: center;
+        }
+
+        .ad-slot {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            min-height: 50px;
+        }
+
+        .ad-slot-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .desktop-only { display: block; }
+        .mobile-only { display: none !important; }
+
+        @media (max-width: 767px) {
+            .desktop-only { display: none !important; }
+            .mobile-only { display: block !important; }
+        }
+
         .manager-head {
             display: flex;
             align-items: center;
@@ -313,6 +353,20 @@
 </header>
 
 <main class="container main">
+    <section class="card ad-card desktop-only">
+        <p class="ad-label">Sponsored</p>
+        <div id="topBannerSlots" class="ad-slot-grid">
+            <div
+                class="ad-slot"
+                data-device="desktop"
+                data-key="9626363529c248162c9238de39d16745"
+                data-width="728"
+                data-height="90"
+                data-invoke-url="https://www.highperformanceformat.com/9626363529c248162c9238de39d16745/invoke.js"
+            ></div>
+        </div>
+    </section>
+
     <section id="managerView" class="card">
         <div class="manager-head">
             <span class="manager-title">File Manager</span>
@@ -348,6 +402,18 @@
                 <a href="{{ report_url }}" class="btn btn-danger">🚫 Report Adult Content</a>
                 {% endif %}
             </div>
+
+            <div id="inlineBannerSlots" class="ad-slot-grid" style="margin-top:12px;">
+                <div
+                    class="ad-slot"
+                    data-device="all"
+                    data-key="49d82824df1bb87901c1aeb13d4a5185"
+                    data-width="300"
+                    data-height="250"
+                    data-invoke-url="https://www.highperformanceformat.com/49d82824df1bb87901c1aeb13d4a5185/invoke.js"
+                ></div>
+            </div>
+
             <p class="hint">Report button is always direct (no ads).</p>
         </div>
     </section>
@@ -376,9 +442,93 @@
         </div>
         {% endif %}
     </section>
+
+    <section class="card ad-card mobile-only">
+        <p class="ad-label">Sponsored</p>
+        <div id="mobileBannerSlots" class="ad-slot-grid">
+            <div
+                class="ad-slot"
+                data-device="mobile"
+                data-key="92fbe91aad2179437131dbabf96fc28c"
+                data-width="320"
+                data-height="50"
+                data-invoke-url="https://www.highperformanceformat.com/92fbe91aad2179437131dbabf96fc28c/invoke.js"
+            ></div>
+        </div>
+    </section>
 </main>
 
 <script>
+    function isMobileView() {
+        return window.matchMedia('(max-width: 767px)').matches;
+    }
+
+    function renderBannerSlots(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const mobile = isMobileView();
+        const slots = Array.from(container.querySelectorAll('.ad-slot')).filter((slot) => {
+            if (slot.dataset.loaded === '1') return false;
+            const device = (slot.getAttribute('data-device') || 'all').toLowerCase();
+            if (device === 'desktop' && mobile) return false;
+            if (device === 'mobile' && !mobile) return false;
+            return true;
+        });
+
+        let index = 0;
+
+        const loadNext = () => {
+            if (index >= slots.length) return;
+            const slot = slots[index++];
+
+            const key = slot.getAttribute('data-key');
+            const invokeUrl = slot.getAttribute('data-invoke-url');
+            const width = parseInt(slot.getAttribute('data-width') || '0', 10);
+            const height = parseInt(slot.getAttribute('data-height') || '0', 10);
+
+            if (!key || !invokeUrl || !width || !height) {
+                slot.dataset.loaded = '1';
+                loadNext();
+                return;
+            }
+
+            const inner = document.createElement('div');
+            inner.className = 'ad-slot-inner';
+            inner.style.width = `${width}px`;
+            inner.style.height = `${height}px`;
+
+            const s1 = document.createElement('script');
+            s1.type = 'text/javascript';
+            s1.text = `atOptions = {'key' : '${key}','format' : 'iframe','height' : ${height},'width' : ${width},'params' : {}};`;
+
+            const s2 = document.createElement('script');
+            s2.type = 'text/javascript';
+            s2.src = invokeUrl;
+            s2.async = false;
+
+            const done = () => {
+                slot.dataset.loaded = '1';
+                loadNext();
+            };
+
+            s2.onload = done;
+            s2.onerror = done;
+
+            inner.appendChild(s1);
+            inner.appendChild(s2);
+            slot.appendChild(inner);
+        };
+
+        loadNext();
+    }
+
+    function renderAllBanners() {
+        renderBannerSlots('topBannerSlots');
+        renderBannerSlots('inlineBannerSlots');
+        renderBannerSlots('mobileBannerSlots');
+    }
+
     const fileUrl = {{ file_url | tojson }};
 
     const managerView = document.getElementById('managerView');
@@ -394,6 +544,7 @@
     const player = document.getElementById('player');
 
     let selected = false;
+    let bannerResizeTimer = null;
 
     function setSelected(enable) {
         selected = !!enable;
@@ -445,6 +596,12 @@
             copyBtn.textContent = '📋 Link Ready';
         }
         setTimeout(() => { copyBtn.textContent = old; }, 1700);
+    });
+
+    renderAllBanners();
+    window.addEventListener('resize', () => {
+        clearTimeout(bannerResizeTimer);
+        bannerResizeTimer = setTimeout(renderAllBanners, 250);
     });
 </script>
 
