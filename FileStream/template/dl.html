@@ -8,6 +8,7 @@
         :root {
             --bg: #0a1020;
             --card: rgba(255, 255, 255, 0.08);
+            --card-soft: rgba(255, 255, 255, 0.05);
             --text: #e8edff;
             --muted: #b6c1dd;
             --primary: #6f8cff;
@@ -34,7 +35,7 @@
         }
 
         .card {
-            width: min(520px, 100%);
+            width: min(640px, 100%);
             border-radius: var(--radius);
             padding: 24px;
             background: var(--card);
@@ -42,7 +43,6 @@
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             box-shadow: var(--shadow);
-            text-align: center;
         }
 
         .icon {
@@ -62,6 +62,7 @@
             line-height: 1.35;
             margin-bottom: 10px;
             word-break: break-word;
+            text-align: center;
         }
 
         .meta {
@@ -70,7 +71,7 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
-            margin-bottom: 18px;
+            margin-bottom: 14px;
         }
 
         .chip {
@@ -82,8 +83,47 @@
             padding: 6px 12px;
         }
 
-        .btn {
+        .hint {
+            margin-bottom: 10px;
+            color: var(--muted);
+            font-size: 0.84rem;
+            text-align: center;
+        }
+
+        .manager-table {
             width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--card-soft);
+            margin-bottom: 14px;
+        }
+
+        .manager-table th,
+        .manager-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            font-size: 0.82rem;
+            vertical-align: middle;
+        }
+
+        .manager-table th {
+            color: #c5cff0;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-size: 0.72rem;
+        }
+
+        .manager-table tr:last-child td { border-bottom: none; }
+
+        .actions {
+            display: grid;
+            gap: 10px;
+        }
+
+        .btn {
             min-height: 46px;
             border: 0;
             border-radius: 12px;
@@ -103,10 +143,18 @@
 
         .btn:active { transform: translateY(0); }
 
+        .btn[disabled],
+        .btn.disabled {
+            opacity: 0.55;
+            pointer-events: none;
+            transform: none !important;
+        }
+
         .foot {
             margin-top: 12px;
             color: var(--muted);
             font-size: 0.84rem;
+            text-align: center;
         }
 
         .report {
@@ -131,6 +179,7 @@
     <main class="card">
         <div class="icon">📄</div>
         <h1>{{ file_name }}</h1>
+
         <div class="meta">
             <span class="chip">💾 {{ file_size }}</span>
             <span class="chip">🗂️ {{ category or 'Other' }}</span>
@@ -138,15 +187,75 @@
             {% if message_id %}<span class="chip">🆔 {{ message_id }}</span>{% endif %}
         </div>
 
-        <a href="{{ file_url }}" download>
-            <button class="btn" type="button">⬇️ Download File</button>
-        </a>
+        <p class="hint">Select file row, then click download.</p>
+
+        <table class="manager-table" aria-label="File manager">
+            <thead>
+            <tr>
+                <th style="width:48px">Sel</th>
+                <th style="width:44px">#</th>
+                <th style="width:44px">Type</th>
+                <th>Name</th>
+                <th>Size</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><input id="selectFile" type="checkbox" aria-label="Select file" /></td>
+                <td>1</td>
+                <td>📄</td>
+                <td>{{ file_name }}</td>
+                <td>{{ file_size }}</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div class="actions">
+            <button id="downloadBtn" class="btn disabled" type="button" disabled>⬇️ Download Selected</button>
+        </div>
 
         <p class="foot">This link works until the file is removed.</p>
 
         {% if report_url %}
-        <a href="{{ report_url }}" class="report">🚫 Report Adult Content</a>
+        <div style="text-align:center;">
+            <a href="{{ report_url }}" class="report">🚫 Report Adult Content</a>
+        </div>
         {% endif %}
     </main>
+
+    <script>
+        const fileUrl = {{ file_url | tojson }};
+        const adsterraEnabled = {{ adsterra_enabled | tojson }};
+        const adsterraDirectLink = {{ adsterra_direct_link | tojson }};
+
+        const selectFile = document.getElementById('selectFile');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        function setState(enabled) {
+            downloadBtn.disabled = !enabled;
+            downloadBtn.classList.toggle('disabled', !enabled);
+        }
+
+        function openAdsterraIfEnabled() {
+            if (!adsterraEnabled || !adsterraDirectLink) return;
+            try {
+                window.open(adsterraDirectLink, '_blank', 'noopener,noreferrer');
+            } catch (_) {}
+        }
+
+        selectFile.addEventListener('change', () => setState(selectFile.checked));
+
+        downloadBtn.addEventListener('click', () => {
+            if (!selectFile.checked) return;
+            openAdsterraIfEnabled();
+            window.location.href = fileUrl;
+        });
+    </script>
+
+    {% if adsterra_enabled and adsterra_script_urls %}
+        {% for script_url in adsterra_script_urls %}
+        <script async src="{{ script_url }}"></script>
+        {% endfor %}
+    {% endif %}
 </body>
 </html>

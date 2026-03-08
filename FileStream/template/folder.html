@@ -255,6 +255,35 @@
             border-color: rgba(111, 140, 255, 0.45);
         }
 
+        .item-top {
+            display: grid;
+            grid-template-columns: 36px 30px 1fr;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .item-index {
+            color: var(--muted);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-align: center;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 3px 0;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .item-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.06);
+            font-size: 0.95rem;
+        }
+
         .item-title {
             font-size: 0.88rem;
             line-height: 1.35;
@@ -392,7 +421,11 @@
             <ul id="folder" class="list">
                 {% for f in files %}
                 <li class="item" data-index="{{ loop.index0 }}" data-playable="{{ '1' if f.playable else '0' }}" data-category="{{ f.category or 'Other' }}">
-                    <div class="item-title">{{ f.name }}</div>
+                    <div class="item-top">
+                        <span class="item-index">{{ loop.index }}</span>
+                        <span class="item-icon">{% if f.kind == 'video' %}🎬{% elif f.kind == 'audio' %}🎵{% else %}📄{% endif %}</span>
+                        <div class="item-title">{{ f.name }}</div>
+                    </div>
                     <div class="item-meta-row">
                         <span class="item-size">{{ f.size }}</span>
                         <span class="badge-cat">{{ f.category or 'Other' }}</span>
@@ -400,7 +433,7 @@
                     <div class="item-size">Uploader: {{ f.uploader or 'Unknown uploader' }}</div>
                     <div class="item-actions">
                         <button class="btn btn-secondary play-item {{ '' if f.playable else 'disabled' }}" {{ '' if f.playable else 'disabled' }} data-index="{{ loop.index0 }}">Play</button>
-                        <a class="btn btn-secondary" href="{{ f.url }}" download>Download</a>
+                        <a class="btn btn-secondary download-item" href="{{ f.url }}" download>Download</a>
                     </div>
                 </li>
                 {% endfor %}
@@ -419,6 +452,8 @@
     const videoWrap = document.getElementById('videoWrap');
     const audioWrap = document.getElementById('audioWrap');
     const filterWrap = document.getElementById('categoryFilters');
+    const adsterraEnabled = {{ adsterra_enabled | tojson }};
+    const adsterraDirectLink = {{ adsterra_direct_link | tojson }};
 
     const videoPlayer = new Plyr('#videoPlayer', {
         controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen'],
@@ -433,6 +468,15 @@
     let currentIndex = 0;
     let activePlayer = videoPlayer;
     let activeCategory = 'all';
+
+    function openAdsterraIfEnabled() {
+        if (!adsterraEnabled || !adsterraDirectLink) return;
+        try {
+            window.open(adsterraDirectLink, '_blank', 'noopener,noreferrer');
+        } catch (_) {
+            // ignore popup errors
+        }
+    }
 
     function getItemElement(index) {
         return document.querySelector(`.item[data-index="${index}"]`);
@@ -494,7 +538,7 @@
         try { audioPlayer.pause(); } catch (_) {}
     }
 
-    function loadMedia(index, autoPlay = true) {
+    function loadMedia(index, autoPlay = false) {
         if (!folderItems[index]) return;
         if (!isVisibleIndex(index)) return;
 
@@ -519,6 +563,15 @@
         };
 
         if (autoPlay) activePlayer.play();
+    }
+
+    function playCurrent() {
+        const item = folderItems[currentIndex];
+        if (!item || !item.playable) return;
+        openAdsterraIfEnabled();
+        try {
+            activePlayer.play();
+        } catch (_) {}
     }
 
     function nextPlayable(startIdx) {
@@ -578,28 +631,42 @@
     }
 
     listEl.addEventListener('click', (e) => {
-        if (e.target.closest('a')) return;
+        const dlLink = e.target.closest('.download-item');
+        if (dlLink) {
+            openAdsterraIfEnabled();
+            return;
+        }
 
         const playButton = e.target.closest('.play-item');
         if (playButton) {
             const index = parseInt(playButton.dataset.index, 10);
-            loadMedia(index);
+            loadMedia(index, false);
+            playCurrent();
             return;
         }
 
         const item = e.target.closest('.item');
         if (item) {
             const index = parseInt(item.dataset.index, 10);
-            loadMedia(index);
+            loadMedia(index, false);
         }
     });
 
-    playBtn.addEventListener('click', () => loadMedia(currentIndex));
+    playBtn.addEventListener('click', () => playCurrent());
+
+    downloadBtn.addEventListener('click', (e) => {
+        const href = downloadBtn.getAttribute('href');
+        if (!href || href === '#') {
+            e.preventDefault();
+            return;
+        }
+        openAdsterraIfEnabled();
+    });
 
     function onEnded() {
         const next = nextPlayable(currentIndex + 1);
         if (next !== -1) {
-            loadMedia(next);
+            loadMedia(next, true);
         }
     }
 
@@ -617,5 +684,11 @@
         }
     }
 </script>
+
+{% if adsterra_enabled and adsterra_script_urls %}
+    {% for script_url in adsterra_script_urls %}
+    <script async src="{{ script_url }}"></script>
+    {% endfor %}
+{% endif %}
 </body>
 </html>

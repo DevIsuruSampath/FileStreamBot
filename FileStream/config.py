@@ -62,9 +62,19 @@ class Telegram:
             pass
     AUTH_USERS = list(set(AUTH_USERS))
 
-    # --- [ NEW: URL SHORTENER CONFIG ] ---
+    # --- [ URL SHORTENER CONFIG ] ---
     URL_SHORTENER_API_KEY = env.get('URL_SHORTENER_API_KEY', None)
     URL_SHORTENER_SITE = env.get('URL_SHORTENER_SITE', None)
+
+    # --- [ ADSTERRA PUBLISHER INTEGRATION ] ---
+    ADSTERRA_ENABLE = str(env.get("ADSTERRA_ENABLE", "false")).lower() in ("1", "true", "t", "yes", "y")
+    # Direct Link (Smartlink) from Adsterra dashboard
+    ADSTERRA_DIRECT_LINK = str(env.get("ADSTERRA_DIRECT_LINK", "")).strip()
+    # Comma-separated script URLs from Adsterra (banner/social bar scripts)
+    ADSTERRA_SCRIPT_URLS = str(env.get("ADSTERRA_SCRIPT_URLS", "")).strip()
+    # Optional API placeholders (for custom integrations)
+    ADSTERRA_PUBLISHER_API_URL = str(env.get("ADSTERRA_PUBLISHER_API_URL", "")).strip()
+    ADSTERRA_PUBLISHER_API_KEY = str(env.get("ADSTERRA_PUBLISHER_API_KEY", "")).strip()
 
 class Server:
     PORT = int(env.get("PORT", 8080))

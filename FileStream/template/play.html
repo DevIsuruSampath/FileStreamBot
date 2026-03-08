@@ -9,9 +9,8 @@
     <style>
         :root {
             --bg: #0a1020;
-            --bg-soft: #121a33;
             --card: rgba(255, 255, 255, 0.08);
-            --card-2: rgba(255, 255, 255, 0.05);
+            --card-soft: rgba(255, 255, 255, 0.05);
             --text: #e8edff;
             --muted: #b4bfdc;
             --primary: #6f8cff;
@@ -107,6 +106,23 @@
             padding: 18px 0 28px;
         }
 
+        .layout {
+            display: grid;
+            gap: 16px;
+        }
+
+        @media (min-width: 980px) {
+            .layout {
+                grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.85fr);
+                align-items: start;
+            }
+
+            .sidebar {
+                position: sticky;
+                top: calc(var(--header-h) + 14px);
+            }
+        }
+
         .player-shell {
             overflow: hidden;
             border-radius: var(--radius);
@@ -145,6 +161,7 @@
         .meta-card {
             border-radius: var(--radius);
             padding: 16px;
+            margin-top: 14px;
         }
 
         .file-name {
@@ -159,7 +176,7 @@
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .tag {
@@ -177,6 +194,44 @@
         .hint {
             color: var(--muted);
             font-size: 0.86rem;
+            margin-bottom: 10px;
+        }
+
+        .manager-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--card-soft);
+        }
+
+        .manager-table th,
+        .manager-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            font-size: 0.82rem;
+            vertical-align: middle;
+        }
+
+        .manager-table th {
+            color: #c5cff0;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-size: 0.72rem;
+        }
+
+        .manager-table tr:last-child td { border-bottom: none; }
+        .manager-table .idx {
+            width: 44px;
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .manager-table .icon {
+            width: 44px;
+            font-size: 1rem;
         }
 
         .panel {
@@ -211,6 +266,9 @@
             font-size: 0.92rem;
             cursor: pointer;
             transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+            padding: 0 12px;
+            text-decoration: none;
+            background: transparent;
         }
 
         .btn:hover { transform: translateY(-1px); }
@@ -234,27 +292,22 @@
             color: #fecaca;
         }
 
-        .players-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+        .btn.disabled,
+        .btn[disabled] {
+            opacity: 0.55;
+            pointer-events: none;
+            transform: none !important;
         }
 
+        .players-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .players-grid .btn { min-height: 38px; font-size: 0.84rem; }
 
-        .layout {
-            display: grid;
-            gap: 16px;
+        .ad-hint {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 0.78rem;
         }
 
-        @media (min-width: 960px) {
-            .layout {
-                grid-template-columns: minmax(0, 1.7fr) minmax(290px, 0.85fr);
-                align-items: start;
-            }
-
-            .sidebar { position: sticky; top: calc(var(--header-h) + 14px); }
-        }
-
-        /* Plyr accent */
         :root { --plyr-color-main: #6f8cff; }
     </style>
 </head>
@@ -292,7 +345,7 @@
             </div>
             {% endif %}
 
-            <article class="meta-card glass" style="margin-top: 14px;">
+            <article class="meta-card glass">
                 <h1 class="file-name">{{ file_name }}</h1>
                 <div class="meta-row">
                     <span class="tag">💾 {{ file_size }}</span>
@@ -301,20 +354,43 @@
                     {% if message_id %}<span class="tag">🆔 {{ message_id }}</span>{% endif %}
                     <span class="tag">🛡️ Secure Link</span>
                 </div>
-                <p class="hint">If this file is removed from source storage, this page will stop working.</p>
+                <p class="hint">Select file row, then use Play/Download actions.</p>
+
+                <table class="manager-table" aria-label="File manager">
+                    <thead>
+                    <tr>
+                        <th style="width:48px">Sel</th>
+                        <th class="idx">#</th>
+                        <th class="icon">Type</th>
+                        <th>Name</th>
+                        <th style="white-space:nowrap;">Size</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><input id="selectFile" type="checkbox" aria-label="Select file" /></td>
+                        <td class="idx">1</td>
+                        <td class="icon">{% if is_audio %}🎵{% else %}🎬{% endif %}</td>
+                        <td>{{ file_name }}</td>
+                        <td style="white-space:nowrap;">{{ file_size }}</td>
+                    </tr>
+                    </tbody>
+                </table>
             </article>
         </section>
 
         <aside class="sidebar" style="display:grid; gap:12px;">
             <section class="panel glass">
-                <h3>Actions</h3>
+                <h3>Selected File Actions</h3>
                 <div class="actions">
-                    <button onclick="window.location.href='{{ file_url }}'" class="btn btn-primary">⬇️ Download File</button>
+                    <button id="playBtn" class="btn btn-primary disabled" disabled>▶️ Play Selected</button>
+                    <button id="downloadBtn" class="btn btn-secondary disabled" disabled>⬇️ Download Selected</button>
                     <button onclick="copyLink()" id="copyBtn" class="btn btn-secondary">📋 Copy Stream Link</button>
                     {% if report_url %}
                     <a href="{{ report_url }}" class="btn btn-danger">🚫 Report Adult Content</a>
                     {% endif %}
                 </div>
+                <p class="ad-hint">Report button is always direct (no ads).</p>
             </section>
 
             <section class="panel glass">
@@ -338,6 +414,46 @@
 
     const fileUrl = {{ file_url | tojson }};
     const fileName = {{ file_name | tojson }};
+    const adsterraEnabled = {{ adsterra_enabled | tojson }};
+    const adsterraDirectLink = {{ adsterra_direct_link | tojson }};
+
+    const selectFile = document.getElementById('selectFile');
+    const playBtn = document.getElementById('playBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    function setActionState(enabled) {
+        playBtn.disabled = !enabled;
+        downloadBtn.disabled = !enabled;
+        playBtn.classList.toggle('disabled', !enabled);
+        downloadBtn.classList.toggle('disabled', !enabled);
+    }
+
+    function openAdsterraIfEnabled() {
+        if (!adsterraEnabled || !adsterraDirectLink) return;
+        try {
+            window.open(adsterraDirectLink, '_blank', 'noopener,noreferrer');
+        } catch (_) {
+            // ignore
+        }
+    }
+
+    selectFile.addEventListener('change', () => {
+        setActionState(selectFile.checked);
+    });
+
+    playBtn.addEventListener('click', async () => {
+        if (!selectFile.checked) return;
+        openAdsterraIfEnabled();
+        try {
+            await player.play();
+        } catch (_) {}
+    });
+
+    downloadBtn.addEventListener('click', () => {
+        if (!selectFile.checked) return;
+        openAdsterraIfEnabled();
+        window.location.href = fileUrl;
+    });
 
     async function copyLink() {
         const btn = document.getElementById('copyBtn');
@@ -353,6 +469,12 @@
     }
 
     function openPlayer(app) {
+        if (!selectFile.checked) {
+            alert('Select file first.');
+            return;
+        }
+        openAdsterraIfEnabled();
+
         const safeUrl = encodeURI(fileUrl);
         const safeTitle = encodeURIComponent(fileName);
         let scheme = '';
@@ -365,5 +487,11 @@
         if (scheme) window.location.href = scheme;
     }
 </script>
+
+{% if adsterra_enabled and adsterra_script_urls %}
+    {% for script_url in adsterra_script_urls %}
+    <script async src="{{ script_url }}"></script>
+    {% endfor %}
+{% endif %}
 </body>
 </html>

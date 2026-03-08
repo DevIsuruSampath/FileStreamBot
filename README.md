@@ -98,6 +98,9 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `NUDENET_ENABLE`: Set to `True` to enable NSFW scanning.
 - `URL_SHORTENER_SITE`: Shortener domain (e.g., `api.gplinks.com`).
 - `URL_SHORTENER_API_KEY`: API Key for the shortener.
+- `ADSTERRA_ENABLE`: Enable Adsterra integration on web pages (`True`/`False`).
+- `ADSTERRA_DIRECT_LINK`: Adsterra Smartlink/Direct Link URL.
+- `ADSTERRA_SCRIPT_URLS`: Comma-separated Adsterra script URLs for page ads.
 - `FILE_PIC`: Image for `/files` command.
 - `FOLDERS_PIC`: Image for `/folders` command.
 - `START_PIC`: Image for `/start` command.

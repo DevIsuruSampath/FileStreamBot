@@ -8,6 +8,7 @@ from FileStream.bot import FileStream
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.category import detect_category
+from FileStream.utils.adsterra import is_enabled as adsterra_is_enabled, get_direct_link, get_script_urls
 from FileStream.server.exceptions import FileNotFound
 
 env = jinja2.Environment(autoescape=True)
@@ -66,6 +67,11 @@ async def render_page(db_id):
     if getattr(FileStream, "username", None):
         report_url = f"https://t.me/{FileStream.username}?start=report_file_{db_id}"
 
+    ads_status = await db.get_ads_status()
+    adsterra_enabled = adsterra_is_enabled(ads_status)
+    adsterra_direct_link = get_direct_link() if adsterra_enabled else None
+    adsterra_script_urls = get_script_urls() if adsterra_enabled else []
+
     return template.render(
         file_name=file_name,
         file_url=src,
@@ -77,6 +83,9 @@ async def render_page(db_id):
         is_audio=is_audio,
         updates_url=updates_url,
         report_url=report_url,
+        adsterra_enabled=adsterra_enabled,
+        adsterra_direct_link=adsterra_direct_link,
+        adsterra_script_urls=adsterra_script_urls,
     )
 
 
@@ -142,6 +151,11 @@ async def render_folder(folder_id: str, title: str = "Folder"):
     if getattr(FileStream, "username", None):
         report_url = f"https://t.me/{FileStream.username}?start=report_folder_{folder_id}"
 
+    ads_status = await db.get_ads_status()
+    adsterra_enabled = adsterra_is_enabled(ads_status)
+    adsterra_direct_link = get_direct_link() if adsterra_enabled else None
+    adsterra_script_urls = get_script_urls() if adsterra_enabled else []
+
     return template.render(
         folder_id=str(folder_id),
         folder_json=folder_json,
@@ -149,6 +163,9 @@ async def render_folder(folder_id: str, title: str = "Folder"):
         count=len(files),
         page_title=title,
         report_url=report_url,
+        adsterra_enabled=adsterra_enabled,
+        adsterra_direct_link=adsterra_direct_link,
+        adsterra_script_urls=adsterra_script_urls,
     )
 
 
