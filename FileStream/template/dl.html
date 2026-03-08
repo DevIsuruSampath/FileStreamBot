@@ -361,40 +361,61 @@
 
 
         function renderBannerSlots(containerId) {
-            const wrap = document.getElementById(containerId);
-            if (!wrap) return;
+        const wrap = document.getElementById(containerId);
+        if (!wrap) return;
 
-            wrap.querySelectorAll('[data-ad-slot="1"]').forEach((slot) => {
-                if (slot.dataset.loaded === '1') return;
+        const slots = Array.from(wrap.querySelectorAll('[data-ad-slot="1"]'));
+        let idx = 0;
 
-                const key = slot.getAttribute('data-key');
-                const invokeUrl = slot.getAttribute('data-invoke-url');
-                const width = parseInt(slot.getAttribute('data-width') || '0', 10);
-                const height = parseInt(slot.getAttribute('data-height') || '0', 10);
-                const format = slot.getAttribute('data-format') || 'iframe';
+        const loadNext = () => {
+            if (idx >= slots.length) return;
 
-                if (!key || !invokeUrl || !width || !height) return;
+            const slot = slots[idx++];
+            if (slot.dataset.loaded === '1') {
+                loadNext();
+                return;
+            }
 
-                const inner = document.createElement('div');
-                inner.className = 'ad-slot-inner';
-                inner.style.width = `${width}px`;
-                inner.style.height = `${height}px`;
+            const key = slot.getAttribute('data-key');
+            const invokeUrl = slot.getAttribute('data-invoke-url');
+            const width = parseInt(slot.getAttribute('data-width') || '0', 10);
+            const height = parseInt(slot.getAttribute('data-height') || '0', 10);
+            const format = slot.getAttribute('data-format') || 'iframe';
 
-                const s1 = document.createElement('script');
-                s1.text = `atOptions = { key: '${key}', format: '${format}', height: ${height}, width: ${width}, params: {} };`;
+            if (!key || !invokeUrl || !width || !height) {
+                loadNext();
+                return;
+            }
 
-                const s2 = document.createElement('script');
-                s2.src = invokeUrl;
-                s2.async = true;
+            const inner = document.createElement('div');
+            inner.className = 'ad-slot-inner';
+            inner.style.width = `${width}px`;
+            inner.style.height = `${height}px`;
 
-                inner.appendChild(s1);
-                inner.appendChild(s2);
-                slot.appendChild(inner);
+            const s1 = document.createElement('script');
+            s1.text = `atOptions = { key: '${key}', format: '${format}', height: ${height}, width: ${width}, params: {} };`;
+
+            const s2 = document.createElement('script');
+            s2.src = invokeUrl;
+            s2.async = false;
+            s2.onload = () => {
                 slot.dataset.loaded = '1';
-            });
-        }
+                loadNext();
+            };
+            s2.onerror = () => {
+                slot.dataset.loaded = '1';
+                loadNext();
+            };
 
-        function renderResponsiveBanners() {
+            inner.appendChild(s1);
+            inner.appendChild(s2);
+            slot.appendChild(inner);
+        };
+
+        loadNext();
+    }
+
+    function renderResponsiveBanners() {
             const mobile = window.matchMedia('(max-width: 768px)').matches;
             if (mobile) {
                 renderBannerSlots('bannerMobile');

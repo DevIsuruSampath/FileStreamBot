@@ -58,9 +58,13 @@ def get_direct_link() -> str | None:
 
 def _slot(key: str | None, invoke_url: str | None, width: int, height: int) -> dict[str, Any] | None:
     k = str(key or "").strip()
-    u = _valid_url(invoke_url)
-    if not k or not u:
+    if not k:
         return None
+
+    u = _valid_url(invoke_url)
+    if not u:
+        # Safe default used by provided Adsterra iframe snippets
+        u = f"https://www.highperformanceformat.com/{k}/invoke.js"
 
     return {
         "key": k,
