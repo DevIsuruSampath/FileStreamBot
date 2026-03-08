@@ -526,10 +526,6 @@
         return true;
     }
 
-    function hasCreative(slot) {
-        return !!slot.querySelector('iframe, img, ins, object, embed');
-    }
-
     function refreshAdCards() {
         const mobile = isMobileView();
         document.querySelectorAll('.ad-card').forEach((card) => {
@@ -543,7 +539,8 @@
             }
 
             const hasLoaded = eligible.some((slot) => slot.classList.contains('loaded'));
-            card.style.display = hasLoaded ? '' : 'none';
+            const hasPending = eligible.some((slot) => slot.dataset.loaded !== '1');
+            card.style.display = (hasLoaded || hasPending) ? '' : 'none';
         });
     }
 
@@ -595,8 +592,9 @@
                 window.setTimeout(() => {
                     slot.dataset.loaded = '1';
 
-                    if (ok && hasCreative(slot)) {
+                    if (ok) {
                         slot.classList.add('loaded');
+                        slot.classList.remove('ad-empty');
                     } else {
                         slot.classList.remove('loaded');
                         slot.classList.add('ad-empty');
