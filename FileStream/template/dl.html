@@ -334,10 +334,6 @@
         return true;
     }
 
-    function hasCreative(slot) {
-        return !!slot.querySelector('iframe, img, ins, object, embed');
-    }
-
     function ensureFallback(card) {
         let fallback = card.querySelector('.ad-fallback');
         if (fallback) return fallback;
@@ -438,27 +434,18 @@
                     if (ok) {
                         slot.classList.add('loaded');
                         slot.classList.remove('ad-empty');
-
-                        window.setTimeout(() => {
-                            if (!hasCreative(slot)) {
-                                slot.classList.remove('loaded');
-                                slot.classList.add('ad-empty');
-                                slot.innerHTML = '';
-                            }
-                            refreshAdCards();
-                        }, 2200);
                     } else {
                         slot.classList.remove('loaded');
                         slot.classList.add('ad-empty');
                         slot.innerHTML = '';
-                        refreshAdCards();
                     }
 
+                    refreshAdCards();
                     loadNext();
                 }, 260);
             };
 
-            const failSafe = window.setTimeout(() => settle(false), 4500);
+            const failSafe = window.setTimeout(() => settle(false), 7000);
             s2.onload = () => settle(true);
             s2.onerror = () => settle(false);
 
