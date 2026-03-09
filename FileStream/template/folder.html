@@ -386,6 +386,61 @@
             background: color-mix(in srgb, var(--primary) 22%, transparent);
             border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
         }
+        .ad-gate {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            background: rgba(8, 13, 25, 0.72);
+            backdrop-filter: blur(7px);
+            -webkit-backdrop-filter: blur(7px);
+        }
+
+        .ad-gate.show { display: flex; }
+
+        .ad-gate-card {
+            width: min(560px, 96%);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--surface, var(--card, #ffffff));
+            box-shadow: var(--shadow);
+            padding: 18px;
+            text-align: center;
+        }
+
+        .ad-gate-title {
+            font-size: 1rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .ad-gate-text {
+            color: var(--muted);
+            font-size: 0.88rem;
+            margin-bottom: 14px;
+            line-height: 1.45;
+        }
+
+        .ad-gate-btn {
+            min-height: 42px;
+            border: 0;
+            border-radius: 10px;
+            padding: 0 14px;
+            font-weight: 700;
+            cursor: pointer;
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary), var(--primary-2));
+        }
+
+        .ad-gate-note {
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
     </style>
 </head>
 <body>
@@ -531,6 +586,20 @@
     </section>
 </main>
 
+
+<div id="adGate" class="ad-gate" role="dialog" aria-modal="true" aria-live="polite">
+    <div class="ad-gate-card">
+        <p class="ad-gate-title">Please disable VPN / Ad Blocker</p>
+        <p class="ad-gate-text">
+            We respect your privacy. Ads help us keep this service free and fast.
+            Please disable VPN, proxy, private DNS, or ad blocker for this page, then reload.
+            Thank you for supporting our server.
+        </p>
+        <button id="adGateReloadBtn" class="ad-gate-btn" type="button">I disabled it — Reload page</button>
+        <p class="ad-gate-note">Thank you for your support ❤️</p>
+    </div>
+</div>
+
 <script>
     function isMobileView() {
         return window.matchMedia('(max-width: 767px)').matches;
@@ -565,6 +634,10 @@
 
     function refreshAdCards() {
         const mobile = isMobileView();
+        let totalEligible = 0;
+        let totalLoaded = 0;
+        let totalPending = 0;
+
         document.querySelectorAll('.ad-card').forEach((card) => {
             const cardSlots = Array.from(card.querySelectorAll('.ad-slot'));
             if (!cardSlots.length) return;
@@ -577,12 +650,21 @@
                 return;
             }
 
-            const hasLoaded = eligible.some((slot) => slot.classList.contains('loaded'));
-            const hasPending = eligible.some((slot) => slot.dataset.loaded !== '1');
+            totalEligible += eligible.length;
+
+            const loadedCount = eligible.filter((slot) => slot.classList.contains('loaded')).length;
+            const pendingCount = eligible.filter((slot) => slot.dataset.loaded !== '1').length;
+            totalLoaded += loadedCount;
+            totalPending += pendingCount;
 
             card.style.display = '';
-            fallback.style.display = (!hasLoaded && !hasPending) ? 'block' : 'none';
+            fallback.style.display = (!loadedCount && !pendingCount) ? 'block' : 'none';
         });
+
+        if (adGate) {
+            const shouldShowGate = totalEligible > 0 && totalLoaded === 0 && totalPending === 0;
+            adGate.classList.toggle('show', shouldShowGate);
+        }
     }
 
     function renderAllBanners() {
@@ -672,6 +754,13 @@
     }
 
     const folderItems = {{ folder_json | safe }};
+    const adGate = document.getElementById('adGate');
+    const adGateReloadBtn = document.getElementById('adGateReloadBtn');
+
+    if (adGateReloadBtn) {
+        adGateReloadBtn.addEventListener('click', () => window.location.reload());
+    }
+
 
     const managerView = document.getElementById('managerView');
     const playerView = document.getElementById('playerView');
@@ -874,7 +963,6 @@
         bannerResizeTimer = setTimeout(renderAllBanners, 250);
     });
 </script>
-
 
 
 </body>
