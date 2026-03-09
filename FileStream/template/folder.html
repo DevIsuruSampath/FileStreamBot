@@ -543,21 +543,49 @@
         return true;
     }
 
+    function hasCreative(slot) {
+        return !!slot.querySelector('iframe, img, ins, object, embed');
+    }
+
+    function ensureFallback(card) {
+        let fallback = card.querySelector('.ad-fallback');
+        if (fallback) return fallback;
+
+        fallback = document.createElement('div');
+        fallback.className = 'ad-fallback';
+        fallback.textContent = 'Sponsored content is unavailable on this network.';
+        fallback.style.display = 'none';
+        fallback.style.marginTop = '8px';
+        fallback.style.padding = '10px 12px';
+        fallback.style.border = '1px dashed var(--border)';
+        fallback.style.borderRadius = '10px';
+        fallback.style.color = 'var(--muted)';
+        fallback.style.fontSize = '12px';
+        fallback.style.textAlign = 'center';
+
+        card.appendChild(fallback);
+        return fallback;
+    }
+
     function refreshAdCards() {
         const mobile = isMobileView();
         document.querySelectorAll('.ad-card').forEach((card) => {
             const cardSlots = Array.from(card.querySelectorAll('.ad-slot'));
             if (!cardSlots.length) return;
 
+            const fallback = ensureFallback(card);
             const eligible = cardSlots.filter((slot) => slotMatchesDevice(slot, mobile));
             if (!eligible.length) {
                 card.style.removeProperty('display');
+                fallback.style.display = 'none';
                 return;
             }
 
             const hasLoaded = eligible.some((slot) => slot.classList.contains('loaded'));
             const hasPending = eligible.some((slot) => slot.dataset.loaded !== '1');
-            card.style.display = (hasLoaded || hasPending) ? '' : 'none';
+
+            card.style.display = '';
+            fallback.style.display = (!hasLoaded && !hasPending) ? 'block' : 'none';
         });
     }
 
@@ -585,11 +613,13 @@
             if (!key || !invokeUrl || !width || !height) {
                 slot.dataset.loaded = '1';
                 slot.classList.add('ad-empty');
+                refreshAdCards();
                 loadNext();
                 return;
             }
 
             slot.innerHTML = '';
+            slot.classList.remove('loaded', 'ad-empty');
 
             const inner = document.createElement('div');
             inner.className = 'ad-slot-inner';
@@ -605,25 +635,41 @@
             s2.src = invokeUrl;
             s2.async = false;
 
-            const finalize = (ok) => {
+            let settled = false;
+            const settle = (ok) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(failSafe);
+
                 window.setTimeout(() => {
                     slot.dataset.loaded = '1';
 
                     if (ok) {
                         slot.classList.add('loaded');
                         slot.classList.remove('ad-empty');
+
+                        window.setTimeout(() => {
+                            if (!hasCreative(slot)) {
+                                slot.classList.remove('loaded');
+                                slot.classList.add('ad-empty');
+                                slot.innerHTML = '';
+                            }
+                            refreshAdCards();
+                        }, 2200);
                     } else {
                         slot.classList.remove('loaded');
                         slot.classList.add('ad-empty');
                         slot.innerHTML = '';
+                        refreshAdCards();
                     }
 
                     loadNext();
                 }, 260);
             };
 
-            s2.onload = () => finalize(true);
-            s2.onerror = () => finalize(false);
+            const failSafe = window.setTimeout(() => settle(false), 4500);
+            s2.onload = () => settle(true);
+            s2.onerror = () => settle(false);
 
             inner.appendChild(s1);
             inner.appendChild(s2);
