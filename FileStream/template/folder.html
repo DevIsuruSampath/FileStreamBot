@@ -592,12 +592,15 @@
             return slotMatchesDevice(slot, mobile);
         });
 
-        if (!slots.length) {
-            refreshAdCards();
-            return;
-        }
+        let index = 0;
 
-        const loadSlot = (slot, done) => {
+        const loadNext = () => {
+            if (index >= slots.length) {
+                refreshAdCards();
+                return;
+            }
+
+            const slot = slots[index++];
             const key = slot.getAttribute('data-key');
             const invokeUrl = slot.getAttribute('data-invoke-url');
             const width = parseInt(slot.getAttribute('data-width') || '0', 10);
@@ -607,12 +610,9 @@
                 slot.dataset.loaded = '1';
                 slot.classList.add('ad-empty');
                 refreshAdCards();
-                done();
+                loadNext();
                 return;
             }
-
-            const attempt = parseInt(slot.dataset.attempt || '0', 10) + 1;
-            slot.dataset.attempt = String(attempt);
 
             slot.innerHTML = '';
             slot.classList.remove('loaded', 'ad-empty');
@@ -638,59 +638,23 @@
                 clearTimeout(failSafe);
 
                 window.setTimeout(() => {
+                    slot.dataset.loaded = '1';
+
                     if (ok) {
-                        slot.dataset.loaded = '1';
                         slot.classList.add('loaded');
                         slot.classList.remove('ad-empty');
-                        refreshAdCards();
-
-                        window.setTimeout(() => {
-                            const hasCreative = !!slot.querySelector('iframe, img, ins, object, embed');
-                            if (hasCreative) {
-                                done();
-                                return;
-                            }
-
-                            const tries = parseInt(slot.dataset.attempt || '1', 10);
-                            if (tries < 3) {
-                                slot.dataset.loaded = '0';
-                                slot.classList.remove('loaded', 'ad-empty');
-                                slot.innerHTML = '';
-                                refreshAdCards();
-                                loadSlot(slot, done);
-                                return;
-                            }
-
-                            slot.dataset.loaded = '1';
-                            slot.classList.remove('loaded');
-                            slot.classList.add('ad-empty');
-                            slot.innerHTML = '';
-                            refreshAdCards();
-                            done();
-                        }, 3200);
-                        return;
-                    }
-
-                    const tries = parseInt(slot.dataset.attempt || '1', 10);
-                    if (tries < 3) {
-                        slot.dataset.loaded = '0';
-                        slot.classList.remove('loaded', 'ad-empty');
+                    } else {
+                        slot.classList.remove('loaded');
+                        slot.classList.add('ad-empty');
                         slot.innerHTML = '';
-                        refreshAdCards();
-                        window.setTimeout(() => loadSlot(slot, done), 450);
-                        return;
                     }
 
-                    slot.dataset.loaded = '1';
-                    slot.classList.remove('loaded');
-                    slot.classList.add('ad-empty');
-                    slot.innerHTML = '';
                     refreshAdCards();
-                    done();
+                    loadNext();
                 }, 260);
             };
 
-            const failSafe = window.setTimeout(() => settle(false), 8000);
+            const failSafe = window.setTimeout(() => settle(false), 7000);
             s2.onload = () => settle(true);
             s2.onerror = () => settle(false);
 
@@ -699,16 +663,10 @@
             slot.appendChild(inner);
         };
 
-        let index = 0;
-        const loadNext = () => {
-            if (index >= slots.length) {
-                refreshAdCards();
-                return;
-            }
-
-            const slot = slots[index++];
-            loadSlot(slot, loadNext);
-        };
+        if (!slots.length) {
+            refreshAdCards();
+            return;
+        }
 
         loadNext();
     }
