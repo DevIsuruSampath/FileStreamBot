@@ -395,6 +395,37 @@
             font-size: 0.8rem;
         }
 
+        .ad-gate-loading,
+        .ad-gate-blocked {
+            display: none;
+        }
+
+        .ad-gate-loading.show,
+        .ad-gate-blocked.show {
+            display: block;
+        }
+
+        .ad-spinner {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 10px;
+            border-radius: 50%;
+            border: 3px solid rgba(148, 163, 184, 0.35);
+            border-top-color: var(--primary);
+            animation: adGateSpin 0.9s linear infinite;
+        }
+
+        @keyframes adGateSpin {
+            to { transform: rotate(360deg); }
+        }
+
+        .ad-gate-subtext {
+            margin-top: -2px;
+            margin-bottom: 14px;
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
     </style>
 </head>
 <body>
@@ -536,14 +567,22 @@
 
 <div id="adGate" class="ad-gate" role="dialog" aria-modal="true" aria-live="polite">
     <div class="ad-gate-card">
-        <p class="ad-gate-title">Please disable VPN / Ad Blocker</p>
-        <p class="ad-gate-text">
-            We respect your privacy. Ads help us keep this service free and fast.
-            Please disable VPN, proxy, private DNS, or ad blocker for this page, then reload.
-            Thank you for supporting our server.
-        </p>
-        <button id="adGateReloadBtn" class="ad-gate-btn" type="button">I disabled it — Reload page</button>
-        <p class="ad-gate-note">Thank you for your support ❤️</p>
+        <div id="adGateLoading" class="ad-gate-loading show">
+            <div class="ad-spinner" aria-hidden="true"></div>
+            <p class="ad-gate-title">Loading ads…</p>
+            <p class="ad-gate-subtext">Please wait 3 seconds while we prepare your page.</p>
+        </div>
+
+        <div id="adGateBlocked" class="ad-gate-blocked">
+            <p class="ad-gate-title">Please disable VPN / Ad Blocker</p>
+            <p class="ad-gate-text">
+                We respect your privacy. Ads help us keep this service free and fast.
+                Please disable VPN, proxy, private DNS, or ad blocker for this page, then reload.
+                Thank you for supporting our server.
+            </p>
+            <button id="adGateReloadBtn" class="ad-gate-btn" type="button">I disabled it — Reload page</button>
+            <p class="ad-gate-note">Thank you for your support ❤️</p>
+        </div>
     </div>
 </div>
 
@@ -579,6 +618,47 @@
         return fallback;
     }
 
+    function startAdGateDelay() {
+        if (!adGate) return;
+        if (adGateDelayDone || adGateDelayTimer) return;
+
+        adGateDelayTimer = window.setTimeout(() => {
+            adGateDelayTimer = null;
+            adGateDelayDone = true;
+            refreshAdCards();
+        }, AD_GATE_DELAY_MS);
+    }
+
+    function resetAdGateDelay() {
+        if (adGateDelayTimer) {
+            clearTimeout(adGateDelayTimer);
+            adGateDelayTimer = null;
+        }
+        adGateDelayDone = false;
+    }
+
+    function showAdGateLoadingState() {
+        if (!adGate) return;
+        adGate.classList.add('show');
+        if (adGateLoading) adGateLoading.classList.add('show');
+        if (adGateBlocked) adGateBlocked.classList.remove('show');
+    }
+
+    function showAdGateBlockedState() {
+        if (!adGate) return;
+        adGate.classList.add('show');
+        if (adGateLoading) adGateLoading.classList.remove('show');
+        if (adGateBlocked) adGateBlocked.classList.add('show');
+    }
+
+    function hideAdGateState() {
+        if (!adGate) return;
+        adGate.classList.remove('show');
+        if (adGateLoading) adGateLoading.classList.remove('show');
+        if (adGateBlocked) adGateBlocked.classList.remove('show');
+        resetAdGateDelay();
+    }
+
     function refreshAdCards() {
         const mobile = isMobileView();
         let totalEligible = 0;
@@ -608,9 +688,19 @@
             fallback.style.display = (!loadedCount && !pendingCount) ? 'block' : 'none';
         });
 
-        if (adGate) {
-            const shouldShowGate = totalEligible > 0 && totalLoaded === 0;
-            adGate.classList.toggle('show', shouldShowGate);
+        if (!adGate) return;
+
+        const shouldShowGate = totalEligible > 0 && totalLoaded === 0;
+        if (!shouldShowGate) {
+            hideAdGateState();
+            return;
+        }
+
+        startAdGateDelay();
+        if (!adGateDelayDone) {
+            showAdGateLoadingState();
+        } else {
+            showAdGateBlockedState();
         }
     }
 
@@ -706,6 +796,12 @@
     const smartlinkUrl = 'https://cardinaltangible.com/jpxjm6h69?key=654ea398985fb67f67bc8d74aecdedcf';
     const adGate = document.getElementById('adGate');
     const adGateReloadBtn = document.getElementById('adGateReloadBtn');
+    const adGateLoading = document.getElementById('adGateLoading');
+    const adGateBlocked = document.getElementById('adGateBlocked');
+    const AD_GATE_DELAY_MS = 3000;
+
+    let adGateDelayDone = false;
+    let adGateDelayTimer = null;
 
     if (adGateReloadBtn) {
         adGateReloadBtn.addEventListener('click', () => window.location.reload());
