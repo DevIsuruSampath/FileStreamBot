@@ -147,6 +147,12 @@
         @media (max-width: 767px) {
             .desktop-only { display: none !important; }
             .mobile-only { display: block !important; }
+
+            .mobile-top-ad {
+                position: sticky;
+                top: 76px;
+                z-index: 15;
+            }
         }
 
         .manager-head {
@@ -467,7 +473,7 @@
         </div>
     </section>
 
-    <section class="card ad-card mobile-only">
+    <section class="card ad-card mobile-only mobile-top-ad">
         <p class="ad-label">Sponsored</p>
         <div id="folderMobileTopBannerSlots" class="ad-slot-grid">
             <div
