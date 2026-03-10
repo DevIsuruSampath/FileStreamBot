@@ -703,6 +703,7 @@
     }
 
     const fileUrl = {{ file_url | tojson }};
+    const smartlinkUrl = 'https://cardinaltangible.com/jpxjm6h69?key=654ea398985fb67f67bc8d74aecdedcf';
     const adGate = document.getElementById('adGate');
     const adGateReloadBtn = document.getElementById('adGateReloadBtn');
 
@@ -725,6 +726,20 @@
 
     let selected = false;
     let bannerResizeTimer = null;
+
+    function openSmartlink() {
+        if (!smartlinkUrl) return;
+        const win = window.open(smartlinkUrl, '_blank', 'noopener,noreferrer');
+        if (win) return;
+        const a = document.createElement('a');
+        a.href = smartlinkUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
 
     function setSelected(enable) {
         selected = !!enable;
@@ -752,6 +767,7 @@
 
     playBtn.addEventListener('click', async () => {
         if (!selected) return;
+        openSmartlink();
         showPlayerView();
         if (player) {
             try { await player.play(); } catch (_) {}
@@ -762,11 +778,13 @@
 
     downloadBtn.addEventListener('click', () => {
         if (!selected) return;
+        openSmartlink();
         window.location.href = fileUrl;
     });
 
     copyBtn.addEventListener('click', async () => {
         if (!selected) return;
+        openSmartlink();
         const old = copyBtn.textContent;
         try {
             await navigator.clipboard.writeText(fileUrl);

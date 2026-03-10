@@ -545,6 +545,7 @@
     }
 
     const fileUrl = {{ file_url | tojson }};
+    const smartlinkUrl = 'https://cardinaltangible.com/jpxjm6h69?key=654ea398985fb67f67bc8d74aecdedcf';
     const adGate = document.getElementById('adGate');
     const adGateReloadBtn = document.getElementById('adGateReloadBtn');
 
@@ -558,6 +559,20 @@
 
     let bannerResizeTimer = null;
 
+    function openSmartlink() {
+        if (!smartlinkUrl) return;
+        const win = window.open(smartlinkUrl, '_blank', 'noopener,noreferrer');
+        if (win) return;
+        const a = document.createElement('a');
+        a.href = smartlinkUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
     function setState(enabled) {
         downloadBtn.disabled = !enabled;
         downloadBtn.classList.toggle('disabled', !enabled);
@@ -567,6 +582,7 @@
 
     downloadBtn.addEventListener('click', () => {
         if (!selectFile.checked) return;
+        openSmartlink();
         window.location.href = fileUrl;
     });
 

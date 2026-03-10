@@ -760,6 +760,7 @@
     }
 
     const folderItems = {{ folder_json | safe }};
+    const smartlinkUrl = 'https://cardinaltangible.com/jpxjm6h69?key=654ea398985fb67f67bc8d74aecdedcf';
     const adGate = document.getElementById('adGate');
     const adGateReloadBtn = document.getElementById('adGateReloadBtn');
 
@@ -793,6 +794,20 @@
     let activeCategory = 'all';
     let selectedId = null;
     let bannerResizeTimer = null;
+
+    function openSmartlink() {
+        if (!smartlinkUrl) return;
+        const win = window.open(smartlinkUrl, '_blank', 'noopener,noreferrer');
+        if (win) return;
+        const a = document.createElement('a');
+        a.href = smartlinkUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
 
     function esc(text) {
         return String(text ?? '')
@@ -907,6 +922,7 @@
     function openSelectedPlayer() {
         const item = getSelectedItem();
         if (!item || !item.playable) return;
+        openSmartlink();
 
         playerTitle.textContent = item.name || 'Player';
 
@@ -935,12 +951,14 @@
     downloadBtn.addEventListener('click', () => {
         const item = getSelectedItem();
         if (!item) return;
+        openSmartlink();
         window.location.href = item.url;
     });
 
     copyBtn.addEventListener('click', async () => {
         const item = getSelectedItem();
         if (!item) return;
+        openSmartlink();
         const old = copyBtn.textContent;
         try {
             await navigator.clipboard.writeText(item.url);
