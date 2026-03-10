@@ -453,7 +453,7 @@
         });
 
         if (adGate) {
-            const shouldShowGate = totalEligible > 0 && totalLoaded === 0 && totalPending === 0;
+            const shouldShowGate = totalEligible > 0 && totalLoaded === 0;
             adGate.classList.toggle('show', shouldShowGate);
         }
     }
@@ -464,6 +464,8 @@
             if (slot.dataset.loaded === '1') return false;
             return slotMatchesDevice(slot, mobile);
         });
+
+        refreshAdCards();
 
         let index = 0;
 
