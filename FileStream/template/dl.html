@@ -694,11 +694,83 @@
 <script>
 (function () {
     const SOCIAL_BAR_DESKTOP_URL = 'https://cardinaltangible.com/27/fa/cf/27facf136dc45ce0b5faf7b999e9e6f0.js';
-    // Replace with a dedicated mobile social bar script URL if Adsterra gives one.
+    // Replace with dedicated mobile social bar URL from Adsterra when available.
     const SOCIAL_BAR_MOBILE_URL = 'https://cardinaltangible.com/27/fa/cf/27facf136dc45ce0b5faf7b999e9e6f0.js';
 
     const isMobile = window.matchMedia('(max-width: 767px)').matches;
     const socialBarUrl = isMobile ? SOCIAL_BAR_MOBILE_URL : SOCIAL_BAR_DESKTOP_URL;
+
+    function topOffset() {
+        const header = document.querySelector('.header');
+        return (header ? header.offsetHeight : 0) + 10;
+    }
+
+    function forceTopRight(el) {
+        if (!(el instanceof HTMLElement)) return;
+
+        const cs = window.getComputedStyle(el);
+        const pos = cs.position;
+        const z = Number.parseInt(cs.zIndex || '0', 10);
+
+        if (!['fixed', 'absolute', 'sticky'].includes(pos) && z < 1000) return;
+
+        if (el.offsetWidth > 520 || el.offsetHeight > 520) return;
+
+        el.style.setProperty('left', 'auto', 'important');
+        el.style.setProperty('right', '10px', 'important');
+        el.style.setProperty('top', `${topOffset()}px`, 'important');
+        el.style.setProperty('bottom', 'auto', 'important');
+        el.style.setProperty('z-index', '9998', 'important');
+    }
+
+    function nudgeCandidate(node) {
+        if (!(node instanceof HTMLElement)) return;
+
+        const idClass = `${node.id || ''} ${(node.className || '')}`.toLowerCase();
+        const iframeHit = node.matches('iframe[src*="cardinaltangible"], iframe[src*="highperformanceformat"]');
+        const namedHit = idClass.includes('social') || idClass.includes('popup') || idClass.includes('bar');
+
+        if (iframeHit || namedHit) {
+            forceTopRight(node);
+            if (node.parentElement) forceTopRight(node.parentElement);
+            if (node.parentElement?.parentElement) forceTopRight(node.parentElement.parentElement);
+            return;
+        }
+
+        node.querySelectorAll?.('iframe[src*="cardinaltangible"], iframe[src*="highperformanceformat"], [id*="social"], [class*="social"], [id*="popup"], [class*="popup"], [id*="bar"], [class*="bar"]').forEach((el) => {
+            forceTopRight(el);
+            if (el.parentElement) forceTopRight(el.parentElement);
+            if (el.parentElement?.parentElement) forceTopRight(el.parentElement.parentElement);
+        });
+    }
+
+    function enforceTopRightSweep() {
+        document.querySelectorAll('iframe[src*="cardinaltangible"], iframe[src*="highperformanceformat"], [id*="social"], [class*="social"], [id*="popup"], [class*="popup"], [id*="bar"], [class*="bar"]').forEach((el) => {
+            forceTopRight(el);
+            if (el.parentElement) forceTopRight(el.parentElement);
+            if (el.parentElement?.parentElement) forceTopRight(el.parentElement.parentElement);
+        });
+    }
+
+    function startPositionWatcher() {
+        if (!document.body) return;
+
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((m) => m.addedNodes.forEach((n) => nudgeCandidate(n)));
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        let tries = 0;
+        const timer = window.setInterval(() => {
+            enforceTopRightSweep();
+            tries += 1;
+            if (tries >= 30) {
+                window.clearInterval(timer);
+                observer.disconnect();
+            }
+        }, 500);
+    }
 
     function loadSocialBar(tag) {
         if (!socialBarUrl) return;
@@ -709,15 +781,23 @@
         s.async = true;
         s.dataset.socialbar = tag;
         document.body.appendChild(s);
+
+        window.setTimeout(enforceTopRightSweep, 600);
+        window.setTimeout(enforceTopRightSweep, 1800);
+        window.setTimeout(enforceTopRightSweep, 3200);
     }
+
+    const boot = () => {
+        startPositionWatcher();
+        loadSocialBar('primary');
+    };
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => loadSocialBar('primary'), { once: true });
+        document.addEventListener('DOMContentLoaded', boot, { once: true });
     } else {
-        loadSocialBar('primary');
+        boot();
     }
 
-    // Mobile re-fire helps when first call is dropped by strict mobile webviews.
     if (isMobile) {
         window.setTimeout(() => loadSocialBar('mobile-retry'), 1200);
     }
