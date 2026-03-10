@@ -805,7 +805,38 @@
 
 
 
-<script src="https://cardinaltangible.com/27/fa/cf/27facf136dc45ce0b5faf7b999e9e6f0.js"></script>
+<script>
+(function () {
+    const SOCIAL_BAR_DESKTOP_URL = 'https://cardinaltangible.com/27/fa/cf/27facf136dc45ce0b5faf7b999e9e6f0.js';
+    // Replace with a dedicated mobile social bar script URL if Adsterra gives one.
+    const SOCIAL_BAR_MOBILE_URL = 'https://cardinaltangible.com/27/fa/cf/27facf136dc45ce0b5faf7b999e9e6f0.js';
+
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    const socialBarUrl = isMobile ? SOCIAL_BAR_MOBILE_URL : SOCIAL_BAR_DESKTOP_URL;
+
+    function loadSocialBar(tag) {
+        if (!socialBarUrl) return;
+        if (document.querySelector(`script[data-socialbar="${tag}"]`)) return;
+
+        const s = document.createElement('script');
+        s.src = socialBarUrl;
+        s.async = true;
+        s.dataset.socialbar = tag;
+        document.body.appendChild(s);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => loadSocialBar('primary'), { once: true });
+    } else {
+        loadSocialBar('primary');
+    }
+
+    // Mobile re-fire helps when first call is dropped by strict mobile webviews.
+    if (isMobile) {
+        window.setTimeout(() => loadSocialBar('mobile-retry'), 1200);
+    }
+})();
+</script>
 
 </body>
 </html>
