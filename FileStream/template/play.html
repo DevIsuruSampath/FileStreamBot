@@ -7,35 +7,21 @@
     <title>Stream</title>
     <style>
         :root {
-            --bg: #f4f7fc;
-            --surface: #ffffff;
-            --surface-soft: #f8faff;
-            --text: #111827;
-            --muted: #6b7280;
-            --primary: #4f46e5;
-            --primary-2: #6366f1;
-            --accent: #0ea5e9;
-            --danger: #dc2626;
-            --border: #dbe3f2;
-            --shadow: 0 10px 26px rgba(15, 23, 42, 0.10);
+            --bg: #0a0a0a;
+            --surface: #181818;
+            --surface-soft: #1f1f1f;
+            --card: rgba(24, 24, 24, 0.92);
+            --card-soft: rgba(36, 36, 36, 0.82);
+            --text: #ffffff;
+            --muted: #b3b3b3;
+            --primary: #e50914;
+            --primary-2: #b20710;
+            --accent: #e50914;
+            --danger: #ff5f6d;
+            --border: #2a2a2a;
+            --shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
             --radius: 14px;
             --radius-sm: 10px;
-        }
-
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg: #0b1220;
-                --surface: #111a2d;
-                --surface-soft: #0f1729;
-                --text: #e5ecff;
-                --muted: #a6b2cf;
-                --primary: #6f8cff;
-                --primary-2: #7a5cff;
-                --accent: #2dd4bf;
-                --danger: #f87171;
-                --border: #24314b;
-                --shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
-            }
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -43,7 +29,10 @@
         body {
             font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
             color: var(--text);
-            background: var(--bg);
+            background:
+                radial-gradient(1200px 600px at 8% -10%, rgba(229, 9, 20, 0.22), transparent 60%),
+                radial-gradient(1000px 520px at 100% 8%, rgba(178, 7, 16, 0.2), transparent 60%),
+                linear-gradient(180deg, #111111 0%, #0a0a0a 100%);
             min-height: 100vh;
             line-height: 1.35;
         }
@@ -61,7 +50,7 @@
             top: 0;
             z-index: 20;
             border-bottom: 1px solid var(--border);
-            background: color-mix(in srgb, var(--surface) 86%, transparent);
+            background: linear-gradient(to bottom, rgba(20,20,20,0.95) 0%, rgba(20,20,20,0.82) 70%, rgba(20,20,20,0.5) 100%);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
         }
@@ -87,8 +76,8 @@
             width: 10px;
             height: 10px;
             border-radius: 999px;
-            background: linear-gradient(135deg, var(--accent), var(--primary));
-            box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 25%, transparent);
+            background: linear-gradient(135deg, #ff3b47, var(--primary));
+            box-shadow: 0 0 0 6px rgba(229, 9, 20, 0.22);
         }
 
         .updates-link {

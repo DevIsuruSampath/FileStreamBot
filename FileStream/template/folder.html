@@ -7,31 +7,21 @@
     <title>{{ page_title or 'Folder' }} ({{ count }})</title>
     <style>
         :root {
-            --bg: #f8fafc;
-            --surface: #ffffff;
-            --surface-soft: #f1f5f9;
-            --text: #0f172a;
-            --muted: #64748b;
-            --primary: #6366f1;
-            --primary-2: #8b5cf6;
-            --accent: #38bdf8;
-            --danger: #ef4444;
-            --border: #e2e8f0;
-            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-            --radius: 16px;
-            --radius-sm: 12px;
-        }
-
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg: #0f172a;
-                --surface: #1e293b;
-                --surface-soft: #0f172a;
-                --text: #f8fafc;
-                --muted: #94a3b8;
-                --border: #334155;
-                --shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
-            }
+            --bg: #0a0a0a;
+            --surface: #181818;
+            --surface-soft: #1f1f1f;
+            --card: rgba(24, 24, 24, 0.92);
+            --card-soft: rgba(36, 36, 36, 0.82);
+            --text: #ffffff;
+            --muted: #b3b3b3;
+            --primary: #e50914;
+            --primary-2: #b20710;
+            --accent: #e50914;
+            --danger: #ff5f6d;
+            --border: #2a2a2a;
+            --shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
+            --radius: 14px;
+            --radius-sm: 10px;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -39,7 +29,10 @@
         body {
             font-family: Inter, system-ui, -apple-system, sans-serif;
             color: var(--text);
-            background: var(--bg);
+            background:
+                radial-gradient(1200px 600px at 8% -10%, rgba(229, 9, 20, 0.22), transparent 60%),
+                radial-gradient(1000px 520px at 100% 8%, rgba(178, 7, 16, 0.2), transparent 60%),
+                linear-gradient(180deg, #111111 0%, #0a0a0a 100%);
             min-height: 100vh;
             line-height: 1.5;
         }
@@ -53,7 +46,7 @@
             position: sticky;
             top: 0;
             z-index: 20;
-            background: color-mix(in srgb, var(--bg) 80%, transparent);
+            background: linear-gradient(to bottom, rgba(20,20,20,0.95) 0%, rgba(20,20,20,0.82) 70%, rgba(20,20,20,0.5) 100%);
             backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border);
         }
@@ -78,7 +71,8 @@
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--accent), var(--primary));
+            background: linear-gradient(135deg, #ff3b47, var(--primary));
+            box-shadow: 0 0 0 6px rgba(229, 9, 20, 0.22);
         }
 
         .count-tag {
