@@ -320,6 +320,46 @@
             font-size: 0.8rem;
         }
 
+        .btn-continue {
+            border-style: dashed;
+        }
+
+        .row-progress {
+            margin-top: 6px;
+        }
+
+        .row-progress-track {
+            width: 100%;
+            height: 5px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+
+        .row-progress-fill {
+            display: block;
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #ff3b47, var(--primary));
+        }
+
+        .row-progress-text {
+            font-size: 0.7rem;
+            color: var(--muted);
+        }
+
+        .resume-pill {
+            display: inline-flex;
+            margin-left: 6px;
+            padding: 2px 7px;
+            border-radius: 999px;
+            font-size: 0.68rem;
+            color: #ffd8db;
+            border: 1px solid rgba(229,9,20,0.45);
+            background: rgba(229,9,20,0.2);
+        }
+
         .player-top {
             display: flex;
             align-items: center;
@@ -556,6 +596,7 @@
             <div id="selectedMeta" class="selected-meta"></div>
             <div class="actions">
                 <button id="playBtn" class="btn btn-primary">▶️ Play</button>
+                <button id="continueBtn" class="btn btn-secondary btn-continue hidden" type="button">⏯ Continue</button>
                 <button id="downloadBtn" class="btn btn-secondary">⬇️ Download</button>
                 <button id="copyBtn" class="btn btn-secondary">📋 Copy Stream Link</button>
                 {% if report_url %}
@@ -873,6 +914,7 @@
     const selectedMeta = document.getElementById('selectedMeta');
 
     const playBtn = document.getElementById('playBtn');
+    const continueBtn = document.getElementById('continueBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const copyBtn = document.getElementById('copyBtn');
 
@@ -884,6 +926,121 @@
     let activeCategory = 'all';
     let selectedId = null;
     let bannerResizeTimer = null;
+
+    const FOLDER_PROGRESS_STORE_KEY = 'fsb_folder_progress_v1';
+    const PROGRESS_MIN_SECONDS = 8;
+    const PROGRESS_SAVE_INTERVAL_MS = 2500;
+
+    let activePlaybackId = null;
+    let activePlaybackKind = null;
+    let activeProgressTick = 0;
+
+    function formatClock(seconds) {
+        const s = Math.max(0, Math.floor(Number(seconds) || 0));
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
+        if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+        return `${m}:${String(sec).padStart(2, '0')}`;
+    }
+
+    function readProgressMap() {
+        try {
+            const raw = localStorage.getItem(FOLDER_PROGRESS_STORE_KEY);
+            if (!raw) return {};
+            const data = JSON.parse(raw);
+            return data && typeof data === 'object' ? data : {};
+        } catch (_) {
+            return {};
+        }
+    }
+
+    function writeProgressMap(map) {
+        try {
+            localStorage.setItem(FOLDER_PROGRESS_STORE_KEY, JSON.stringify(map));
+        } catch (_) {}
+    }
+
+    function itemProgressKey(item) {
+        if (!item) return '';
+        return String(item.id || item.url || '').trim();
+    }
+
+    function getItemProgress(item) {
+        const key = itemProgressKey(item);
+        if (!key) return null;
+        const map = readProgressMap();
+        return map[key] || null;
+    }
+
+    function getResumeSeconds(item) {
+        const p = getItemProgress(item);
+        if (!p) return 0;
+        const d = Number(p.duration || 0);
+        const c = Number(p.current || 0);
+        if (!Number.isFinite(d) || !Number.isFinite(c) || d <= 0) return 0;
+        const safe = Math.min(c, Math.max(d - 4, 0));
+        return safe >= PROGRESS_MIN_SECONDS ? safe : 0;
+    }
+
+    function getProgressPercent(item) {
+        const p = getItemProgress(item);
+        if (!p) return 0;
+        const d = Number(p.duration || 0);
+        const c = Number(p.current || 0);
+        if (!Number.isFinite(d) || !Number.isFinite(c) || d <= 0) return 0;
+        return Math.max(0, Math.min(100, Math.round((c / d) * 100)));
+    }
+
+    function saveItemProgress(item, current, duration) {
+        const key = itemProgressKey(item);
+        if (!key) return;
+
+        const c = Number(current);
+        const d = Number(duration);
+        if (!Number.isFinite(c) || !Number.isFinite(d) || d <= 0) return;
+
+        const map = readProgressMap();
+        map[key] = {
+            current: Math.max(0, Math.min(c, d)),
+            duration: d,
+            updatedAt: Date.now(),
+            name: item?.name || '',
+        };
+        writeProgressMap(map);
+    }
+
+    function persistActiveProgress(force = false) {
+        const now = Date.now();
+        if (!force && now - activeProgressTick < PROGRESS_SAVE_INTERVAL_MS) return;
+        activeProgressTick = now;
+
+        if (!activePlaybackId || !activePlaybackKind) return;
+        const item = folderItems.find((x) => String(x.id) === String(activePlaybackId));
+        if (!item) return;
+
+        const media = activePlaybackKind === 'audio' ? audioPlayer : videoPlayer;
+        if (!media) return;
+
+        const current = Number(media.currentTime);
+        const duration = Number(media.duration);
+        if (!Number.isFinite(current) || !Number.isFinite(duration) || duration <= 0) return;
+
+        saveItemProgress(item, current, duration);
+        updateActionPanel();
+    }
+
+    function playMediaAt(media, startAt = 0) {
+        const begin = async () => {
+            if (startAt > 0) {
+                try { media.currentTime = startAt; } catch (_) {}
+            }
+            try { await media.play(); } catch (_) {}
+        };
+
+        if (media.readyState >= 1) begin();
+        else media.addEventListener('loadedmetadata', begin, { once: true });
+    }
 
     function openSmartlink() {
         if (!smartlinkUrl) return;
@@ -932,15 +1089,24 @@
             selectedMeta.textContent = '';
             playBtn.disabled = true;
             playBtn.classList.add('disabled');
+            if (continueBtn) {
+                continueBtn.classList.add('hidden');
+                continueBtn.disabled = true;
+                continueBtn.classList.add('disabled');
+            }
             return;
         }
 
         selectedName.textContent = item.name || 'file';
 
+        const resumeSeconds = getResumeSeconds(item);
+        const resumePercent = getProgressPercent(item);
+
         const info = [
             item.size || '',
             `Category: ${item.category || 'Other'}`,
             `Uploader: ${item.uploader || 'Unknown uploader'}`,
+            resumeSeconds > 0 ? `Resume: ${formatClock(resumeSeconds)} (${resumePercent}%)` : '',
         ];
         if (item.message_id) info.push(`Message ID: ${item.message_id}`);
         selectedMeta.textContent = info.filter(Boolean).join(' • ');
@@ -954,6 +1120,13 @@
             playBtn.disabled = true;
             playBtn.classList.add('disabled');
         }
+
+        if (continueBtn) {
+            const canContinue = item.playable && resumeSeconds > 0;
+            continueBtn.classList.toggle('hidden', !canContinue);
+            continueBtn.disabled = !canContinue;
+            continueBtn.classList.toggle('disabled', !canContinue);
+        }
     }
 
     function renderRows() {
@@ -962,11 +1135,20 @@
         tableBody.innerHTML = visible
             .map((item, idx) => {
                 const selectedClass = String(item.id) === String(selectedId) ? ' selected' : '';
+                const resumeSeconds = getResumeSeconds(item);
+                const progressPercent = getProgressPercent(item);
+                const resumeMarkup = resumeSeconds > 0
+                    ? `<span class="resume-pill">Resume ${formatClock(resumeSeconds)}</span>`
+                    : '';
+                const progressMarkup = resumeSeconds > 0
+                    ? `<div class="row-progress"><div class="row-progress-track"><span class="row-progress-fill" style="width:${progressPercent}%;"></span></div><div class="row-progress-text">${progressPercent}% watched</div></div>`
+                    : '';
+
                 return `
                     <tr class="file-row${selectedClass}" data-id="${esc(item.id)}">
                         <td class="idx">${idx + 1}</td>
                         <td class="icon">${iconFor(item.kind)}</td>
-                        <td>${esc(item.name)}</td>
+                        <td>${esc(item.name)}${resumeMarkup}${progressMarkup}</td>
                         <td><span class="cat-badge">${esc(item.category || 'Other')}</span></td>
                         <td>${esc(item.uploader || 'Unknown uploader')}</td>
                         <td style="white-space:nowrap;">${esc(item.size || '')}</td>
@@ -1003,16 +1185,21 @@
     }
 
     function showManagerView() {
+        persistActiveProgress(true);
         try { videoPlayer.pause(); } catch (_) {}
         try { audioPlayer.pause(); } catch (_) {}
         playerView.classList.add('hidden');
         managerView.classList.remove('hidden');
+        renderRows();
     }
 
-    function openSelectedPlayer() {
+    function openSelectedPlayer(startAt = 0) {
         const item = getSelectedItem();
         if (!item || !item.playable) return;
         openSmartlink();
+
+        activePlaybackId = String(item.id);
+        activePlaybackKind = item.kind === 'audio' ? 'audio' : 'video';
 
         playerTitle.textContent = item.name || 'Player';
 
@@ -1024,7 +1211,7 @@
             audioWrap.classList.remove('hidden');
             audioPlayer.src = item.url;
             showPlayerView();
-            audioPlayer.play().catch(() => {});
+            playMediaAt(audioPlayer, startAt);
             return;
         }
 
@@ -1032,8 +1219,41 @@
         videoWrap.classList.remove('hidden');
         videoPlayer.src = item.url;
         showPlayerView();
-        videoPlayer.play().catch(() => {});
+        playMediaAt(videoPlayer, startAt);
     }
+
+    continueBtn?.addEventListener('click', () => {
+        const item = getSelectedItem();
+        if (!item) return;
+        const resume = getResumeSeconds(item);
+        if (resume <= 0) return;
+        openSelectedPlayer(resume);
+    });
+
+    function bindMediaProgress(media, kind) {
+        media.addEventListener('timeupdate', () => {
+            if (activePlaybackKind !== kind) return;
+            persistActiveProgress(false);
+        });
+        media.addEventListener('pause', () => {
+            if (activePlaybackKind !== kind) return;
+            persistActiveProgress(true);
+        });
+        media.addEventListener('ended', () => {
+            if (activePlaybackKind !== kind || !activePlaybackId) return;
+            const item = folderItems.find((x) => String(x.id) === String(activePlaybackId));
+            if (!item) return;
+            const duration = Number(media.duration);
+            if (Number.isFinite(duration) && duration > 0) {
+                saveItemProgress(item, duration, duration);
+                renderRows();
+                updateActionPanel();
+            }
+        });
+    }
+
+    bindMediaProgress(videoPlayer, 'video');
+    bindMediaProgress(audioPlayer, 'audio');
 
     backBtn.addEventListener('click', showManagerView);
     playBtn.addEventListener('click', openSelectedPlayer);

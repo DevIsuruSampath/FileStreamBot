@@ -266,6 +266,45 @@
             font-size: 0.78rem;
         }
 
+        .progress-wrap {
+            margin-top: 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px;
+            background: rgba(255,255,255,0.02);
+        }
+
+        .progress-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 7px;
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            overflow: hidden;
+            margin-bottom: 9px;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #ff3b47, var(--primary));
+            transition: width 0.25s ease;
+        }
+
+        .btn-continue {
+            width: 100%;
+        }
+
         .player-top {
             display: flex;
             align-items: center;
@@ -493,6 +532,17 @@
                 {% if report_url %}
                 <a href="{{ report_url }}" class="btn btn-danger">🚫 Report Adult Content</a>
                 {% endif %}
+            </div>
+
+            <div id="progressWrap" class="progress-wrap hidden">
+                <div class="progress-head">
+                    <span id="progressLabel">Progress</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
+                <button id="continueBtn" class="btn btn-secondary btn-continue hidden" type="button">⏯ Continue where you stopped</button>
             </div>
 
             <p class="hint">Report button is always direct (no ads).</p>
@@ -809,6 +859,12 @@
     const copyBtn = document.getElementById('copyBtn');
     const player = document.getElementById('player');
 
+    const progressWrap = document.getElementById('progressWrap');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercent = document.getElementById('progressPercent');
+    const progressLabel = document.getElementById('progressLabel');
+    const continueBtn = document.getElementById('continueBtn');
+
     let selected = false;
     let bannerResizeTimer = null;
 
@@ -826,10 +882,132 @@
         a.remove();
     }
 
+    const PROGRESS_MIN_SECONDS = 8;
+    const PROGRESS_SAVE_INTERVAL_MS = 2500;
+    let progressSaveTick = 0;
+
+    function formatClock(seconds) {
+        const s = Math.max(0, Math.floor(Number(seconds) || 0));
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
+        if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+        return `${m}:${String(sec).padStart(2, '0')}`;
+    }
+
+    function progressStorageKey() {
+        return `fsb_progress::${encodeURIComponent(fileUrl)}`;
+    }
+
+    function readProgress() {
+        try {
+            const raw = localStorage.getItem(progressStorageKey());
+            if (!raw) return null;
+            const obj = JSON.parse(raw);
+            if (!obj || typeof obj !== 'object') return null;
+            return obj;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function writeProgress(current, duration) {
+        try {
+            const c = Number(current);
+            const d = Number(duration);
+            if (!Number.isFinite(c) || !Number.isFinite(d) || d <= 0) return;
+            const payload = {
+                current: Math.max(0, Math.min(c, d)),
+                duration: d,
+                updatedAt: Date.now(),
+                name: {{ file_name | tojson }},
+            };
+            localStorage.setItem(progressStorageKey(), JSON.stringify(payload));
+        } catch (_) {}
+    }
+
+    function getResumeSeconds(progressObj) {
+        const p = progressObj || readProgress();
+        if (!p) return 0;
+        const d = Number(p.duration || 0);
+        const c = Number(p.current || 0);
+        if (!Number.isFinite(d) || !Number.isFinite(c) || d <= 0) return 0;
+        const safe = Math.min(c, Math.max(d - 4, 0));
+        return safe >= PROGRESS_MIN_SECONDS ? safe : 0;
+    }
+
+    function refreshProgressUI() {
+        if (!progressWrap || !progressBar || !progressPercent || !progressLabel) return;
+
+        const p = readProgress();
+        const duration = Number(p?.duration || 0);
+        const current = Number(p?.current || 0);
+        const valid = Number.isFinite(duration) && duration > 0 && Number.isFinite(current);
+
+        if (!valid) {
+            progressWrap.classList.add('hidden');
+            if (continueBtn) continueBtn.classList.add('hidden');
+            return;
+        }
+
+        const percent = Math.max(0, Math.min(100, Math.round((current / duration) * 100)));
+        const resume = getResumeSeconds(p);
+
+        progressWrap.classList.remove('hidden');
+        progressBar.style.width = `${percent}%`;
+        progressPercent.textContent = `${percent}%`;
+        progressLabel.textContent = resume > 0 ? `Resume at ${formatClock(resume)}` : 'Progress saved';
+
+        if (continueBtn) {
+            continueBtn.classList.toggle('hidden', resume <= 0);
+            continueBtn.disabled = resume <= 0;
+            continueBtn.classList.toggle('disabled', resume <= 0);
+        }
+    }
+
+    function persistProgressFromPlayer(force = false) {
+        if (!player) return;
+        const now = Date.now();
+        if (!force && now - progressSaveTick < PROGRESS_SAVE_INTERVAL_MS) return;
+        progressSaveTick = now;
+
+        const duration = Number(player.duration);
+        const current = Number(player.currentTime);
+        if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(current)) return;
+        writeProgress(current, duration);
+        refreshProgressUI();
+    }
+
+    function openPlayerAt(startAt = 0) {
+        showPlayerView();
+        if (!player) return;
+
+        const begin = async () => {
+            if (startAt > 0) {
+                try {
+                    player.currentTime = startAt;
+                } catch (_) {}
+            }
+            try { await player.play(); } catch (_) {}
+        };
+
+        if (player.readyState >= 1) {
+            begin();
+        } else {
+            player.addEventListener('loadedmetadata', begin, { once: true });
+        }
+    }
+
     function setSelected(enable) {
         selected = !!enable;
         fileRow.classList.toggle('selected', selected);
         actionPanel.classList.toggle('hidden', !selected);
+        if (!selected) {
+            if (progressWrap) progressWrap.classList.add('hidden');
+            if (continueBtn) continueBtn.classList.add('hidden');
+            return;
+        }
+        refreshProgressUI();
     }
 
     function showPlayerView() {
@@ -840,6 +1018,7 @@
 
     function showManagerView() {
         if (player) {
+            persistProgressFromPlayer(true);
             try { player.pause(); } catch (_) {}
         }
         playerView.classList.add('hidden');
@@ -850,13 +1029,12 @@
         setSelected(!selected);
     });
 
-    playBtn.addEventListener('click', async () => {
+    setSelected(false);
+
+    playBtn.addEventListener('click', () => {
         if (!selected) return;
         openSmartlink();
-        showPlayerView();
-        if (player) {
-            try { await player.play(); } catch (_) {}
-        }
+        openPlayerAt(0);
     });
 
     backBtn.addEventListener('click', showManagerView);
@@ -880,6 +1058,27 @@
         }
         setTimeout(() => { copyBtn.textContent = old; }, 1700);
     });
+
+    continueBtn?.addEventListener('click', () => {
+        if (!selected) return;
+        const resume = getResumeSeconds();
+        if (resume <= 0) return;
+        openSmartlink();
+        openPlayerAt(resume);
+    });
+
+    if (player) {
+        player.addEventListener('timeupdate', () => persistProgressFromPlayer(false));
+        player.addEventListener('pause', () => persistProgressFromPlayer(true));
+        player.addEventListener('ended', () => {
+            const duration = Number(player.duration);
+            if (Number.isFinite(duration) && duration > 0) {
+                writeProgress(duration, duration);
+                refreshProgressUI();
+            }
+        });
+        player.addEventListener('loadedmetadata', refreshProgressUI);
+    }
 
     renderAllBanners();
     window.addEventListener('resize', () => {
