@@ -1,4 +1,5 @@
 import asyncio
+import re
 from pyrogram import filters, Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums.parse_mode import ParseMode
@@ -18,6 +19,17 @@ db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 folderm_sessions: dict[int, dict] = {}
 MAX_FOLDERM_ITEMS = 100
 PROGRESS_REFRESH_EVERY = 5  # edit N times, then resend to keep it near bottom
+
+
+def _clean_status_name(text: str, max_len: int = 90) -> str:
+    text = str(text or "")
+    text = text.replace("\n", " ").replace("\r", " ")
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return "file"
+    if len(text) > max_len:
+        text = text[: max_len - 1].rstrip() + "…"
+    return text
 
 
 def _escape_md(text: str) -> str:
@@ -192,12 +204,14 @@ async def handle_forwarded(bot: Client, message: Message):
             is_new = True
 
         item_id = str(inserted_id)
+        status_name = _escape_md(_clean_status_name(info.get("file_name", "file")))
+
         if item_id in files:
             await _update_progress(
                 bot,
                 message,
                 session,
-                f"⚠️ Already added **{_escape_md(info.get('file_name', 'file'))}**.\nTotal: **{len(files)}**",
+                f"⚠️ Already added **{status_name}**.\nTotal: **{len(files)}**",
             )
             message.stop_propagation()
             return
@@ -210,7 +224,7 @@ async def handle_forwarded(bot: Client, message: Message):
             bot,
             message,
             session,
-            f"✅ Added **{_escape_md(info.get('file_name', 'file'))}** "
+            f"✅ Added **{status_name}** "
             f"({humanbytes(info.get('file_size') or 0)})\n"
             f"Total: **{len(files)}**",
         )
