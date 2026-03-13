@@ -55,6 +55,19 @@ def _folder_status_text(total: int, note: str | None = None) -> str:
     return text
 
 
+def _render_added_list(names: list[str], limit: int = 5) -> str:
+    if not names:
+        return ""
+
+    shown = names[-limit:]
+    lines = "\n".join(f"• {_escape_html(name)}" for name in shown)
+    extra = len(names) - len(shown)
+    if extra > 0:
+        lines += f"\n• +{extra} more..."
+
+    return f"\n\n<b>Added list:</b>\n{lines}"
+
+
 async def _try_delete_message(message: Message):
     try:
         await message.delete()
@@ -70,6 +83,7 @@ def _get_session(user_id: int) -> dict | None:
         session = {
             "files": list(session),
             "new_files": [],
+            "recent_names": [],
             "status_msg_id": None,
             "chat_id": None,
             "lock": asyncio.Lock(),
@@ -78,6 +92,7 @@ def _get_session(user_id: int) -> dict | None:
         folderm_sessions[user_id] = session
     session.setdefault("files", [])
     session.setdefault("new_files", [])
+    session.setdefault("recent_names", [])
     session.setdefault("update_count", 0)
     if "lock" not in session or session["lock"] is None:
         session["lock"] = asyncio.Lock()
@@ -143,6 +158,7 @@ async def start_folderm(bot: Client, message: Message):
     folderm_sessions[user_id] = {
         "files": [],
         "new_files": [],
+        "recent_names": [],
         "status_msg_id": None,
         "chat_id": message.chat.id,
         "lock": asyncio.Lock(),
@@ -278,15 +294,22 @@ async def handle_forwarded(bot: Client, message: Message):
 
         files.append(item_id)
         session["files"] = files
+
+        recent_names = session.get("recent_names") or []
+        recent_names.append(_clean_status_name(info.get("file_name", "file"), max_len=70))
+        session["recent_names"] = recent_names
+
         if is_new:
             session["new_files"].append(item_id)
+
         await _update_progress(
             bot,
             message,
             session,
             f"✅ Added <b>{status_name}</b> "
             f"({humanbytes(info.get('file_size') or 0)})\n"
-            f"Total: <b>{len(files)}</b>",
+            f"Total: <b>{len(files)}</b>"
+            f"{_render_added_list(recent_names)}",
         )
 
         await _try_delete_message(message)
