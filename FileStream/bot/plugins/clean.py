@@ -2,6 +2,7 @@ import asyncio
 
 from pyrogram import filters, Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from pyrogram.enums.parse_mode import ParseMode
 
 from FileStream.bot import FileStream
 from FileStream.utils.bot_utils import verify_user
@@ -44,7 +45,7 @@ async def clean_chat_prompt(bot: Client, message: Message):
         "<b>/files and /folders data will stay safe</b> (not deleted).\n\n"
         "Continue?"
         f"{note}",
-        parse_mode="html",
+        parse_mode=ParseMode.HTML,
         quote=True,
         reply_markup=_clean_buttons(message.from_user.id, message.id),
     )
@@ -72,7 +73,7 @@ async def clean_chat_confirm(bot: Client, cq: CallbackQuery):
     if action == "no":
         await cq.answer("Cancelled")
         try:
-            await cq.message.edit_text("❌ Clean cancelled.", parse_mode="html")
+            await cq.message.edit_text("❌ Clean cancelled.", parse_mode=ParseMode.HTML)
             await asyncio.sleep(2)
             await cq.message.delete()
         except Exception:
@@ -122,7 +123,7 @@ async def clean_chat_confirm(bot: Client, cq: CallbackQuery):
                 f"🧹 Chat cleaned. Removed around <b>{deleted}</b> messages.\n"
                 "📁 /files and /folders data is safe."
             ),
-            parse_mode="html",
+            parse_mode=ParseMode.HTML,
         )
         await asyncio.sleep(3)
         await status.delete()
