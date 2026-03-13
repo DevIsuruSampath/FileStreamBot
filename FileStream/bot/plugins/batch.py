@@ -1,5 +1,6 @@
 import asyncio
 import re
+import html
 from pyrogram import filters, Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums.parse_mode import ParseMode
@@ -32,13 +33,8 @@ def _clean_status_name(text: str, max_len: int = 90) -> str:
     return text
 
 
-def _escape_md(text: str) -> str:
-    if not text:
-        return ""
-    # Escape Markdown special chars for ParseMode.MARKDOWN
-    for ch in ("\\", "`", "*", "_", "[", "]", "(", ")"):
-        text = text.replace(ch, "\\" + ch)
-    return text
+def _escape_html(text: str) -> str:
+    return html.escape(str(text or ""), quote=False)
 
 
 def _folderm_buttons():
@@ -49,14 +45,21 @@ def _folderm_buttons():
 
 def _folder_status_text(total: int, note: str | None = None) -> str:
     text = (
-        "📦 **Folder mode active**\n"
-        f"Total: **{int(total)}**\n"
+        "📦 <b>Folder mode active</b>\n"
+        f"Total: <b>{int(total)}</b>\n"
         "Send only media files.\n"
         "Use /done to finish or /cancel to stop."
     )
     if note:
-        text += f"\n\n{note}"
+        text += f"\n\n{_escape_html(note)}"
     return text
+
+
+async def _try_delete_message(message: Message):
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 def _get_session(user_id: int) -> dict | None:
@@ -93,7 +96,7 @@ async def _update_progress(bot: Client, message: Message, session: dict, text: s
                 chat_id=chat_id,
                 message_id=msg_id,
                 text=text,
-                parse_mode=ParseMode.MARKDOWN,
+                parse_mode=ParseMode.HTML,
                 reply_markup=_folderm_buttons(),
             )
             session["update_count"] = update_count + 1
@@ -110,7 +113,7 @@ async def _update_progress(bot: Client, message: Message, session: dict, text: s
 
     msg = await message.reply_text(
         text,
-        parse_mode=ParseMode.MARKDOWN,
+        parse_mode=ParseMode.HTML,
         quote=True,
         reply_markup=_folderm_buttons()
     )
@@ -134,6 +137,7 @@ async def start_folderm(bot: Client, message: Message):
             session,
             _folder_status_text(total, "⚠️ Folder already active."),
         )
+        await _try_delete_message(message)
         return
 
     folderm_sessions[user_id] = {
@@ -149,11 +153,12 @@ async def start_folderm(bot: Client, message: Message):
             0,
             "✅ Send or forward video/audio/document/photo/voice/animation/video_note files now.",
         ),
-        parse_mode=ParseMode.MARKDOWN,
+        parse_mode=ParseMode.HTML,
         quote=True,
         reply_markup=_folderm_buttons()
     )
     folderm_sessions[user_id]["status_msg_id"] = msg.id
+    await _try_delete_message(message)
 
 
 @FileStream.on_message(filters.private & filters.text, group=-1)
@@ -220,13 +225,15 @@ async def handle_forwarded(bot: Client, message: Message):
                 bot,
                 message,
                 session,
-                f"Folder limit reached (**{MAX_FOLDERM_ITEMS}**).",
+                f"⚠️ Folder limit reached (<b>{MAX_FOLDERM_ITEMS}</b>).",
             )
+            await _try_delete_message(message)
             message.stop_propagation()
             return
 
         info = get_file_info(message)
         if not info:
+            await _try_delete_message(message)
             message.stop_propagation()
             return
 
@@ -256,15 +263,16 @@ async def handle_forwarded(bot: Client, message: Message):
             is_new = True
 
         item_id = str(inserted_id)
-        status_name = _escape_md(_clean_status_name(info.get("file_name", "file")))
+        status_name = _escape_html(_clean_status_name(info.get("file_name", "file")))
 
         if item_id in files:
             await _update_progress(
                 bot,
                 message,
                 session,
-                f"⚠️ Already added **{status_name}**.\nTotal: **{len(files)}**",
+                f"⚠️ Already added <b>{status_name}</b>.\nTotal: <b>{len(files)}</b>",
             )
+            await _try_delete_message(message)
             message.stop_propagation()
             return
 
@@ -276,11 +284,12 @@ async def handle_forwarded(bot: Client, message: Message):
             bot,
             message,
             session,
-            f"✅ Added **{status_name}** "
+            f"✅ Added <b>{status_name}</b> "
             f"({humanbytes(info.get('file_size') or 0)})\n"
-            f"Total: **{len(files)}**",
+            f"Total: <b>{len(files)}</b>",
         )
 
+        await _try_delete_message(message)
         message.stop_propagation()
 
 
