@@ -47,6 +47,18 @@ def _folderm_buttons():
     ])
 
 
+def _folder_status_text(total: int, note: str | None = None) -> str:
+    text = (
+        "📦 **Folder mode active**\n"
+        f"Total: **{int(total)}**\n"
+        "Send only media files.\n"
+        "Use /done to finish or /cancel to stop."
+    )
+    if note:
+        text += f"\n\n{note}"
+    return text
+
+
 def _get_session(user_id: int) -> dict | None:
     session = folderm_sessions.get(user_id)
     if not session:
@@ -116,15 +128,12 @@ async def start_folderm(bot: Client, message: Message):
     session = _get_session(user_id)
     if session:
         total = len(session.get("files") or [])
-        msg = await message.reply_text(
-            f"Folder already active with **{total}** files.\n"
-            "Use the buttons below.",
-            parse_mode=ParseMode.MARKDOWN,
-            quote=True,
-            reply_markup=_folderm_buttons()
+        await _update_progress(
+            bot,
+            message,
+            session,
+            _folder_status_text(total, "⚠️ Folder already active."),
         )
-        session["status_msg_id"] = msg.id
-        session["chat_id"] = message.chat.id
         return
 
     folderm_sessions[user_id] = {
@@ -136,14 +145,57 @@ async def start_folderm(bot: Client, message: Message):
         "update_count": 0,
     }
     msg = await message.reply_text(
-        "**Folder mode started.**\n"
-        "Send or forward video/audio/document/photo/voice/animation/video_note files one by one.\n"
-        "Use the buttons below when finished.",
+        _folder_status_text(
+            0,
+            "✅ Send or forward video/audio/document/photo/voice/animation/video_note files now.",
+        ),
         parse_mode=ParseMode.MARKDOWN,
         quote=True,
         reply_markup=_folderm_buttons()
     )
     folderm_sessions[user_id]["status_msg_id"] = msg.id
+
+
+@FileStream.on_message(filters.private & filters.text, group=-1)
+async def folderm_guard_text(bot: Client, message: Message):
+    if not await verify_user(bot, message):
+        return
+
+    if not message.from_user:
+        return
+
+    user_id = message.from_user.id
+    session = _get_session(user_id)
+    if not session:
+        return
+
+    text = (message.text or "").strip()
+    if not text:
+        return
+
+    cmd = ""
+    if text.startswith("/"):
+        cmd = text.split(None, 1)[0].split("@", 1)[0].lower()
+
+    # Allow control commands to pass through
+    if cmd in {"/done", "/cancel"}:
+        return
+
+    total = len(session.get("files") or [])
+    await _update_progress(
+        bot,
+        message,
+        session,
+        _folder_status_text(total, "⚠️ Send media files only while folder mode is active."),
+    )
+
+    # Keep chat clean while folder mode is active
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
+    message.stop_propagation()
 
 
 @FileStream.on_message(
