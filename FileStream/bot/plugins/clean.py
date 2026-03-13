@@ -8,7 +8,7 @@ from FileStream.bot import FileStream
 from FileStream.utils.bot_utils import verify_user
 
 
-CLEAN_FETCH_LIMIT = 4000
+CLEAN_SCAN_LIMIT = 8000
 
 
 def _clean_buttons(user_id: int, source_message_id: int) -> InlineKeyboardMarkup:
@@ -30,6 +30,12 @@ def _count_deleted(result, fallback_len: int) -> int:
     return fallback_len
 
 
+def _candidate_ids(top_message_id: int, span: int = CLEAN_SCAN_LIMIT) -> list[int]:
+    top = max(int(top_message_id), 1)
+    bottom = max(1, top - int(span) + 1)
+    return list(range(top, bottom - 1, -1))
+
+
 @FileStream.on_message(filters.command("clean") & filters.private)
 async def clean_chat_prompt(bot: Client, message: Message):
     if not await verify_user(bot, message):
@@ -42,6 +48,7 @@ async def clean_chat_prompt(bot: Client, message: Message):
     await message.reply_text(
         "🧹 <b>Clean chat now?</b>\n\n"
         "This will try to delete recent messages from both you and bot in this private chat.\n"
+        f"Range: last <b>{CLEAN_SCAN_LIMIT}</b> message IDs.\n"
         "<b>/files and /folders data will stay safe</b> (not deleted).\n\n"
         "Continue?"
         f"{note}",
@@ -83,6 +90,7 @@ async def clean_chat_confirm(bot: Client, cq: CallbackQuery):
     await cq.answer("Cleaning chat...")
 
     chat_id = cq.message.chat.id
+    top_message_id = max(int(getattr(cq.message, "id", 0) or 0), source_message_id)
 
     # Remove prompt and original /clean command first (best effort)
     try:
@@ -94,18 +102,7 @@ async def clean_chat_confirm(bot: Client, cq: CallbackQuery):
     except Exception:
         pass
 
-    ids: list[int] = []
-    try:
-        async for m in bot.get_chat_history(chat_id=chat_id, limit=CLEAN_FETCH_LIMIT):
-            if getattr(m, "id", None):
-                ids.append(int(m.id))
-    except Exception:
-        pass
-
-    if source_message_id not in ids:
-        ids.append(source_message_id)
-
-    ids = sorted(set(ids), reverse=True)
+    ids = _candidate_ids(top_message_id, CLEAN_SCAN_LIMIT)
 
     deleted = 0
     for i in range(0, len(ids), 100):
@@ -116,16 +113,25 @@ async def clean_chat_confirm(bot: Client, cq: CallbackQuery):
         except Exception:
             continue
 
+    if deleted > 0:
+        status_text = (
+            f"🧹 Chat cleaned. Removed around <b>{deleted}</b> messages.\n"
+            "📁 /files and /folders data is safe."
+        )
+    else:
+        status_text = (
+            "⚠️ Could not remove old messages in this run.\n"
+            "Telegram may block very old/protected messages.\n"
+            "Try again or clear chat manually."
+        )
+
     try:
         status = await bot.send_message(
             chat_id=chat_id,
-            text=(
-                f"🧹 Chat cleaned. Removed around <b>{deleted}</b> messages.\n"
-                "📁 /files and /folders data is safe."
-            ),
+            text=status_text,
             parse_mode=ParseMode.HTML,
         )
-        await asyncio.sleep(3)
+        await asyncio.sleep(4)
         await status.delete()
     except Exception:
         pass
