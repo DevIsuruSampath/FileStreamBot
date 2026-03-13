@@ -38,6 +38,7 @@ class LANG(object):
 • <code>/about</code> - Bot info
 • <code>/files</code> - Your uploaded files
 • <code>/folders</code> - Manage your folders
+• <code>/clean [count]</code> - Clean recent chat messages
 • <code>/del</code> - Delete a file (reply to file)
 • <code>/status</code> - Bot status (Admin)
 

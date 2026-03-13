@@ -199,7 +199,7 @@ async def folderm_guard_text(bot: Client, message: Message):
         cmd = text.split(None, 1)[0].split("@", 1)[0].lower()
 
     # Allow control commands to pass through
-    if cmd in {"/done", "/cancel"}:
+    if cmd in {"/done", "/cancel", "/clean"}:
         return
 
     total = len(session.get("files") or [])
