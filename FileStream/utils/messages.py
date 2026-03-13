@@ -3,15 +3,25 @@ from FileStream.config import Telegram
 class LANG(object):
 
     START_TEXT = """
-<b>👋 Hey, {}</b>
+<b>👋 Welcome, {}</b>
 
-<b>I am a Telegram file streaming + direct link bot.</b>
-<b>Send me any media file in private chat or channel.</b>
+<b>I am your smart file streaming assistant.</b>
+<b>Send any media in private chat or channel and I will return instant links.</b>
 
-<b>⚡ I can generate:</b>
-• Stream link
+<b>🚀 What I generate for you:</b>
+• Stream link (watch online)
 • Direct download link
-• Folder link (batch mode)
+• Folder link for multiple files (<code>/folder</code>)
+
+<b>⚡ Quick Start:</b>
+1) Send a file
+2) Get stream + download buttons
+3) Share or save your links
+
+<b>⚠️ Important:</b>
+• Links work until the source file is removed
+• NSFW/adult content is not allowed
+• Use <code>/help</code> for full commands
 
 <b>Bot:</b> @{}
 """
