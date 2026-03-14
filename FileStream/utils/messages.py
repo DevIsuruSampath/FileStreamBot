@@ -3,122 +3,166 @@ from FileStream.config import Telegram
 class LANG(object):
 
     START_TEXT = """
-<b>👋 Welcome, {}</b>
+<b>Hey {}! 👋</b>
 
-<b>I am your smart file streaming assistant.</b>
-<b>Send any media in private chat or channel and I will return instant links.</b>
+<i>I'm here to make sharing files effortless.</i>
 
-<b>🚀 What I generate for you:</b>
-• Stream link (watch online)
-• Direct download link
-• Folder link for multiple files (<code>/folder</code>)
+<b>✨ Just send me any file and I'll give you:</b>
+• 🎬 A streaming link — watch instantly
+• ⬇️ A download link — save anywhere
+• 📁 A folder link — share multiple files at once
 
-<b>⚡ Quick Start:</b>
-1) Send a file
-2) Get stream + download buttons
-3) Share or save your links
+<b>💡 Pro tip:</b> Forward messages from channels directly to me!
 
-<b>⚠️ Important:</b>
-• Links work until the source file is removed
-• NSFW/adult content is not allowed
-• Use <code>/help</code> for full commands
+<b>⚡ It takes 3 seconds:</b>
+1️⃣ Send a file
+2️⃣ Tap the buttons I send back
+3️⃣ Share your link anywhere
 
-<b>Bot:</b> @{}
+<b>🛡️ A quick note:</b>
+Links stay active as long as the original file exists. Adult content isn't allowed here — let's keep it clean.
+
+<b>Need help?</b> Tap the button below or type <code>/help</code>
+
+<i>Made with ❤️ by</i> @{}
 """
 
     HELP_TEXT = """
-<b>How to use:</b>
-1) Send me any media (video/audio/document/photo)
-2) I store it and return stream + download links
-3) Use <code>/folder</code> for batch folder links
+<b>📚 How it works</b>
 
-<b>User Commands:</b>
-• <code>/start</code> - Start bot
-• <code>/help</code> - Show help
-• <code>/about</code> - Bot info
-• <code>/files</code> - Your uploaded files
-• <code>/folders</code> - Manage your folders
-• <code>/del</code> - Delete a file (reply to file)
-• <code>/status</code> - Bot status (Admin)
+<i>Think of me as your personal file transformer — send anything, get shareable links instantly.</i>
 
-<b>Safety:</b>
-🔞 Adult content is strictly prohibited.
+<b>🎯 For Users:</b>
+• <code>/start</code> — Welcome screen
+• <code>/help</code> — You're here! 
+• <code>/about</code> — About this bot
+• <code>/files</code> — Browse your uploads
+• <code>/folders</code> — Manage your folders
+• <code>/del</code> — Delete a file (reply to it)
+• <code>/status</code> — Bot status (Admin only)
 
-<b>Need support?</b>
-<a href='tg://user?id={}'>Contact Admin</a>
+<b>🔥 Power Moves:</b>
+• <code>/folder</code> — Create a folder link for multiple files
+• Forward from channels — instant processing
+
+<b>🚫 What's not allowed:</b>
+Adult/NSFW content is strictly prohibited. Let's keep this space safe for everyone.
+
+<b>💬 Questions?</b>
+<a href='tg://user?id={}'>Message the admin</a> — happy to help!
 """
 
     ABOUT_TEXT = """
-<b>🤖 Bot:</b> {}
-<b>⚙️ Version:</b> {}
-<b>📦 Purpose:</b> Stream + direct download links for Telegram files
-<b>🛡️ Moderation:</b> NSFW reporting enabled
+<b>🤖 Meet {}</b>
+
+<i>Fast, reliable, and built for creators like you.</i>
+
+<b>📦 What I do:</b>
+Transform Telegram files into streaming + download links — no waiting, no compression, no hassle.
+
+<b>✨ Features:</b>
+• Instant streaming (video & audio)
+• Direct downloads
+• Folder sharing
+• Resume playback support
+• NSFW protection & reporting
+
+<b>⚙️ Version:</b> <code>{}</code>
+
+<i>Built with ❤️ for the Telegram community</i>
 """
 
     STREAM_TEXT = """
-<b>✅ Your link generated.</b>
+<b>✨ Your link is ready!</b>
 
-<b>📂 File:</b> <code>{}</code>
+<b>📄 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
-<b>🗂️ Category:</b> <code>{}</code>
-<b>📥 Download:</b> <code>{}</code>
-<b>▶️ Watch:</b> <code>{}</code>
+<b>🏷️ Category:</b> <code>{}</code>
 
-<b>ℹ️ Note:</b> Link works until file is removed.
+<b>🔗 Your Links:</b>
+<b>▶️ Stream:</b> <code>{}</code>
+<b>⬇️ Download:</b> <code>{}</code>
+
+<i>💡 Tip: Links work as long as the file exists. Save them!</i>
 """
 
     STREAM_TEXT_X = """
-<b>✅ Your link generated.</b>
+<b>✨ Your link is ready!</b>
 
-<b>📂 File:</b> <code>{}</code>
+<b>📄 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
-<b>🗂️ Category:</b> <code>{}</code>
-<b>📥 Download:</b> <code>{}</code>
+<b>🏷️ Category:</b> <code>{}</code>
 
-<b>ℹ️ Note:</b> Link works until file is removed.
+<b>⬇️ Download:</b> <code>{}</code>
+
+<i>💡 Tip: Links work as long as the file exists. Save them!</i>
 """
 
-    BAN_TEXT = "__🚫 You are banned from using this bot.__\n\n**[🆘 Contact Admin](tg://user?id={})**"
+    BAN_TEXT = "<b>🚫 Access Restricted</b>\n\n<i>Your account has been restricted from using this bot.</i>\n\n<b>Think this is a mistake?</b>\n<a href='tg://user?id={}'>Contact Admin</a>"
 
     # Folder Mode Messages
-    FOLDER_START = "<b>Folder Mode Started</b>\n\nSend me files to add to this folder.\nType <code>/done</code> when finished.\nType <code>/cancel</code> to stop."
-    FOLDER_ADDED = "<b>Added to Folder:</b>\n<code>{}</code>"
-    FOLDER_DONE = "<b>✅ Folder Created</b>\n\n<b>Title:</b> {}\n<b>Link:</b> {}"
-    FOLDER_EMPTY = "Folder is empty."
-    FOLDER_CANCEL = "Folder mode cancelled."
-    FOLDER_NAME_PROMPT = "Send the name for this folder."
+    FOLDER_START = """<b>📁 Folder Mode Activated</b>
+
+<i>I'm ready to collect your files!</i>
+
+<b>How it works:</b>
+1️⃣ Send me all the files you want in this folder
+2️⃣ Type <code>/done</code> when you're finished
+3️⃣ Get a single link to share everything!
+
+<b>Changed your mind?</b> Type <code>/cancel</code> to exit.
+"""
+    FOLDER_ADDED = "<b>✅ Added to folder:</b>\n<code>{}</code>\n\n<i>Keep sending files, or type /done when finished!</i>"
+    FOLDER_DONE = """<b>🎉 Folder Created Successfully!</b>
+
+<b>📂 Folder:</b> {}
+<b>🔗 Link:</b> {}
+
+<i>Share this link and recipients can browse all files!</i>
+"""
+    FOLDER_EMPTY = "<i>📭 This folder is empty.</i>\n\n<b>Start adding files with /folder!</b>"
+    FOLDER_CANCEL = "<b>❌ Folder mode cancelled.</b>\n\n<i>No worries — try again anytime with /folder!</i>"
+    FOLDER_NAME_PROMPT = "<b>📝 What would you like to name this folder?</b>\n\n<i>Send me the folder name!</i>"
 
     # Error Messages
-    ERROR_GENERIC = "An error occurred."
-    ERROR_FILE_NOT_FOUND = "File not found."
-    ERROR_INVALID_LINK = "Invalid link."
-    ERROR_FLOOD = "FloodWait: Sleeping for {}s."
+    ERROR_GENERIC = "<b>😅 Oops! Something went wrong.</b>\n\n<i>Please try again in a moment.</i>"
+    ERROR_FILE_NOT_FOUND = "<b>🔍 File Not Found</b>\n\n<i>This file may have been deleted or the link is invalid.</i>\n\n<b>Try uploading it again!</b>"
+    ERROR_INVALID_LINK = "<b>❌ Invalid Link</b>\n\n<i>This link doesn't look right. Double-check and try again.</i>"
+    ERROR_FLOOD = "<b>⏳ Please wait...</b>\n\n<i>Taking a short break for {} seconds to keep things smooth.</i>"
 
     # Speedtest Messages
-    SPEEDTEST_START = "🚀 Running Speed Test..."
-    SPEEDTEST_ERROR = (
-        "❌ Speed Test Failed!\n"
-        "> Unable to complete the speed test. Please try again later."
-    )
-    SPEEDTEST_RESULT = (
-        "⚡ Speed Test Results\n\n"
-        "SPEEDTEST INFO:\n"
-        "> Download: {download_mbps} Mbps ({download_bps}/s)\n"
-        "> Upload: {upload_mbps} Mbps ({upload_bps}/s)\n"
-        "> Ping: {ping} ms\n"
-        "> Timestamp: {timestamp}\n"
-        "> Data Sent: {bytes_sent}\n"
-        "> Data Received: {bytes_received}\n\n"
-        "SERVER INFO:\n"
-        "> Name: {server_name}\n"
-        "> Country: {server_country}\n"
-        "> Sponsor: {server_sponsor}\n"
-        "> Latency: {server_latency} ms\n"
-        "> Coordinates: {server_lat}, {server_lon}\n\n"
-        "CLIENT DETAILS:\n"
-        "> IP: {client_ip}\n"
-        "> Coordinates: {client_lat}, {client_lon}\n"
-        "> ISP: {client_isp}\n"
-        "> ISP Rating: {client_isprating}\n"
-        "> Country: {client_country}"
-    )
+    SPEEDTEST_START = "🏃 <b>Running speed test...</b>\n\n<i>This won't take long!</i>"
+    SPEEDTEST_ERROR = """<b>❌ Speed Test Failed</b>
+
+<i>Couldn't complete the test right now.</i>
+
+<b>Possible reasons:</b>
+• Network instability
+• Server is busy
+• Temporary connection issue
+
+<b>Please try again in a moment!</b>
+"""
+    SPEEDTEST_RESULT = """<b>⚡ Speed Test Results</b>
+
+<b>📊 YOUR SPEED</b>
+├ <b>Download:</b> {download_mbps} Mbps
+├ <b>Upload:</b> {upload_mbps} Mbps
+├ <b>Ping:</b> {ping} ms
+└ <b>Tested at:</b> {timestamp}
+
+<b>🌐 SERVER</b>
+├ <b>Location:</b> {server_name}, {server_country}
+├ <b>Sponsor:</b> {server_sponsor}
+├ <b>Latency:</b> {server_latency} ms
+└ <b>Coordinates:</b> {server_lat}, {server_lon}
+
+<b>📱 YOUR CONNECTION</b>
+├ <b>IP:</b> {client_ip}
+├ <b>ISP:</b> {client_isp}
+├ <b>Rating:</b> {client_isprating}
+├ <b>Location:</b> {client_country}
+└ <b>Coordinates:</b> {client_lat}, {client_lon}
+
+<b>Data transferred:</b> {bytes_sent} ↑ / {bytes_received} ↓
+"""
