@@ -14,7 +14,7 @@ class LANG(object):
 
 <b>💡 Pro tip:</b> Forward messages from channels directly to me!
 
-<b>⚡ It takes 3 seconds:</b>
+<b>⚡️ It takes 3 seconds:</b>
 1️⃣ Send a file
 2️⃣ Tap the buttons I send back
 3️⃣ Share your link anywhere
@@ -45,10 +45,10 @@ Links stay active as long as the original file exists. Adult content isn't allow
 • <code>/folder</code> — Create a folder link for multiple files
 • Forward from channels — instant processing
 
-<b>🚫 What's not allowed:</b>
+<b>🚫️ What's not allowed:</b>
 Adult/NSFW content is strictly prohibited. Let's keep this space safe for everyone.
 
-<b>💬 Questions?</b>
+<b>❓ Questions?</b>
 <a href='tg://user?id={}'>Message the admin</a> — happy to help!
 """
 
@@ -73,7 +73,7 @@ Transform Telegram files into streaming + download links — no waiting, no comp
 """
 
     STREAM_TEXT = """
-<b>✨ Your link is ready!</b>
+<b>✨ Your link is ready! 💯</b>
 
 <b>📄 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
@@ -87,7 +87,7 @@ Transform Telegram files into streaming + download links — no waiting, no comp
 """
 
     STREAM_TEXT_X = """
-<b>✨ Your link is ready!</b>
+<b>✨ Your link is ready! 💯</b>
 
 <b>📄 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
@@ -98,7 +98,7 @@ Transform Telegram files into streaming + download links — no waiting, no comp
 <i>💡 Tip: Links work as long as the file exists. Save them!</i>
 """
 
-    BAN_TEXT = "<b>🚫 Access Restricted</b>\n\n<i>Your account has been restricted from using this bot.</i>\n\n<b>Think this is a mistake?</b>\n<a href='tg://user?id={}'>Contact Admin</a>"
+    BAN_TEXT = "<b>🚫️ Access Restricted</b>\n\n<i>Your account has been restricted from using this bot.</i>\n\n<b>Think this is a mistake?</b>\n<a href='tg://user?id={}'>Contact Admin</a>"
 
     # Folder Mode Messages
     FOLDER_START = """<b>📁 Folder Mode Activated</b>
@@ -113,7 +113,7 @@ Transform Telegram files into streaming + download links — no waiting, no comp
 <b>Changed your mind?</b> Type <code>/cancel</code> to exit.
 """
     FOLDER_ADDED = "<b>✅ Added to folder:</b>\n<code>{}</code>\n\n<i>Keep sending files, or type /done when finished!</i>"
-    FOLDER_DONE = """<b>🎉 Folder Created Successfully!</b>
+    FOLDER_DONE = """<b>🎉 Folder Created Successfully! ⭐️</b>
 
 <b>📂 Folder:</b> {}
 <b>🔗 Link:</b> {}
@@ -131,7 +131,7 @@ Transform Telegram files into streaming + download links — no waiting, no comp
     ERROR_FLOOD = "<b>⏳ Please wait...</b>\n\n<i>Taking a short break for {} seconds to keep things smooth.</i>"
 
     # Speedtest Messages
-    SPEEDTEST_START = "🏃 <b>Running speed test...</b>\n\n<i>This won't take long!</i>"
+    SPEEDTEST_START = "🏃 <b>Running speed test... ⚡️</b>\n\n<i>This won't take long!</i>"
     SPEEDTEST_ERROR = """<b>❌ Speed Test Failed</b>
 
 <i>Couldn't complete the test right now.</i>
@@ -143,7 +143,7 @@ Transform Telegram files into streaming + download links — no waiting, no comp
 
 <b>Please try again in a moment!</b>
 """
-    SPEEDTEST_RESULT = """<b>⚡ Speed Test Results</b>
+    SPEEDTEST_RESULT = """<b>⚡️ Speed Test Results 💯</b>
 
 <b>📊 YOUR SPEED</b>
 ├ <b>Download:</b> {download_mbps} Mbps
