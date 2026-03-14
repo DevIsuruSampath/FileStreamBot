@@ -19,7 +19,7 @@ class BUTTON(object):
             ],
             [
                 InlineKeyboardButton("ℹ️ About", callback_data="about"),
-                InlineKeyboardButton("🆘 Help", callback_data="help"),
+                InlineKeyboardButton("❓ Help", callback_data="help"),
             ],
             [
                 InlineKeyboardButton("📢 Updates", url=_updates_link),
@@ -44,7 +44,7 @@ class BUTTON(object):
         [
             [
                 InlineKeyboardButton("🏠 Home", callback_data="home"),
-                InlineKeyboardButton("🆘 Help", callback_data="help"),
+                InlineKeyboardButton("❓ Help", callback_data="help"),
             ],
             [
                 InlineKeyboardButton("📢 Updates", url=_updates_link),

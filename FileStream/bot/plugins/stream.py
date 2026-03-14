@@ -88,7 +88,7 @@ async def channel_receive_handler(bot: Client, message: Message):
             chat_id=message.chat.id,
             message_id=message.id,
             reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("Dᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋ 📥",
+                [[InlineKeyboardButton("⬇️ Download Link",
                                        url=f"https://t.me/{FileStream.username}?start=stream_{str(inserted_id)}")]])
         )
 

@@ -66,7 +66,7 @@ async def is_user_joined(bot, message: Message):
                 join_url = f"https://t.me/{str(Telegram.UPDATES_CHANNEL).lstrip('@')}"
         if join_url:
             join_markup = InlineKeyboardMarkup(
-                [[InlineKeyboardButton("❆ Jᴏɪɴ Oᴜʀ Cʜᴀɴɴᴇʟ ❆", url=join_url)]]
+                [[InlineKeyboardButton("🔔 Join Our Channel", url=join_url)]]
             )
 
         if Telegram.VERIFY_PIC:
@@ -135,18 +135,18 @@ async def gen_link(_id):
         stream_text = LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_stream, safe_page)
         reply_markup = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("sᴛʀᴇᴀᴍ", url=page_link), InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)],
-                [InlineKeyboardButton("ɢᴇᴛ ғɪʟᴇ", url=file_link), InlineKeyboardButton("ʀᴇᴠᴏᴋᴇ ғɪʟᴇ", callback_data=f"msgdelpvt_{_id}")],
-                [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")]
+                [InlineKeyboardButton("▶️ Stream", url=page_link), InlineKeyboardButton("⬇️ Download", url=stream_link)],
+                [InlineKeyboardButton("📥 Get File", url=file_link), InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelpvt_{_id}")],
+                [InlineKeyboardButton("❌ Close", callback_data="close")]
             ]
         )
     else:
         stream_text = LANG.STREAM_TEXT_X.format(safe_name, file_size, safe_category, safe_stream)
         reply_markup = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)],
-                [InlineKeyboardButton("ɢᴇᴛ ғɪʟᴇ", url=file_link), InlineKeyboardButton("ʀᴇᴠᴏᴋᴇ ғɪʟᴇ", callback_data=f"msgdelpvt_{_id}")],
-                [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")]
+                [InlineKeyboardButton("⬇️ Download", url=stream_link)],
+                [InlineKeyboardButton("📥 Get File", url=file_link), InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelpvt_{_id}")],
+                [InlineKeyboardButton("❌ Close", callback_data="close")]
             ]
         )
     return reply_markup, stream_text
@@ -188,14 +188,14 @@ async def gen_linkx(m:Message , _id, name: list):
         stream_text= LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_stream, safe_page)
         reply_markup = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("sᴛʀᴇᴀᴍ", url=page_link), InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)]
+                [InlineKeyboardButton("▶️ Stream", url=page_link), InlineKeyboardButton("⬇️ Download", url=stream_link)]
             ]
         )
     else:
         stream_text= LANG.STREAM_TEXT_X.format(safe_name, file_size, safe_category, safe_stream)
         reply_markup = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)]
+                [InlineKeyboardButton("⬇️ Download", url=stream_link)]
             ]
         )
     return reply_markup, stream_text
@@ -230,8 +230,8 @@ async def gen_file_list_button(file_list_no: int, user_id: int):
         )
     if not file_list:
         file_list.append(
-                [InlineKeyboardButton("ᴇᴍᴘᴛʏ", callback_data="N/A")])
-    file_list.append([InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")])
+                [InlineKeyboardButton("📭 Empty", callback_data="N/A")])
+    file_list.append([InlineKeyboardButton("❌ Close", callback_data="close")])
     return file_list, total_files
 
 #---------------------[ USER BANNED ]---------------------#
@@ -257,7 +257,7 @@ async def is_channel_banned(bot, message):
                 chat_id=message.chat.id,
                 message_id=message.id,
                 reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("ᴄʜᴀɴɴᴇʟ ɪs ʙᴀɴɴᴇᴅ", callback_data="N/A")]])
+                    InlineKeyboardButton("🚫️ Channel Banned", callback_data="N/A")]])
             )
         except Exception:
             pass

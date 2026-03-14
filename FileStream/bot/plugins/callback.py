@@ -95,8 +95,8 @@ async def cb_data(bot, update: CallbackQuery):
             return
         await edit_message(
             update,
-            "**Cᴏɴғɪʀᴍ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜᴇ Fɪʟᴇ**\n\n",
-            InlineKeyboardMarkup([[InlineKeyboardButton("ʏᴇs", callback_data=f"msgdelyes_{usr_cmd[1]}_{usr_cmd[2]}"), InlineKeyboardButton("ɴᴏ", callback_data=f"myfile_{usr_cmd[1]}_{usr_cmd[2]}")]])
+            "**⚠️ Confirm Delete**\n\nAre you sure you want to delete this file?",
+            InlineKeyboardMarkup([[InlineKeyboardButton("✅ Yes", callback_data=f"msgdelyes_{usr_cmd[1]}_{usr_cmd[2]}"), InlineKeyboardButton("❌ No", callback_data=f"myfile_{usr_cmd[1]}_{usr_cmd[2]}")]])
         )
     elif usr_cmd[0] == "msgdelyes":
         if len(usr_cmd) < 3:
@@ -110,8 +110,8 @@ async def cb_data(bot, update: CallbackQuery):
             return
         await edit_message(
             update,
-            "**Cᴏɴғɪʀᴍ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜᴇ Fɪʟᴇ**\n\n",
-            InlineKeyboardMarkup([[InlineKeyboardButton("ʏᴇs", callback_data=f"msgdelpvtyes_{usr_cmd[1]}"), InlineKeyboardButton("ɴᴏ", callback_data=f"mainstream_{usr_cmd[1]}")]])
+            "**⚠️ Confirm Delete**\n\nAre you sure you want to delete this file?",
+            InlineKeyboardMarkup([[InlineKeyboardButton("✅ Yes", callback_data=f"msgdelpvtyes_{usr_cmd[1]}"), InlineKeyboardButton("❌ No", callback_data=f"mainstream_{usr_cmd[1]}")]])
         )
     elif usr_cmd[0] == "msgdelpvtyes":
         if len(usr_cmd) < 2:
@@ -234,19 +234,19 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     if is_streamable:
         MYFILES_BUTTONS = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("sᴛʀᴇᴀᴍ", url=page_link), InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)],
-                [InlineKeyboardButton("ɢᴇᴛ ғɪʟᴇ", callback_data=f"sendfile_{myfile_info['_id']}"),
-                 InlineKeyboardButton("ʀᴇᴠᴏᴋᴇ ғɪʟᴇ", callback_data=f"msgdelete_{myfile_info['_id']}_{file_list_no}")],
-                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="userfiles_{}".format(file_list_no))]
+                [InlineKeyboardButton("▶️ Stream", url=page_link), InlineKeyboardButton("⬇️ Download", url=stream_link)],
+                [InlineKeyboardButton("📥 Get File", callback_data=f"sendfile_{myfile_info['_id']}"),
+                 InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelete_{myfile_info['_id']}_{file_list_no}")],
+                [InlineKeyboardButton("⬅️ Back", callback_data="userfiles_{}".format(file_list_no))]
             ]
         )
     else:
         MYFILES_BUTTONS = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ", url=stream_link)],
-                [InlineKeyboardButton("ɢᴇᴛ ғɪʟᴇ", callback_data=f"sendfile_{myfile_info['_id']}"),
-                 InlineKeyboardButton("ʀᴇᴠᴏᴋᴇ ғɪʟᴇ", callback_data=f"msgdelete_{myfile_info['_id']}_{file_list_no}")],
-                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="userfiles_{}".format(file_list_no))]
+                [InlineKeyboardButton("⬇️ Download", url=stream_link)],
+                [InlineKeyboardButton("📥 Get File", callback_data=f"sendfile_{myfile_info['_id']}"),
+                 InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelete_{myfile_info['_id']}_{file_list_no}")],
+                [InlineKeyboardButton("⬅️ Back", callback_data="userfiles_{}".format(file_list_no))]
             ]
         )
 
@@ -291,13 +291,13 @@ async def delete_user_file(_id, file_list_no: int, update:CallbackQuery):
     await db.delete_one_file(myfile_info['_id'])
     await db.remove_file_from_folders(str(myfile_info.get("_id")))
     await db.count_links(update.from_user.id, "-")
-    caption = "**Fɪʟᴇ Dᴇʟᴇᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ !**"
+    caption = "**✅ File Deleted Successfully!**"
     if update.message.caption:
-        caption += update.message.caption.replace("Cᴏɴғɪʀᴍ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜᴇ Fɪʟᴇ", "")
+        caption += update.message.caption.replace("**⚠️ Confirm Delete**\n\nAre you sure you want to delete this file?", "")
     await edit_message(
         update,
         caption,
-        InlineKeyboardMarkup([[InlineKeyboardButton("ʙᴀᴄᴋ", callback_data=f"userfiles_1")]])
+        InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data=f"userfiles_1")]])
     )
 
 async def delete_user_filex(_id, update:CallbackQuery):
@@ -317,6 +317,6 @@ async def delete_user_filex(_id, update:CallbackQuery):
     await db.count_links(update.from_user.id, "-")
     await edit_message(
         update,
-        "**Fɪʟᴇ Dᴇʟᴇᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ !**\n\n",
-        InlineKeyboardMarkup([[InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data=f"close")]])
+        "**✅ File Deleted Successfully!**\n\n",
+        InlineKeyboardMarkup([[InlineKeyboardButton("❌ Close", callback_data=f"close")]])
     )
