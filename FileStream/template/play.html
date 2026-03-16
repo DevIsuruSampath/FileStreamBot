@@ -1105,27 +1105,84 @@
         if (!selected) return;
         openSmartlink();
         
-        // Get one-time download token
+        // Show countdown/loading animation
         const oldText = downloadBtn.textContent;
-        downloadBtn.textContent = '⏳ Generating link...';
+        const oldHTML = downloadBtn.innerHTML;
+        let countdown = 3;
+        
+        downloadBtn.innerHTML = `<span class="download-spinner"></span> Preparing download...`;
         downloadBtn.disabled = true;
+        
+        // Add spinner styles dynamically
+        const spinnerStyle = document.createElement('style');
+        spinnerStyle.id = 'download-spinner-styles';
+        spinnerStyle.textContent = `
+            .download-spinner {
+                display: inline-block;
+                width: 14px;
+                height: 14px;
+                border: 2px solid rgba(255,255,255,0.3);
+                border-top-color: #fff;
+                border-radius: 50%;
+                animation: downloadSpin 0.8s linear infinite;
+                margin-right: 6px;
+                vertical-align: middle;
+            }
+            @keyframes downloadSpin { to { transform: rotate(360deg); } }
+            .download-progress-bar {
+                width: 100%;
+                height: 4px;
+                background: rgba(255,255,255,0.1);
+                border-radius: 2px;
+                margin-top: 8px;
+                overflow: hidden;
+            }
+            .download-progress-fill {
+                height: 100%;
+                background: linear-gradient(90deg, var(--primary), var(--accent));
+                border-radius: 2px;
+                transition: width 0.3s ease;
+            }
+        `;
+        if (!document.getElementById('download-spinner-styles')) {
+            document.head.appendChild(spinnerStyle);
+        }
+        
+        // Countdown animation
+        const countdownInterval = setInterval(() => {
+            countdown--;
+            if (countdown > 0) {
+                downloadBtn.innerHTML = `<span class="download-spinner"></span> Starting in ${countdown}...`;
+            }
+        }, 1000);
         
         try {
             const response = await fetch(`/get-download-token/${fileId}`);
             const data = await response.json();
             
+            clearInterval(countdownInterval);
+            
             if (data.success && data.download_url) {
+                downloadBtn.innerHTML = `<span class="download-spinner"></span> Downloading...`;
                 // Redirect to the one-time download URL
                 window.location.href = data.download_url;
+                
+                // Reset button after a delay (in case download didn't start)
+                setTimeout(() => {
+                    downloadBtn.innerHTML = oldHTML;
+                    downloadBtn.disabled = false;
+                }, 3000);
             } else {
+                clearInterval(countdownInterval);
                 alert('Failed to generate download link. Please try again.');
-                downloadBtn.textContent = oldText;
+                downloadBtn.innerHTML = oldHTML;
                 downloadBtn.disabled = false;
             }
         } catch (error) {
+            clearInterval(countdownInterval);
             console.error('Error getting download token:', error);
             alert('Error generating download link. Please try again.');
-            downloadBtn.textContent = oldText;
+            downloadBtn.innerHTML = oldHTML;
             downloadBtn.disabled = false;
         }
     });
