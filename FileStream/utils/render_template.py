@@ -136,6 +136,7 @@ async def render_page(db_id):
         **_template_context(
             file_name=file_name,
             file_url=src,
+            file_id=db_id,
             file_size=file_size,
             mime_type=resolved_mime,
             category=category,

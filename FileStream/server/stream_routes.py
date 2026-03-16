@@ -4,6 +4,8 @@ import logging
 import mimetypes
 import traceback
 import os
+import secrets
+from datetime import datetime, timedelta
 from aiohttp import web
 from aiohttp.http_exceptions import BadStatusLine
 from FileStream.bot import multi_clients, work_loads, FileStream
@@ -13,6 +15,50 @@ from FileStream import utils, StartTime, __version__
 from FileStream.utils.render_template import render_page, render_folder
 
 routes = web.RouteTableDef()
+
+# One-time download token store
+# Format: {token: {"path": str, "expires": datetime, "used": bool}}
+_download_tokens = {}
+
+def _generate_token():
+    """Generate a secure random token"""
+    return secrets.token_urlsafe(32)
+
+def _clean_expired_tokens():
+    """Remove expired tokens from store"""
+    now = datetime.utcnow()
+    expired = [k for k, v in _download_tokens.items() if v["expires"] < now]
+    for k in expired:
+        del _download_tokens[k]
+
+def _create_download_token(path: str, expires_in_seconds: int = 300) -> str:
+    """Create a one-time download token (default 5 min expiry)"""
+    _clean_expired_tokens()
+    token = _generate_token()
+    _download_tokens[token] = {
+        "path": path,
+        "expires": datetime.utcnow() + timedelta(seconds=expires_in_seconds),
+        "used": False
+    }
+    return token
+
+def _validate_and_consume_token(token: str) -> str | None:
+    """Validate token and return path if valid, None otherwise. Marks token as used."""
+    _clean_expired_tokens()
+    data = _download_tokens.get(token)
+    if not data:
+        return None
+    if data["used"]:
+        return None
+    if data["expires"] < datetime.utcnow():
+        del _download_tokens[token]
+        return None
+    # Mark as used (one-time)
+    data["used"] = True
+    path = data["path"]
+    # Clean up after use
+    del _download_tokens[token]
+    return path
 
 @routes.get("/status", allow_head=True)
 async def root_route_handler(_):
@@ -78,6 +124,48 @@ async def dl_handler(request: web.Request):
         raise web.HTTPForbidden(text=e.message)
     except FileNotFound as e:
         raise web.HTTPNotFound(text=e.message)
+
+@routes.get("/get-download-token/{path}", allow_head=False)
+async def get_download_token_handler(request: web.Request):
+    """Generate a one-time download token for the file"""
+    try:
+        path = request.match_info["path"]
+        # Create a token that expires in 5 minutes
+        token = _create_download_token(path, expires_in_seconds=300)
+        download_url = f"{Server.URL}file/{token}"
+        return web.json_response({
+            "success": True,
+            "download_url": download_url,
+            "expires_in": 300
+        })
+    except InvalidHash as e:
+        raise web.HTTPForbidden(text=e.message)
+    except FileNotFound as e:
+        raise web.HTTPNotFound(text=e.message)
+    except Exception as e:
+        logging.error(f"Error generating download token: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500)
+
+@routes.get("/file/{token}", allow_head=True)
+async def file_handler(request: web.Request):
+    """Serve file using one-time token"""
+    try:
+        token = request.match_info["token"]
+        path = _validate_and_consume_token(token)
+        
+        if not path:
+            # Token invalid, expired, or already used
+            raise web.HTTPForbidden(text="Download link expired or already used. Please go back and click Download again.")
+        
+        # Serve the file
+        return await media_streamer(request, path)
+    except web.HTTPForbidden:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        logging.critical(e.with_traceback(None))
+        logging.debug(traceback.format_exc())
+        raise web.HTTPInternalServerError(text=str(e))
 
 class_cache = {}
 

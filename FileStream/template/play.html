@@ -893,6 +893,7 @@
     }
 
     const fileUrl = {{ file_url | tojson }};
+    const fileId = {{ file_id | tojson }};
     const smartlinkUrl = {{ ad_config.smartlink_url | tojson }};
     const adGate = document.getElementById('adGate');
     const adGateReloadBtn = document.getElementById('adGateReloadBtn');
@@ -1100,10 +1101,33 @@
 
     backBtn.addEventListener('click', showManagerView);
 
-    downloadBtn.addEventListener('click', () => {
+    downloadBtn.addEventListener('click', async () => {
         if (!selected) return;
         openSmartlink();
-        window.location.href = fileUrl;
+        
+        // Get one-time download token
+        const oldText = downloadBtn.textContent;
+        downloadBtn.textContent = '⏳ Generating link...';
+        downloadBtn.disabled = true;
+        
+        try {
+            const response = await fetch(`/get-download-token/${fileId}`);
+            const data = await response.json();
+            
+            if (data.success && data.download_url) {
+                // Redirect to the one-time download URL
+                window.location.href = data.download_url;
+            } else {
+                alert('Failed to generate download link. Please try again.');
+                downloadBtn.textContent = oldText;
+                downloadBtn.disabled = false;
+            }
+        } catch (error) {
+            console.error('Error getting download token:', error);
+            alert('Error generating download link. Please try again.');
+            downloadBtn.textContent = oldText;
+            downloadBtn.disabled = false;
+        }
     });
 
     copyBtn.addEventListener('click', async () => {
