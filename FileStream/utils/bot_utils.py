@@ -1,3 +1,4 @@
+
 import asyncio
 import math
 import html
@@ -13,6 +14,7 @@ from FileStream.utils.shortener import shorten
 from FileStream.utils.category import detect_category
 from FileStream.config import Telegram, Server
 from FileStream.bot import FileStream
+from FileStream.utils.client_identity import build_start_link
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
@@ -99,7 +101,7 @@ async def is_user_joined(bot, message: Message):
 
 #---------------------[ PRIVATE GEN LINK + CALLBACK ]---------------------#
 
-async def gen_link(_id):
+async def gen_link(_id, bot=None):
     file_info = await db.get_file(_id)
     file_name = file_info.get('file_name') or "file"
     file_size = humanbytes(file_info.get('file_size') or 0)
@@ -119,7 +121,7 @@ async def gen_link(_id):
     # 1. Base Links (Normal)
     page_link = f"{Server.URL}watch/{_id}"
     stream_link = f"{Server.URL}dl/{_id}"
-    file_link = f"https://t.me/{FileStream.username}?start=file_{_id}"
+    file_link = build_start_link(f"file_{_id}", bot)
 
     # 2. Check Database for URL shortener status
     if await db.get_urlshortener_status():
@@ -153,7 +155,7 @@ async def gen_link(_id):
 
 #---------------------[ GEN STREAM LINKS FOR CHANNEL ]---------------------#
 
-async def gen_linkx(m:Message , _id, name: list):
+async def gen_linkx(m:Message , _id, bot=None):
     file_info = await db.get_file(_id)
     file_name = file_info.get('file_name') or "file"
     mime_type = (file_info.get('mime_type') or "").lower()

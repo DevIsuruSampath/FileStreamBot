@@ -91,8 +91,10 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `FQDN`: Your public domain or IP (e.g., `files.example.com`).
 
 ### Optional
-- `MULTI_TOKEN1`, `MULTI_TOKEN2`: Additional bot tokens for load balancing.
+- `MULTI_TOKEN1`, `MULTI_TOKEN2`: Additional bot tokens for load balancing and user-facing bot replies.
+- `MULTI_TOKEN3` ... `MULTI_TOKENN`: You can continue numbering upward for more bots.
 - `WORKERS`: Number of workers (Default: 6).
+- Multi-token note: every `MULTI_TOKEN*` bot now starts with updates enabled, uses the same handlers as the primary bot, and generates its own bot-specific `/start` links/buttons during active chats.
 - `FORCE_SUB_ID`: Channel ID for force subscription.
 - `FORCE_SUB`: Set to `True` to enable.
 - `NUDENET_ENABLE`: Set to `True` to enable NSFW scanning.

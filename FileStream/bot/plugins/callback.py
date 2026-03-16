@@ -11,6 +11,7 @@ from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.shortener import shorten
 from FileStream.server.exceptions import FileNotFound
+from FileStream.utils.client_identity import get_bot_name, get_bot_username
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.file_id import FileId, FileType, PHOTO_TYPES
@@ -57,22 +58,22 @@ async def cb_data(bot, update: CallbackQuery):
     if usr_cmd[0] == "home":
         await edit_message(
             update,
-            text=LANG.START_TEXT.format(update.from_user.mention, FileStream.username),
-            reply_markup=BUTTON.START_BUTTONS,
+            text=LANG.START_TEXT.format(update.from_user.mention, get_bot_username(bot)),
+            reply_markup=BUTTON.start_buttons(bot),
             parse_mode=ParseMode.HTML
         )
     elif usr_cmd[0] == "help":
         await edit_message(
             update,
             text=LANG.HELP_TEXT.format(Telegram.OWNER_ID),
-            reply_markup=BUTTON.HELP_BUTTONS,
+            reply_markup=BUTTON.help_buttons(bot),
             parse_mode=ParseMode.HTML
         )
     elif usr_cmd[0] == "about":
         await edit_message(
             update,
-            text=LANG.ABOUT_TEXT.format(FileStream.fname, __version__),
-            reply_markup=BUTTON.ABOUT_BUTTONS,
+            text=LANG.ABOUT_TEXT.format(get_bot_name(bot), __version__),
+            reply_markup=BUTTON.about_buttons(bot),
             parse_mode=ParseMode.HTML
         )
 
@@ -126,7 +127,7 @@ async def cb_data(bot, update: CallbackQuery):
             return
         _id = usr_cmd[1]
         # gen_link from bot_utils handles Ads/Shortener internally
-        reply_markup, stream_text = await gen_link(_id=_id)
+        reply_markup, stream_text = await gen_link(_id=_id, bot=bot)
         await update.message.edit_text(
             text=stream_text,
             parse_mode=ParseMode.HTML,

@@ -1,6 +1,7 @@
 from FileStream.utils.messages import LANG
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from FileStream.config import Telegram
+from FileStream.utils.client_identity import build_add_to_group_link
 
 
 _updates_username = str(Telegram.UPDATES_CHANNEL or "").lstrip("@").strip()
@@ -12,43 +13,53 @@ class LANG(LANG):
 
 
 class BUTTON(object):
-    START_BUTTONS = InlineKeyboardMarkup(
-        [
+    @staticmethod
+    def start_buttons(bot=None):
+        return InlineKeyboardMarkup(
             [
-                InlineKeyboardButton("➕ Add to Channel", url=f"https://t.me/{Telegram.BOT_TOKEN.split(':')[0]}?startgroup=true"),
-            ],
-            [
-                InlineKeyboardButton("ℹ️ About", callback_data="about"),
-                InlineKeyboardButton("❓ Help", callback_data="help"),
-            ],
-            [
-                InlineKeyboardButton("📢 Updates", url=_updates_link),
-            ],
-        ]
-    )
+                [
+                    InlineKeyboardButton("➕ Add to Channel", url=build_add_to_group_link(bot)),
+                ],
+                [
+                    InlineKeyboardButton("ℹ️ About", callback_data="about"),
+                    InlineKeyboardButton("❓ Help", callback_data="help"),
+                ],
+                [
+                    InlineKeyboardButton("📢 Updates", url=_updates_link),
+                ],
+            ]
+        )
 
-    HELP_BUTTONS = InlineKeyboardMarkup(
-        [
+    @staticmethod
+    def help_buttons(bot=None):
+        return InlineKeyboardMarkup(
             [
-                InlineKeyboardButton("🏠 Home", callback_data="home"),
-                InlineKeyboardButton("ℹ️ About", callback_data="about"),
-            ],
-            [
-                InlineKeyboardButton("📢 Updates", url=_updates_link),
-                InlineKeyboardButton("❌ Close", callback_data="close"),
-            ],
-        ]
-    )
+                [
+                    InlineKeyboardButton("🏠 Home", callback_data="home"),
+                    InlineKeyboardButton("ℹ️ About", callback_data="about"),
+                ],
+                [
+                    InlineKeyboardButton("📢 Updates", url=_updates_link),
+                    InlineKeyboardButton("❌ Close", callback_data="close"),
+                ],
+            ]
+        )
 
-    ABOUT_BUTTONS = InlineKeyboardMarkup(
-        [
+    @staticmethod
+    def about_buttons(bot=None):
+        return InlineKeyboardMarkup(
             [
-                InlineKeyboardButton("🏠 Home", callback_data="home"),
-                InlineKeyboardButton("❓ Help", callback_data="help"),
-            ],
-            [
-                InlineKeyboardButton("📢 Updates", url=_updates_link),
-                InlineKeyboardButton("❌ Close", callback_data="close"),
-            ],
-        ]
-    )
+                [
+                    InlineKeyboardButton("🏠 Home", callback_data="home"),
+                    InlineKeyboardButton("❓ Help", callback_data="help"),
+                ],
+                [
+                    InlineKeyboardButton("📢 Updates", url=_updates_link),
+                    InlineKeyboardButton("❌ Close", callback_data="close"),
+                ],
+            ]
+        )
+
+    START_BUTTONS = start_buttons()
+    HELP_BUTTONS = help_buttons()
+    ABOUT_BUTTONS = about_buttons()

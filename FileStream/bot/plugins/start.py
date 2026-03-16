@@ -8,6 +8,7 @@ from FileStream.utils.bot_utils import gen_linkx, verify_user, gen_file_list_but
 from FileStream.config import Telegram
 from FileStream.utils.database import Database
 from FileStream.utils.translation import LANG, BUTTON
+from FileStream.utils.client_identity import get_bot_name, get_bot_username
 from pyrogram import filters, Client
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from pyrogram.enums.parse_mode import ParseMode
@@ -28,6 +29,7 @@ async def start(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
 
+    bot_username = get_bot_username(bot)
 
     payload = ""
     if " " in message.text:
@@ -37,16 +39,16 @@ async def start(bot: Client, message: Message):
         if Telegram.START_PIC:
             await message.reply_photo(
                 photo=Telegram.START_PIC,
-                caption=LANG.START_TEXT.format(message.from_user.mention, FileStream.username),
+                caption=LANG.START_TEXT.format(message.from_user.mention, bot_username),
                 parse_mode=ParseMode.HTML,
-                reply_markup=BUTTON.START_BUTTONS
+                reply_markup=BUTTON.start_buttons(bot)
             )
         else:
             await message.reply_text(
-                text=LANG.START_TEXT.format(message.from_user.mention, FileStream.username),
+                text=LANG.START_TEXT.format(message.from_user.mention, bot_username),
                 parse_mode=ParseMode.HTML,
                 disable_web_page_preview=True,
-                reply_markup=BUTTON.START_BUTTONS
+                reply_markup=BUTTON.start_buttons(bot)
             )
     else:
         if payload.startswith("stream_"):
@@ -54,8 +56,7 @@ async def start(bot: Client, message: Message):
             try:
                 file_check = await db.get_file(file_id)
                 file_id = str(file_check['_id'])
-                reply_markup, stream_text = await gen_linkx(m=message, _id=file_id,
-                                                            name=[FileStream.username, FileStream.fname])
+                reply_markup, stream_text = await gen_linkx(m=message, _id=file_id, bot=bot)
                 await message.reply_text(
                     text=stream_text,
                     parse_mode=ParseMode.HTML,
@@ -107,15 +108,15 @@ async def about(bot, message):
     if Telegram.START_PIC:
         await message.reply_photo(
             photo=Telegram.START_PIC,
-            caption=LANG.ABOUT_TEXT.format(FileStream.fname, __version__),
+            caption=LANG.ABOUT_TEXT.format(get_bot_name(bot), __version__),
             parse_mode=ParseMode.HTML,
-            reply_markup=BUTTON.ABOUT_BUTTONS
+            reply_markup=BUTTON.about_buttons(bot)
         )
     else:
         await message.reply_text(
-            text=LANG.ABOUT_TEXT.format(FileStream.fname, __version__),
+            text=LANG.ABOUT_TEXT.format(get_bot_name(bot), __version__),
             disable_web_page_preview=True,
-            reply_markup=BUTTON.ABOUT_BUTTONS
+            reply_markup=BUTTON.about_buttons(bot)
         )
 
 @FileStream.on_message((filters.command('help')) & filters.private)
@@ -127,14 +128,14 @@ async def help_handler(bot, message):
             photo=Telegram.START_PIC,
             caption=LANG.HELP_TEXT.format(Telegram.OWNER_ID),
             parse_mode=ParseMode.HTML,
-            reply_markup=BUTTON.HELP_BUTTONS
+            reply_markup=BUTTON.help_buttons(bot)
         )
     else:
         await message.reply_text(
             text=LANG.HELP_TEXT.format(Telegram.OWNER_ID),
             parse_mode=ParseMode.HTML,
             disable_web_page_preview=True,
-            reply_markup=BUTTON.HELP_BUTTONS
+            reply_markup=BUTTON.help_buttons(bot)
         )
 
 # ---------------------------------------------------------------------------------------------------

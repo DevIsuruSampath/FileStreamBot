@@ -6,6 +6,7 @@ from FileStream.utils.bot_utils import verify_user, gen_link, is_channel_banned,
 from FileStream.utils.database import Database
 from FileStream.utils.file_properties import get_file_ids, get_file_info
 from FileStream.config import Telegram
+from FileStream.utils.client_identity import build_start_link
 from pyrogram import filters, Client
 from pyrogram.errors import FloodWait
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
@@ -34,7 +35,7 @@ async def private_receive_handler(bot: Client, message: Message):
             return
         inserted_id = await db.add_file(info)
         await get_file_ids(False, inserted_id, multi_clients, message)
-        reply_markup, stream_text = await gen_link(_id=inserted_id)
+        reply_markup, stream_text = await gen_link(_id=inserted_id, bot=bot)
         await message.reply_text(
             text=stream_text,
             parse_mode=ParseMode.HTML,
@@ -89,7 +90,7 @@ async def channel_receive_handler(bot: Client, message: Message):
             message_id=message.id,
             reply_markup=InlineKeyboardMarkup(
                 [[InlineKeyboardButton("⬇️ Download Link",
-                                       url=f"https://t.me/{FileStream.username}?start=stream_{str(inserted_id)}")]])
+                                       url=build_start_link(f"stream_{str(inserted_id)}", bot))]])
         )
 
     except FloodWait as w:
@@ -104,4 +105,3 @@ async def channel_receive_handler(bot: Client, message: Message):
             await bot.send_message(chat_id=Telegram.ULOG_CHANNEL, text=f"**#EʀʀᴏʀTʀᴀᴄᴋᴇʙᴀᴄᴋ:** `{e}`",
                                    disable_web_page_preview=True)
         print(f"Cᴀɴ'ᴛ Eᴅɪᴛ Bʀᴏᴀᴅᴄᴀsᴛ Mᴇssᴀɢᴇ!\nEʀʀᴏʀ:  **Gɪᴠᴇ ᴍᴇ ᴇᴅɪᴛ ᴘᴇʀᴍɪssɪᴏɴ ɪɴ ᴜᴘᴅᴀᴛᴇs ᴀɴᴅ ʙɪɴ Cʜᴀɴɴᴇʟ!{e}**")
-

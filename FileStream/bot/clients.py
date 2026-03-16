@@ -7,6 +7,17 @@ from pyrogram import Client
 from . import multi_clients, work_loads, FileStream
 
 
+async def clone_primary_handlers(client: Client):
+    dispatcher = getattr(FileStream, "dispatcher", None)
+    if not dispatcher:
+        return
+
+    groups = getattr(dispatcher, "groups", {}) or {}
+    for group, handlers in groups.items():
+        for handler in handlers:
+            client.add_handler(handler, group)
+
+
 async def initialize_clients():
     tokens = []
     for k, v in environ.items():
@@ -22,6 +33,9 @@ async def initialize_clients():
         work_loads[0] = 0
         print("No additional clients found, using default client")
         return
+
+    multi_clients[0] = FileStream
+    work_loads[0] = 0
     
     async def start_client(client_id, token):
         try:
@@ -36,17 +50,22 @@ async def initialize_clients():
             if client_id == len(all_tokens):
                 await asyncio.sleep(2)
                 print("This will take some time, please wait...")
-            client = await Client(
+            client = Client(
                 name=str(client_id),
                 api_id=Telegram.API_ID,
                 api_hash=Telegram.API_HASH,
                 bot_token=bot_token,
                 sleep_threshold=Telegram.SLEEP_THRESHOLD,
-                no_updates=True,
+                no_updates=False,
                 session_string=session_string,
                 in_memory=True,
-            ).start()
-            client.id = (await client.get_me()).id
+            )
+            await clone_primary_handlers(client)
+            await client.start()
+            me = await client.get_me()
+            client.id = me.id
+            client.username = me.username
+            client.fname = me.first_name
             work_loads[client_id] = 0
             return client_id, client
         except Exception:
@@ -55,15 +74,9 @@ async def initialize_clients():
     clients = await asyncio.gather(*[start_client(i, token) for i, token in all_tokens.items()])
     multi_clients.update(dict([c for c in clients if c]))
 
-    if not multi_clients:
-        # All client startups failed; fall back to default client
-        multi_clients[0] = FileStream
-        work_loads[0] = 0
-        print("All additional clients failed; using default client")
+    if len(multi_clients) == 1:
+        print("No additional clients were initialized, using default client")
         return
 
-    if len(multi_clients) != 1:
-        Telegram.MULTI_CLIENT = True
-        print("Multi-Client Mode Enabled")
-    else:
-        print("No additional clients were initialized, using default client")
+    Telegram.MULTI_CLIENT = True
+    print("Multi-Client Mode Enabled")
