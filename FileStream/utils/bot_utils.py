@@ -134,7 +134,7 @@ async def gen_link(_id, bot=None):
     safe_page = html.escape(page_link)
 
     if is_streamable:
-        stream_text = LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_stream, safe_page)
+        stream_text = LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_page)
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("▶️ Stream", url=page_link)],
@@ -187,7 +187,7 @@ async def gen_linkx(m:Message , _id, bot=None):
     safe_page = html.escape(page_link)
 
     if is_streamable:
-        stream_text= LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_stream, safe_page)
+        stream_text= LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_page)
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("▶️ Stream", url=page_link)]

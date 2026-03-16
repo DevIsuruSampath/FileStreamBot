@@ -79,11 +79,10 @@ Transform Telegram files into streaming + download links — no waiting, no comp
 <b>💾 Size:</b> <code>{}</code>
 <b>🏷️ Category:</b> <code>{}</code>
 
-<b>🔗 Your Links:</b>
+<b>🔗 Your Link:</b>
 <b>▶️ Stream:</b> <code>{}</code>
-<b>⬇️ Download:</b> <code>{}</code>
 
-<i>💡 Tip: Links work as long as the file exists. Save them! ⭐️</i>
+<i>💡 Tip: Stream and download from the link above! ⭐️</i>
 """
 
     STREAM_TEXT_X = """
