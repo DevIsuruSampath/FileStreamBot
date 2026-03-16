@@ -18,9 +18,6 @@ class BUTTON(object):
         return InlineKeyboardMarkup(
             [
                 [
-                    InlineKeyboardButton("➕ Add to Channel", url=build_add_to_group_link(bot)),
-                ],
-                [
                     InlineKeyboardButton("ℹ️ About", callback_data="about"),
                     InlineKeyboardButton("❓ Help", callback_data="help"),
                 ],
