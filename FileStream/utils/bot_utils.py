@@ -137,7 +137,7 @@ async def gen_link(_id, bot=None):
         stream_text = LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_stream, safe_page)
         reply_markup = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("▶️ Stream", url=page_link), InlineKeyboardButton("⬇️ Download", url=stream_link)],
+                [InlineKeyboardButton("▶️ Stream", url=page_link)],
                 [InlineKeyboardButton("📥 Get File", url=file_link), InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelpvt_{_id}")],
                 [InlineKeyboardButton("❌ Close", callback_data="close")]
             ]
@@ -190,7 +190,7 @@ async def gen_linkx(m:Message , _id, bot=None):
         stream_text= LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_stream, safe_page)
         reply_markup = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("▶️ Stream", url=page_link), InlineKeyboardButton("⬇️ Download", url=stream_link)]
+                [InlineKeyboardButton("▶️ Stream", url=page_link)]
             ]
         )
     else:

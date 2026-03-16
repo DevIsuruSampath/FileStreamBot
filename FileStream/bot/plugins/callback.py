@@ -235,7 +235,7 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     if is_streamable:
         MYFILES_BUTTONS = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("▶️ Stream", url=page_link), InlineKeyboardButton("⬇️ Download", url=stream_link)],
+                [InlineKeyboardButton("▶️ Stream", url=page_link)],
                 [InlineKeyboardButton("📥 Get File", callback_data=f"sendfile_{myfile_info['_id']}"),
                  InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelete_{myfile_info['_id']}_{file_list_no}")],
                 [InlineKeyboardButton("⬅️ Back", callback_data="userfiles_{}".format(file_list_no))]
