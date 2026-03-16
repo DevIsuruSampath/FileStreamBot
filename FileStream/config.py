@@ -18,6 +18,15 @@ def _int_or_none(key: str):
         return None
 
 
+def _bool_env(key: str, default: bool = False) -> bool:
+    return str(env.get(key, str(default))).lower() in ("1", "true", "t", "yes", "y")
+
+
+def _str_env(key: str, default: str = "") -> str:
+    value = env.get(key, default)
+    return str(value).strip() if value is not None else ""
+
+
 load_dotenv()
 
 
@@ -85,6 +94,122 @@ class Server:
     URL = "http{}://{}{}/".format(
         "s" if HAS_SSL else "", FQDN, "" if (NO_PORT or has_port) else ":" + str(PORT)
     )
+
+
+class WebAds:
+    ENABLED = _bool_env("WEB_ADS_ENABLED", True)
+
+    DESKTOP_TOP_BANNER_KEY = _str_env("WEB_ADS_DESKTOP_TOP_BANNER_KEY", "9626363529c248162c9238de39d16745")
+    DESKTOP_TOP_BANNER_WIDTH = int(env.get("WEB_ADS_DESKTOP_TOP_BANNER_WIDTH", "728"))
+    DESKTOP_TOP_BANNER_HEIGHT = int(env.get("WEB_ADS_DESKTOP_TOP_BANNER_HEIGHT", "90"))
+    DESKTOP_TOP_BANNER_INVOKE_URL = _str_env(
+        "WEB_ADS_DESKTOP_TOP_BANNER_INVOKE_URL",
+        "https://www.highperformanceformat.com/9626363529c248162c9238de39d16745/invoke.js",
+    )
+
+    DESKTOP_INLINE_BANNER_KEY = _str_env("WEB_ADS_DESKTOP_INLINE_BANNER_KEY", "49d82824df1bb87901c1aeb13d4a5185")
+    DESKTOP_INLINE_BANNER_WIDTH = int(env.get("WEB_ADS_DESKTOP_INLINE_BANNER_WIDTH", "300"))
+    DESKTOP_INLINE_BANNER_HEIGHT = int(env.get("WEB_ADS_DESKTOP_INLINE_BANNER_HEIGHT", "250"))
+    DESKTOP_INLINE_BANNER_INVOKE_URL = _str_env(
+        "WEB_ADS_DESKTOP_INLINE_BANNER_INVOKE_URL",
+        "https://www.highperformanceformat.com/49d82824df1bb87901c1aeb13d4a5185/invoke.js",
+    )
+
+    MOBILE_TOP_BANNER_KEY = _str_env("WEB_ADS_MOBILE_TOP_BANNER_KEY", "92fbe91aad2179437131dbabf96fc28c")
+    MOBILE_TOP_BANNER_WIDTH = int(env.get("WEB_ADS_MOBILE_TOP_BANNER_WIDTH", "320"))
+    MOBILE_TOP_BANNER_HEIGHT = int(env.get("WEB_ADS_MOBILE_TOP_BANNER_HEIGHT", "50"))
+    MOBILE_TOP_BANNER_INVOKE_URL = _str_env(
+        "WEB_ADS_MOBILE_TOP_BANNER_INVOKE_URL",
+        "https://www.highperformanceformat.com/92fbe91aad2179437131dbabf96fc28c/invoke.js",
+    )
+
+    MOBILE_BOTTOM_BANNER_KEY = _str_env("WEB_ADS_MOBILE_BOTTOM_BANNER_KEY", "49d82824df1bb87901c1aeb13d4a5185")
+    MOBILE_BOTTOM_BANNER_WIDTH = int(env.get("WEB_ADS_MOBILE_BOTTOM_BANNER_WIDTH", "300"))
+    MOBILE_BOTTOM_BANNER_HEIGHT = int(env.get("WEB_ADS_MOBILE_BOTTOM_BANNER_HEIGHT", "250"))
+    MOBILE_BOTTOM_BANNER_INVOKE_URL = _str_env(
+        "WEB_ADS_MOBILE_BOTTOM_BANNER_INVOKE_URL",
+        "https://www.highperformanceformat.com/49d82824df1bb87901c1aeb13d4a5185/invoke.js",
+    )
+
+    DESKTOP_SOCIAL_BAR_URL = _str_env(
+        "WEB_ADS_DESKTOP_SOCIAL_BAR_URL",
+        "https://cardinaltangible.com/27/fa/cf/27facf136dc45ce0b5faf7b999e9e6f0.js",
+    )
+    MOBILE_SOCIAL_BAR_URL = _str_env(
+        "WEB_ADS_MOBILE_SOCIAL_BAR_URL",
+        "https://cardinaltangible.com/27/fa/cf/27facf136dc45ce0b5faf7b999e9e6f0.js",
+    )
+    SMARTLINK_URL = _str_env(
+        "WEB_ADS_SMARTLINK_URL",
+        "https://cardinaltangible.com/jpxjm6h69?key=654ea398985fb67f67bc8d74aecdedcf",
+    )
+
+    @classmethod
+    def _banner_slot(cls, device: str, key: str, width: int, height: int, invoke_url: str) -> dict:
+        key = str(key or "").strip()
+        invoke_url = str(invoke_url or "").strip()
+        enabled = cls.ENABLED and bool(key and invoke_url and width and height)
+        return {
+            "device": device,
+            "key": key,
+            "width": int(width or 0),
+            "height": int(height or 0),
+            "invoke_url": invoke_url,
+            "enabled": enabled,
+        }
+
+    @classmethod
+    def template_context(cls) -> dict:
+        desktop_top = cls._banner_slot(
+            "desktop",
+            cls.DESKTOP_TOP_BANNER_KEY,
+            cls.DESKTOP_TOP_BANNER_WIDTH,
+            cls.DESKTOP_TOP_BANNER_HEIGHT,
+            cls.DESKTOP_TOP_BANNER_INVOKE_URL,
+        )
+        desktop_inline = cls._banner_slot(
+            "desktop",
+            cls.DESKTOP_INLINE_BANNER_KEY,
+            cls.DESKTOP_INLINE_BANNER_WIDTH,
+            cls.DESKTOP_INLINE_BANNER_HEIGHT,
+            cls.DESKTOP_INLINE_BANNER_INVOKE_URL,
+        )
+        mobile_top = cls._banner_slot(
+            "mobile",
+            cls.MOBILE_TOP_BANNER_KEY,
+            cls.MOBILE_TOP_BANNER_WIDTH,
+            cls.MOBILE_TOP_BANNER_HEIGHT,
+            cls.MOBILE_TOP_BANNER_INVOKE_URL,
+        )
+        mobile_bottom = cls._banner_slot(
+            "mobile",
+            cls.MOBILE_BOTTOM_BANNER_KEY,
+            cls.MOBILE_BOTTOM_BANNER_WIDTH,
+            cls.MOBILE_BOTTOM_BANNER_HEIGHT,
+            cls.MOBILE_BOTTOM_BANNER_INVOKE_URL,
+        )
+
+        desktop_social_bar_url = cls.DESKTOP_SOCIAL_BAR_URL if cls.ENABLED else ""
+        mobile_social_bar_url = cls.MOBILE_SOCIAL_BAR_URL if cls.ENABLED else ""
+
+        return {
+            "enabled": cls.ENABLED,
+            "desktop": {
+                "top_banner": desktop_top,
+                "inline_banner": desktop_inline,
+                "social_bar_url": desktop_social_bar_url,
+            },
+            "mobile": {
+                "top_banner": mobile_top,
+                "bottom_banner": mobile_bottom,
+                "social_bar_url": mobile_social_bar_url,
+            },
+            "smartlink_url": cls.SMARTLINK_URL if cls.ENABLED else "",
+            "has_any_banner": any(
+                slot["enabled"] for slot in (desktop_top, desktop_inline, mobile_top, mobile_bottom)
+            ),
+            "has_any_social_bar": bool(desktop_social_bar_url or mobile_social_bar_url),
+        }
 
 
 class NSFW:

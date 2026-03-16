@@ -5,7 +5,7 @@ import mimetypes
 import jinja2
 import urllib.parse
 
-from FileStream.config import Telegram, Server
+from FileStream.config import Telegram, Server, WebAds
 from FileStream.bot import FileStream
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
@@ -74,6 +74,13 @@ def _safe_text(value, fallback: str) -> str:
     return text or fallback
 
 
+def _template_context(**kwargs):
+    return {
+        **kwargs,
+        "ad_config": WebAds.template_context(),
+    }
+
+
 async def render_page(db_id):
     file_data = await db.get_file(db_id)
     if not file_data:
@@ -126,16 +133,18 @@ async def render_page(db_id):
         report_url = f"https://t.me/{FileStream.username}?start=report_file_{db_id}"
 
     return template.render(
-        file_name=file_name,
-        file_url=src,
-        file_size=file_size,
-        mime_type=resolved_mime,
-        category=category,
-        uploader=uploader,
-        message_id=message_id,
-        is_audio=is_audio,
-        updates_url=updates_url,
-        report_url=report_url,
+        **_template_context(
+            file_name=file_name,
+            file_url=src,
+            file_size=file_size,
+            mime_type=resolved_mime,
+            category=category,
+            uploader=uploader,
+            message_id=message_id,
+            is_audio=is_audio,
+            updates_url=updates_url,
+            report_url=report_url,
+        )
     )
 
 
@@ -211,10 +220,12 @@ async def render_folder(folder_id: str, title: str = "Folder"):
         report_url = f"https://t.me/{FileStream.username}?start=report_folder_{folder_id}"
 
     return template.render(
-        folder_id=str(folder_id),
-        folder_json=folder_json,
-        files=files,
-        count=len(files),
-        page_title=title,
-        report_url=report_url,
+        **_template_context(
+            folder_id=str(folder_id),
+            folder_json=folder_json,
+            files=files,
+            count=len(files),
+            page_title=title,
+            report_url=report_url,
+        )
     )

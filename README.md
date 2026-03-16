@@ -104,6 +104,19 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `FOLDERS_PIC`: Image for `/folders` command.
 - `START_PIC`: Image for `/start` command.
 - `VERIFY_PIC`: Image for force subscribe verification.
+- `WEB_ADS_ENABLED`: Set to `True`/`False` to globally enable or disable web ad slots and social bar scripts.
+- `WEB_ADS_DESKTOP_TOP_BANNER_KEY`, `WEB_ADS_DESKTOP_TOP_BANNER_INVOKE_URL`, `WEB_ADS_DESKTOP_TOP_BANNER_WIDTH`, `WEB_ADS_DESKTOP_TOP_BANNER_HEIGHT`: Desktop top banner slot config. Defaults keep the current `728x90` placement.
+- `WEB_ADS_DESKTOP_INLINE_BANNER_KEY`, `WEB_ADS_DESKTOP_INLINE_BANNER_INVOKE_URL`, `WEB_ADS_DESKTOP_INLINE_BANNER_WIDTH`, `WEB_ADS_DESKTOP_INLINE_BANNER_HEIGHT`: Desktop inline banner slot config. Defaults keep the current `300x250` placement.
+- `WEB_ADS_MOBILE_TOP_BANNER_KEY`, `WEB_ADS_MOBILE_TOP_BANNER_INVOKE_URL`, `WEB_ADS_MOBILE_TOP_BANNER_WIDTH`, `WEB_ADS_MOBILE_TOP_BANNER_HEIGHT`: Mobile top banner slot config. Defaults keep the current `320x50` placement.
+- `WEB_ADS_MOBILE_BOTTOM_BANNER_KEY`, `WEB_ADS_MOBILE_BOTTOM_BANNER_INVOKE_URL`, `WEB_ADS_MOBILE_BOTTOM_BANNER_WIDTH`, `WEB_ADS_MOBILE_BOTTOM_BANNER_HEIGHT`: Mobile bottom banner slot config. Defaults keep the current `300x250` placement.
+- `WEB_ADS_DESKTOP_SOCIAL_BAR_URL`: Desktop social bar script URL. Defaults to the current hardcoded value.
+- `WEB_ADS_MOBILE_SOCIAL_BAR_URL`: Mobile social bar script URL. Defaults to the current hardcoded value.
+- `WEB_ADS_SMARTLINK_URL`: Smartlink/click-through URL used by the web ad gate. Defaults to the current hardcoded value.
+
+### Web Ads Notes
+- Leave a banner `*_KEY` or `*_INVOKE_URL` blank to disable just that placement gracefully.
+- Leave a social bar URL blank to disable that social bar gracefully.
+- If you do not set any of the new web ads variables, FileStreamBot keeps the current ad behavior by using the existing hardcoded values as defaults in config.
 
 ## 🧰 Admin Toggles
 

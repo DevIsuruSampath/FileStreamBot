@@ -310,33 +310,37 @@
 </head>
 <body>
 <div class="page-shell">
+    {% if ad_config.desktop.top_banner.enabled %}
     <section class="ad-card desktop-only">
         <p class="ad-label">Sponsored</p>
         <div id="dlTopBannerSlots" class="ad-slot-grid">
             <div
                 class="ad-slot"
-                data-device="desktop"
-                data-key="9626363529c248162c9238de39d16745"
-                data-width="728"
-                data-height="90"
-                data-invoke-url="https://www.highperformanceformat.com/9626363529c248162c9238de39d16745/invoke.js"
+                data-device="{{ ad_config.desktop.top_banner.device }}"
+                data-key="{{ ad_config.desktop.top_banner.key }}"
+                data-width="{{ ad_config.desktop.top_banner.width }}"
+                data-height="{{ ad_config.desktop.top_banner.height }}"
+                data-invoke-url="{{ ad_config.desktop.top_banner.invoke_url }}"
             ></div>
         </div>
     </section>
+    {% endif %}
 
+    {% if ad_config.mobile.top_banner.enabled %}
     <section class="ad-card mobile-only">
         <p class="ad-label">Sponsored</p>
         <div id="dlMobileTopBannerSlots" class="ad-slot-grid">
             <div
                 class="ad-slot"
-                data-device="mobile"
-                data-key="92fbe91aad2179437131dbabf96fc28c"
-                data-width="320"
-                data-height="50"
-                data-invoke-url="https://www.highperformanceformat.com/92fbe91aad2179437131dbabf96fc28c/invoke.js"
+                data-device="{{ ad_config.mobile.top_banner.device }}"
+                data-key="{{ ad_config.mobile.top_banner.key }}"
+                data-width="{{ ad_config.mobile.top_banner.width }}"
+                data-height="{{ ad_config.mobile.top_banner.height }}"
+                data-invoke-url="{{ ad_config.mobile.top_banner.invoke_url }}"
             ></div>
         </div>
     </section>
+    {% endif %}
 
     <main class="card">
         <div class="icon">📄</div>
@@ -376,16 +380,18 @@
             <button id="downloadBtn" class="btn disabled" type="button" disabled>⬇️ Download Selected</button>
         </div>
 
+        {% if ad_config.desktop.inline_banner.enabled %}
         <div id="dlInlineBannerSlots" class="ad-slot-grid" style="margin-top:12px;">
             <div
                 class="ad-slot"
-                data-device="desktop"
-                data-key="49d82824df1bb87901c1aeb13d4a5185"
-                data-width="300"
-                data-height="250"
-                data-invoke-url="https://www.highperformanceformat.com/49d82824df1bb87901c1aeb13d4a5185/invoke.js"
+                data-device="{{ ad_config.desktop.inline_banner.device }}"
+                data-key="{{ ad_config.desktop.inline_banner.key }}"
+                data-width="{{ ad_config.desktop.inline_banner.width }}"
+                data-height="{{ ad_config.desktop.inline_banner.height }}"
+                data-invoke-url="{{ ad_config.desktop.inline_banner.invoke_url }}"
             ></div>
         </div>
+        {% endif %}
 
         <p class="foot">This link works until the file is removed.</p>
 
@@ -396,19 +402,21 @@
         {% endif %}
     </main>
 
+    {% if ad_config.mobile.bottom_banner.enabled %}
     <section class="ad-card mobile-only">
         <p class="ad-label">Sponsored</p>
         <div id="dlMobileBottomBannerSlots" class="ad-slot-grid">
             <div
                 class="ad-slot"
-                data-device="mobile"
-                data-key="49d82824df1bb87901c1aeb13d4a5185"
-                data-width="300"
-                data-height="250"
-                data-invoke-url="https://www.highperformanceformat.com/49d82824df1bb87901c1aeb13d4a5185/invoke.js"
+                data-device="{{ ad_config.mobile.bottom_banner.device }}"
+                data-key="{{ ad_config.mobile.bottom_banner.key }}"
+                data-width="{{ ad_config.mobile.bottom_banner.width }}"
+                data-height="{{ ad_config.mobile.bottom_banner.height }}"
+                data-invoke-url="{{ ad_config.mobile.bottom_banner.invoke_url }}"
             ></div>
         </div>
     </section>
+    {% endif %}
 </div>
 
 
@@ -640,7 +648,7 @@
     }
 
     const fileUrl = {{ file_url | tojson }};
-    const smartlinkUrl = 'https://cardinaltangible.com/jpxjm6h69?key=654ea398985fb67f67bc8d74aecdedcf';
+    const smartlinkUrl = {{ ad_config.smartlink_url | tojson }};
     const adGate = document.getElementById('adGate');
     const adGateReloadBtn = document.getElementById('adGateReloadBtn');
     const adGateLoading = document.getElementById('adGateLoading');
@@ -698,13 +706,16 @@
 
 <script>
 (function () {
-    const SOCIAL_BAR_DESKTOP_URL = 'https://cardinaltangible.com/27/fa/cf/27facf136dc45ce0b5faf7b999e9e6f0.js';
-    // Replace with dedicated mobile social bar URL when Adsterra gives one.
-    const SOCIAL_BAR_MOBILE_URL = 'https://cardinaltangible.com/27/fa/cf/27facf136dc45ce0b5faf7b999e9e6f0.js';
+    const SOCIAL_BAR_DESKTOP_URL = '{{ ad_config.desktop.social_bar_url }}';
+    const SOCIAL_BAR_MOBILE_URL = '{{ ad_config.mobile.social_bar_url }}';
 
     const isMobile = window.matchMedia('(max-width: 767px)').matches;
-    const socialBarUrl = isMobile ? SOCIAL_BAR_MOBILE_URL : SOCIAL_BAR_DESKTOP_URL;
+    const socialBarUrl = (isMobile ? SOCIAL_BAR_MOBILE_URL : SOCIAL_BAR_DESKTOP_URL).trim();
     const SOCIAL_SCRIPT_ID = 'adsterra-socialbar-script';
+
+    if (!socialBarUrl) {
+        return;
+    }
 
     function topOffset() {
         const header = document.querySelector('.header');
