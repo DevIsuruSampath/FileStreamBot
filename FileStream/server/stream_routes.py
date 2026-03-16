@@ -115,15 +115,21 @@ async def folderm_handler(request: web.Request):
 
 @routes.get("/dl/{path}", allow_head=True)
 async def dl_handler(request: web.Request):
-    # Redirect /dl to /watch to force users through ad-supported stream page
+    # Serve files for streaming (video/audio playback)
     try:
         path = request.match_info["path"]
-        watch_url = f"{Server.URL}watch/{path}"
-        raise web.HTTPFound(location=watch_url)
+        return await media_streamer(request, path)
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
     except FileNotFound as e:
         raise web.HTTPNotFound(text=e.message)
+    except (AttributeError, BadStatusLine, ConnectionResetError):
+        raise web.HTTPServiceUnavailable(text="Service Unavailable")
+    except Exception as e:
+        traceback.print_exc()
+        logging.critical(e.with_traceback(None))
+        logging.debug(traceback.format_exc())
+        raise web.HTTPInternalServerError(text=str(e))
 
 @routes.get("/get-download-token/{path}", allow_head=False)
 async def get_download_token_handler(request: web.Request):
