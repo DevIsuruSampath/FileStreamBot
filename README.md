@@ -67,7 +67,7 @@ You can deploy this bot on Heroku, Render, VPS, or locally.
 
 2.  **Configure environment:**
     ```bash
-    cp .env.example .env
+    cp example.env .env
     nano .env  # Add your variables
     ```
 
@@ -80,26 +80,50 @@ You can deploy this bot on Heroku, Render, VPS, or locally.
 
 Create a `.env` file with the following (or set them in your cloud provider):
 
-### Mandatory
+### Core Required
 - `API_ID`: Your Telegram API ID.
 - `API_HASH`: Your Telegram API Hash.
 - `BOT_TOKEN`: Your Bot Token from @BotFather.
 - `OWNER_ID`: Your Telegram User ID.
-- `FLOG_CHANNEL`: Channel ID where user files are stored.
-- `ULOG_CHANNEL`: Channel ID for new user logs.
 - `DATABASE_URL`: MongoDB Connection URI.
 - `FQDN`: Your public domain or IP (e.g., `files.example.com`).
+
+### Recommended Channels
+- `FLOG_CHANNEL`: Strongly recommended cache channel used to keep per-client file IDs in sync for stable streaming and multi-client mode.
+- `ULOG_CHANNEL`: Optional channel ID for new user logs and error logs.
+- `BIN_CHANNEL`: Optional legacy storage channel. Current code primarily uses `FLOG_CHANNEL`.
+- `NUDENET_CHANNEL`: Optional review/moderation channel for NSFW reports.
 
 ### Optional
 - `MULTI_TOKEN1`, `MULTI_TOKEN2`: Additional bot tokens for load balancing and user-facing bot replies.
 - `MULTI_TOKEN3` ... `MULTI_TOKENN`: You can continue numbering upward for more bots.
 - `WORKERS`: Number of workers (Default: 6).
+- `PORT`: Web server port (Default: `8080`).
+- `BIND_ADDRESS`: Web server bind address (Default: `0.0.0.0`).
+- `PING_INTERVAL`: Health/ping interval for the web process (Default: 1200).
+- `HAS_SSL`: Generate `https://` links when your reverse proxy/domain uses SSL.
+- `NO_PORT`: Hide the explicit port from generated links when your proxy already terminates on the public host.
+- `SESSION_NAME`: Mongo database/session namespace (Default: `FileStream`).
+- `AUTH_USERS`: Space-separated user IDs allowed to use the bot when access restriction is enabled.
+- `MODE`: Use `secondary` if you only want server-side file serving.
+- `UPDATES_CHANNEL`: Public updates channel username shown to users.
 - Multi-token note: every `MULTI_TOKEN*` bot now starts with updates enabled, uses the same handlers as the primary bot, and generates its own bot-specific `/start` links/buttons during active chats.
 - `FORCE_SUB_ID`: Channel ID for force subscription.
 - `FORCE_SUB`: Set to `True` to enable.
+- `FORCE_UPDATES_CHANNEL`: Legacy alias for `FORCE_SUB`.
 - `NUDENET_ENABLE`: Set to `True` to enable NSFW scanning.
+- `NUDENET_BLOCK_ON_ERROR`: Block content if a scan fails.
+- `NUDENET_THRESHOLD`: NSFW score threshold (Default: `0.6`).
+- `NUDENET_SCAN_IMAGES`: Scan images for adult content.
+- `NUDENET_SCAN_VIDEOS`: Scan videos for adult content.
+- `NUDENET_MAX_VIDEO_FRAMES`: Max sampled frames per video.
+- `NUDENET_FRAME_INTERVAL`: Seconds between sampled frames.
+- `NUDENET_TEMP_DIR`: Temporary directory used during scans.
 - `URL_SHORTENER_SITE`: Shortener domain (e.g., `api.gplinks.com`).
 - `URL_SHORTENER_API_KEY`: API Key for the shortener.
+- `URL_SHORTENER_TIMEOUT`: Shortener request timeout in seconds.
+- `URL_SHORTENER_FAIL_THRESHOLD`: Failures before shortener cooldown starts.
+- `URL_SHORTENER_COOLDOWN`: Cooldown duration in seconds after repeated failures.
 - `FILE_PIC`: Image for `/files` command.
 - `FOLDERS_PIC`: Image for `/folders` command.
 - `START_PIC`: Image for `/start` command.
@@ -117,6 +141,7 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - Leave a banner `*_KEY` or `*_INVOKE_URL` blank to disable just that placement gracefully.
 - Leave a social bar URL blank to disable that social bar gracefully.
 - If you do not set any of the new web ads variables, FileStreamBot keeps the current ad behavior by using the existing hardcoded values as defaults in config.
+- The repo template file is `example.env`; copy it to `.env` before running locally.
 
 ## 🧰 Admin Toggles
 

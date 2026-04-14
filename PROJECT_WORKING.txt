@@ -29,7 +29,7 @@ Main startup:
 
 Config:
 - FileStream/config.py
-- .env.example
+- example.env
 
 Bot setup:
 - FileStream/bot/__init__.py
@@ -498,12 +498,13 @@ Main required ones are:
 - API_HASH
 - BOT_TOKEN
 - OWNER_ID
-- FLOG_CHANNEL
-- ULOG_CHANNEL
 - DATABASE_URL
 - FQDN
 
 Very useful optional ones:
+- FLOG_CHANNEL
+- ULOG_CHANNEL
+- NUDENET_CHANNEL
 - MULTI_TOKEN1, MULTI_TOKEN2...
 - FORCE_SUB
 - FORCE_SUB_ID
