@@ -11,6 +11,7 @@ from FileStream.utils.file_properties import get_file_info, get_file_ids
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.bot_utils import verify_user
 from FileStream.utils.shortener import shorten
+from FileStream.utils.file_cleanup import delete_file_entry
 from FileStream.config import Telegram, Server
 
 
@@ -394,15 +395,8 @@ async def cancel_folderm(bot: Client, message: Message, user_id: int | None = No
                 file_info = await db.get_file(fid)
             except Exception:
                 continue
-            # delete FLOG message if available
             try:
-                if Telegram.FLOG_CHANNEL and file_info.get("flog_msg_id"):
-                    await bot.delete_messages(Telegram.FLOG_CHANNEL, int(file_info["flog_msg_id"]))
-            except Exception:
-                pass
-            try:
-                await db.delete_one_file(file_info["_id"])
-                await db.count_links(user_id, "-")
+                await delete_file_entry(db, file_info, bot=bot)
             except Exception:
                 pass
 

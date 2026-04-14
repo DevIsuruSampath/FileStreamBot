@@ -13,6 +13,7 @@ from FileStream.utils.database import Database
 from FileStream.utils.nsfw import scan_message
 from FileStream.server.exceptions import FileNotFound
 from FileStream.utils.bot_utils import verify_user
+from FileStream.utils.file_cleanup import delete_file_entry
 
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
@@ -27,26 +28,7 @@ def _is_object_id(value: str) -> bool:
 
 
 async def _delete_file(bot: Client, file_info: dict):
-    try:
-        if Telegram.FLOG_CHANNEL and file_info.get("flog_msg_id"):
-            await bot.delete_messages(Telegram.FLOG_CHANNEL, int(file_info["flog_msg_id"]))
-    except Exception:
-        pass
-
-    try:
-        await db.delete_one_file(file_info["_id"])
-    except Exception:
-        pass
-
-    try:
-        await db.remove_file_from_folders(str(file_info.get("_id")))
-    except Exception:
-        pass
-
-    try:
-        await db.count_links(file_info.get("user_id"), "-")
-    except Exception:
-        pass
+    await delete_file_entry(db, file_info, bot=bot)
 
 
 async def _delete_folder(bot: Client, folder: dict):

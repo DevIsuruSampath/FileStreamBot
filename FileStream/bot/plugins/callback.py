@@ -10,6 +10,7 @@ from FileStream.utils.bot_utils import gen_link, gen_file_list_button
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.shortener import shorten
+from FileStream.utils.file_cleanup import delete_file_entry
 from FileStream.server.exceptions import FileNotFound
 from FileStream.utils.client_identity import get_bot_name, get_bot_username
 from pyrogram import filters
@@ -103,7 +104,7 @@ async def cb_data(bot, update: CallbackQuery):
         if len(usr_cmd) < 3:
             await update.answer("Invalid action")
             return
-        await delete_user_file(usr_cmd[1], int(usr_cmd[2]), update)
+        await delete_user_file(bot, usr_cmd[1], int(usr_cmd[2]), update)
         return
     elif usr_cmd[0] == "msgdelpvt":
         if len(usr_cmd) < 2:
@@ -118,7 +119,7 @@ async def cb_data(bot, update: CallbackQuery):
         if len(usr_cmd) < 2:
             await update.answer("Invalid action")
             return
-        await delete_user_filex(usr_cmd[1], update)
+        await delete_user_filex(bot, usr_cmd[1], update)
         return
 
     elif usr_cmd[0] == "mainstream":
@@ -277,7 +278,7 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     )
 
 
-async def delete_user_file(_id, file_list_no: int, update:CallbackQuery):
+async def delete_user_file(bot, _id, file_list_no: int, update:CallbackQuery):
 
     try:
         myfile_info=await db.get_file(_id)
@@ -289,9 +290,7 @@ async def delete_user_file(_id, file_list_no: int, update:CallbackQuery):
         await update.answer("Unauthorized", show_alert=True)
         return
 
-    await db.delete_one_file(myfile_info['_id'])
-    await db.remove_file_from_folders(str(myfile_info.get("_id")))
-    await db.count_links(update.from_user.id, "-")
+    await delete_file_entry(db, myfile_info, bot=bot)
     caption = "**✅ File Deleted Successfully!**"
     if update.message.caption:
         caption += update.message.caption.replace("**⚠️ Confirm Delete**\n\nAre you sure you want to delete this file?", "")
@@ -301,7 +300,7 @@ async def delete_user_file(_id, file_list_no: int, update:CallbackQuery):
         InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data=f"userfiles_1")]])
     )
 
-async def delete_user_filex(_id, update:CallbackQuery):
+async def delete_user_filex(bot, _id, update:CallbackQuery):
 
     try:
         myfile_info=await db.get_file(_id)
@@ -313,9 +312,7 @@ async def delete_user_filex(_id, update:CallbackQuery):
         await update.answer("Unauthorized", show_alert=True)
         return
 
-    await db.delete_one_file(myfile_info['_id'])
-    await db.remove_file_from_folders(str(myfile_info.get("_id")))
-    await db.count_links(update.from_user.id, "-")
+    await delete_file_entry(db, myfile_info, bot=bot)
     await edit_message(
         update,
         "**✅ File Deleted Successfully!**\n\n",

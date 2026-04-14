@@ -19,6 +19,7 @@ from FileStream.server.exceptions import FileNotFound
 from FileStream.config import Telegram
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.speedtest import run_speedtest, format_speedtest, MSG_SPEEDTEST_START, MSG_SPEEDTEST_ERROR
+from FileStream.utils.file_cleanup import delete_file_entry
 
 speedtest_lock = asyncio.Lock()
 _last_speedtest_at = 0
@@ -370,9 +371,7 @@ async def del_file(c: Client, m: Message):
         )
         return
         
-    await db.delete_one_file(file_info['_id'])
-    await db.remove_file_from_folders(str(file_info.get("_id")))
-    await db.count_links(file_info['user_id'], "-")
+    await delete_file_entry(db, file_info, bot=c)
     await m.reply_text(
         text=f"**File Deleted Successfully!** ",
         quote=True

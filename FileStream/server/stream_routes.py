@@ -12,9 +12,11 @@ from FileStream.bot import multi_clients, work_loads, FileStream
 from FileStream.config import Telegram, Server
 from FileStream.server.exceptions import FileNotFound, InvalidHash
 from FileStream import utils, StartTime, __version__
+from FileStream.utils.database import Database
 from FileStream.utils.render_template import render_page, render_folder
 
 routes = web.RouteTableDef()
+db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
 # One-time download token store
 # Format: {token: {"path": str, "expires": datetime, "used": bool}}
@@ -59,6 +61,22 @@ def _validate_and_consume_token(token: str) -> str | None:
     # Clean up after use
     del _download_tokens[token]
     return path
+
+
+def invalidate_file_access(path: str) -> None:
+    path = str(path or "")
+    if not path:
+        return
+
+    expired_tokens = [token for token, data in _download_tokens.items() if data.get("path") == path]
+    for token in expired_tokens:
+        _download_tokens.pop(token, None)
+
+    for streamer in class_cache.values():
+        try:
+            streamer.cached_file_ids.pop(path, None)
+        except Exception:
+            continue
 
 @routes.get("/status", allow_head=True)
 async def root_route_handler(_):
@@ -136,6 +154,7 @@ async def get_download_token_handler(request: web.Request):
     """Generate a one-time download token for the file"""
     try:
         path = request.match_info["path"]
+        await db.get_file(path)
         # Create a token that expires in 5 minutes
         token = _create_download_token(path, expires_in_seconds=300)
         download_url = f"{Server.URL}file/{token}"
@@ -167,6 +186,10 @@ async def file_handler(request: web.Request):
         return await media_streamer(request, path)
     except web.HTTPForbidden:
         raise
+    except InvalidHash as e:
+        raise web.HTTPForbidden(text=e.message)
+    except FileNotFound as e:
+        raise web.HTTPNotFound(text=e.message)
     except Exception as e:
         traceback.print_exc()
         logging.critical(e.with_traceback(None))
@@ -221,6 +244,11 @@ def _parse_range(range_header: str, file_size: int):
 
 async def media_streamer(request: web.Request, db_id: str):
     range_header = request.headers.get("Range")
+
+    # MongoDB remains the source of truth for whether a file is still active.
+    # This prevents stale in-memory file_id cache entries from keeping deleted
+    # files accessible until cache expiry.
+    await db.get_file(db_id)
 
     if not work_loads:
         raise web.HTTPServiceUnavailable(text="No available clients")
