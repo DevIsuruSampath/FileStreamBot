@@ -1,0 +1,755 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 9 /Kids [5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R 21 0 R] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+4 0 obj
+<< /Length 2374 >>
+stream
+BT
+/F1 9 Tf
+11 TL
+36 797 Td
+(FileStreamBot - Full Project Working Explanation) Tj
+T* (===============================================) Tj
+T* () Tj
+T* (1\) What this project is) Tj
+T* (-----------------------) Tj
+T* (FileStreamBot is a Telegram bot plus a small web server.) Tj
+T* () Tj
+T* (Its job is:) Tj
+T* (- receive media files from Telegram users or channels) Tj
+T* (- save file metadata in MongoDB) Tj
+T* (- generate stream/download links) Tj
+T* (- serve the actual file bytes from Telegram directly through a web URL) Tj
+T* (- avoid storing big files permanently on the server) Tj
+T* () Tj
+T* (So the server mainly stores metadata, not the full media file.) Tj
+T* (The real media still comes from Telegram when someone opens the web link.) Tj
+T* () Tj
+T* () Tj
+T* (2\) Main idea in one line) Tj
+T* (------------------------) Tj
+T* (Telegram file -> bot reads file info -> metadata saved in MongoDB -> web link created -> ) Tj
+T* (aiohttp route streams bytes from Telegram to browser/user.) Tj
+T* () Tj
+T* () Tj
+T* (3\) Important files) Tj
+T* (------------------) Tj
+T* (Main startup:) Tj
+T* (- FileStream/__main__.py) Tj
+T* (- FileStream/main.py) Tj
+T* () Tj
+T* (Config:) Tj
+T* (- FileStream/config.py) Tj
+T* (- .env.example) Tj
+T* () Tj
+T* (Bot setup:) Tj
+T* (- FileStream/bot/__init__.py) Tj
+T* (- FileStream/bot/clients.py) Tj
+T* () Tj
+T* (Telegram handlers:) Tj
+T* (- FileStream/bot/plugins/start.py) Tj
+T* (- FileStream/bot/plugins/stream.py) Tj
+T* (- FileStream/bot/plugins/callback.py) Tj
+T* (- FileStream/bot/plugins/batch.py) Tj
+T* (- FileStream/bot/plugins/folder_manager.py) Tj
+T* (- FileStream/bot/plugins/admin.py) Tj
+T* (- FileStream/bot/plugins/nsfw_report.py) Tj
+T* () Tj
+T* (Web server:) Tj
+T* (- FileStream/server/__init__.py) Tj
+T* (- FileStream/server/stream_routes.py) Tj
+T* () Tj
+T* (Database and helpers:) Tj
+T* (- FileStream/utils/database.py) Tj
+T* (- FileStream/utils/file_properties.py) Tj
+T* (- FileStream/utils/custom_dl.py) Tj
+T* (- FileStream/utils/render_template.py) Tj
+T* (- FileStream/utils/bot_utils.py) Tj
+T* (- FileStream/utils/shortener.py) Tj
+T* (- FileStream/utils/nsfw.py) Tj
+T* () Tj
+T* (Templates:) Tj
+T* (- FileStream/template/play.html) Tj
+T* (- FileStream/template/folder.html) Tj
+T* (- FileStream/template/dl.html) Tj
+T* () Tj
+T* () Tj
+T* (4\) How startup works) Tj
+T* (--------------------) Tj
+T* (When you run:) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 4 0 R >>
+endobj
+6 0 obj
+<< /Length 2284 >>
+stream
+BT
+/F1 9 Tf
+11 TL
+36 797 Td
+(- python3 -m FileStream) Tj
+T* () Tj
+T* (The entrypoint is FileStream/__main__.py.) Tj
+T* () Tj
+T* (Startup order:) Tj
+T* (1. load config from environment in FileStream/config.py) Tj
+T* (2. create aiohttp web app) Tj
+T* (3. start web server on BIND_ADDRESS:PORT) Tj
+T* (4. start the main Pyrogram bot client) Tj
+T* (5. get bot info \(username, id, first name\)) Tj
+T* (6. initialize extra clients from MULTI_TOKEN1, MULTI_TOKEN2, etc.) Tj
+T* (7. keep bot alive with Pyrogram idle\(\)) Tj
+T* () Tj
+T* (Important note:) Tj
+T* (- Primary mode = bot + web server) Tj
+T* (- Secondary mode = only server behavior, no bot plugin updates) Tj
+T* (  This is controlled by MODE in config.py) Tj
+T* () Tj
+T* () Tj
+T* (5\) What the bot stores in MongoDB) Tj
+T* (---------------------------------) Tj
+T* (Collections used in FileStream/utils/database.py:) Tj
+T* () Tj
+T* (- users) Tj
+T* (  Stores bot users/channels and link counts) Tj
+T* () Tj
+T* (- blacklist) Tj
+T* (  Banned users/channels) Tj
+T* () Tj
+T* (- file) Tj
+T* (  Main file metadata collection) Tj
+T* (  Stores things like:) Tj
+T* (  - file_id) Tj
+T* (  - file_unique_id) Tj
+T* (  - file_name) Tj
+T* (  - file_size) Tj
+T* (  - mime_type) Tj
+T* (  - category) Tj
+T* (  - uploader info) Tj
+T* (  - Telegram message/chat info) Tj
+T* (  - per-client file_ids) Tj
+T* (  - flog_msg_id) Tj
+T* () Tj
+T* (- settings) Tj
+T* (  Stores toggles like URL shortener on/off and web ads settings) Tj
+T* () Tj
+T* (- folders) Tj
+T* (  Stores user-created folder groups of file IDs) Tj
+T* () Tj
+T* (- nsfw_reports) Tj
+T* (  Stores adult-content reports and scan results) Tj
+T* () Tj
+T* () Tj
+T* (6\) Private user flow, normal file upload) Tj
+T* (----------------------------------------) Tj
+T* (Main handler:) Tj
+T* (- FileStream/bot/plugins/stream.py) Tj
+T* (- function: private_receive_handler) Tj
+T* () Tj
+T* (Flow:) Tj
+T* (1. user sends media in private chat) Tj
+T* (2. verify_user\(\) checks:) Tj
+T* (   - authorized user rules) Tj
+T* (   - banned status) Tj
+T* (   - user registration in DB) Tj
+T* (   - force-subscribe if enabled) Tj
+T* (3. get_file_info\(message\) extracts metadata) Tj
+T* (4. db.add_file\(info\) saves metadata in MongoDB) Tj
+T* (5. get_file_ids\(...\) prepares file IDs for all active clients) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 2460 >>
+stream
+BT
+/F1 9 Tf
+11 TL
+36 797 Td
+(6. gen_link\(...\) creates buttons and response text) Tj
+T* (7. bot replies with:) Tj
+T* (   - Stream button for video/audio) Tj
+T* (   - Download button for other files) Tj
+T* (   - Get File button) Tj
+T* (   - Revoke button) Tj
+T* () Tj
+T* (This is the main user-facing path.) Tj
+T* () Tj
+T* () Tj
+T* (7\) Channel post flow) Tj
+T* (--------------------) Tj
+T* (Handler:) Tj
+T* (- FileStream/bot/plugins/stream.py) Tj
+T* (- function: channel_receive_handler) Tj
+T* () Tj
+T* (Flow:) Tj
+T* (1. media is posted in a channel) Tj
+T* (2. bot checks if channel is banned) Tj
+T* (3. channel is registered in DB if new) Tj
+T* (4. file metadata is saved) Tj
+T* (5. bot edits the channel post keyboard) Tj
+T* (6. adds a button that opens start link:) Tj
+T* (   /start stream_<file_id>) Tj
+T* () Tj
+T* (That means channel posts can become shareable stream links.) Tj
+T* () Tj
+T* () Tj
+T* (8\) Why FLOG_CHANNEL exists) Tj
+T* (--------------------------) Tj
+T* (FLOG_CHANNEL is very important for multi-client support.) Tj
+T* () Tj
+T* (Why:) Tj
+T* (- Telegram file_id can vary per bot/client) Tj
+T* (- this project may run multiple bots/sessions) Tj
+T* (- each client may need its own valid file_id to access the same media) Tj
+T* () Tj
+T* (How it works:) Tj
+T* (1. bot forwards or sends cached media to FLOG_CHANNEL) Tj
+T* (2. every active client reads that same message from FLOG_CHANNEL) Tj
+T* (3. project stores each client's file_id in DB under file_ids) Tj
+T* (4. later the web streamer picks the best available client and uses that client's file_id) Tj
+T* () Tj
+T* (If FLOG_CHANNEL is not set:) Tj
+T* (- the project falls back to simpler behavior) Tj
+T* (- but multi-client support is weaker) Tj
+T* () Tj
+T* () Tj
+T* (9\) Multi-client mode) Tj
+T* (--------------------) Tj
+T* (Files:) Tj
+T* (- FileStream/bot/__init__.py) Tj
+T* (- FileStream/bot/clients.py) Tj
+T* () Tj
+T* (If environment contains MULTI_TOKEN1, MULTI_TOKEN2, etc.:) Tj
+T* (- extra Pyrogram clients are started) Tj
+T* (- primary bot handlers are cloned to them) Tj
+T* (- each client is tracked in multi_clients) Tj
+T* (- current load per client is tracked in work_loads) Tj
+T* () Tj
+T* (Purpose:) Tj
+T* (- distribute streaming load) Tj
+T* (- reduce rate limit pressure) Tj
+T* (- improve reliability for high traffic) Tj
+T* () Tj
+T* (During streaming, the project picks the client with the lowest current load.) Tj
+T* () Tj
+T* () Tj
+T* (10\) How web streaming works) Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 2354 >>
+stream
+BT
+/F1 9 Tf
+11 TL
+36 797 Td
+(---------------------------) Tj
+T* (Main file:) Tj
+T* (- FileStream/server/stream_routes.py) Tj
+T* () Tj
+T* (Important routes:) Tj
+T* (- /status) Tj
+T* (- /watch/{path}) Tj
+T* (- /folder/{folder_id}) Tj
+T* (- /folderm/{folder_id}) Tj
+T* (- /dl/{path}) Tj
+T* (- /get-download-token/{path}) Tj
+T* (- /file/{token}) Tj
+T* () Tj
+T* (Meaning:) Tj
+T* (- /watch/{id}) Tj
+T* (  returns HTML player page for one file) Tj
+T* () Tj
+T* (- /dl/{id}) Tj
+T* (  streams file bytes directly) Tj
+T* () Tj
+T* (- /folder/{id}) Tj
+T* (  returns HTML page listing files in a folder) Tj
+T* () Tj
+T* (- /get-download-token/{id}) Tj
+T* (  creates a one-time token for safer download) Tj
+T* () Tj
+T* (- /file/{token}) Tj
+T* (  downloads/streams file using one-time token) Tj
+T* () Tj
+T* () Tj
+T* (11\) What happens when someone opens /dl/{id}) Tj
+T* (--------------------------------------------) Tj
+T* (Function:) Tj
+T* (- media_streamer\(request, db_id\)) Tj
+T* () Tj
+T* (Flow:) Tj
+T* (1. choose the least loaded client) Tj
+T* (2. create or reuse ByteStreamer for that client) Tj
+T* (3. load file properties from DB) Tj
+T* (4. decode Telegram file_id into Pyrogram FileId object) Tj
+T* (5. support HTTP Range requests for streaming/seek) Tj
+T* (6. open Telegram media session to correct data center) Tj
+T* (7. fetch chunks from Telegram using raw upload.GetFile) Tj
+T* (8. yield chunks to aiohttp response) Tj
+T* (9. browser/player receives bytes like a normal file server) Tj
+T* () Tj
+T* (This is the core of the whole project.) Tj
+T* () Tj
+T* (Very important point:) Tj
+T* (- the file is not first fully downloaded to your VPS) Tj
+T* (- chunks are fetched from Telegram and passed through to the client) Tj
+T* () Tj
+T* (That is why the bot can stream large files without full server storage.) Tj
+T* () Tj
+T* () Tj
+T* (12\) ByteStreamer internals) Tj
+T* (--------------------------) Tj
+T* (File:) Tj
+T* (- FileStream/utils/custom_dl.py) Tj
+T* () Tj
+T* (ByteStreamer does these jobs:) Tj
+T* (- cache file properties in memory) Tj
+T* (- create media sessions for the correct Telegram DC) Tj
+T* (- build file location objects) Tj
+T* (- fetch media chunks from Telegram raw API) Tj
+T* (- yield bytes piece by piece) Tj
+T* (- update client workload counters while serving) Tj
+T* () Tj
+T* (It also periodically clears cache to reduce memory usage.) Tj
+ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 1893 >>
+stream
+BT
+/F1 9 Tf
+11 TL
+36 797 Td
+() Tj
+T* () Tj
+T* (13\) How file metadata is built) Tj
+T* (------------------------------) Tj
+T* (File:) Tj
+T* (- FileStream/utils/file_properties.py) Tj
+T* () Tj
+T* (get_file_info\(message\) extracts:) Tj
+T* (- user_id or channel id) Tj
+T* (- Telegram file_id) Tj
+T* (- file_unique_id) Tj
+T* (- file_name) Tj
+T* (- file_size) Tj
+T* (- mime_type) Tj
+T* (- extension) Tj
+T* (- category) Tj
+T* (- uploader name/id/username) Tj
+T* (- message_id) Tj
+T* (- chat_id) Tj
+T* () Tj
+T* (That metadata is what gets saved in MongoDB.) Tj
+T* () Tj
+T* () Tj
+T* (14\) How stream/download links are created) Tj
+T* (-----------------------------------------) Tj
+T* (File:) Tj
+T* (- FileStream/utils/bot_utils.py) Tj
+T* () Tj
+T* (Functions:) Tj
+T* (- gen_link\(\)) Tj
+T* (- gen_linkx\(\)) Tj
+T* () Tj
+T* (For each saved file, the project creates:) Tj
+T* (- page link: /watch/{id}) Tj
+T* (- stream/download link: /dl/{id}) Tj
+T* (- Telegram start link for sending original cached media back to user) Tj
+T* () Tj
+T* (If URL shortener is enabled:) Tj
+T* (- links are shortened before sending to the user) Tj
+T* () Tj
+T* (If file is video/audio:) Tj
+T* (- user gets Stream button) Tj
+T* (Else:) Tj
+T* (- user gets Download button) Tj
+T* () Tj
+T* () Tj
+T* (15\) HTML pages) Tj
+T* (--------------) Tj
+T* (File:) Tj
+T* (- FileStream/utils/render_template.py) Tj
+T* () Tj
+T* (This generates the web pages for:) Tj
+T* (- single file play page) Tj
+T* (- folder page) Tj
+T* () Tj
+T* (It reads DB info and injects data into Jinja templates.) Tj
+T* () Tj
+T* (Single file page includes things like:) Tj
+T* (- file name) Tj
+T* (- file size) Tj
+T* (- mime type) Tj
+T* (- category) Tj
+T* (- uploader) Tj
+T* (- actual /dl/{id} source URL) Tj
+T* () Tj
+T* (Folder page includes:) Tj
+T* (- all files in a folder) Tj
+T* (- natural sorting) Tj
+T* (- special sorting for series/anime episode patterns) Tj
+ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 12 0 R >>
+endobj
+14 0 obj
+<< /Length 1885 >>
+stream
+BT
+/F1 9 Tf
+11 TL
+36 797 Td
+(- play/download data for each item) Tj
+T* () Tj
+T* () Tj
+T* (16\) Folder feature) Tj
+T* (------------------) Tj
+T* (Files:) Tj
+T* (- FileStream/bot/plugins/batch.py) Tj
+T* (- FileStream/bot/plugins/folder_manager.py) Tj
+T* () Tj
+T* (There are two folder-related parts:) Tj
+T* () Tj
+T* (A\) /folder mode \(manual collecting\)) Tj
+T* (- user starts folder mode) Tj
+T* (- sends multiple media files) Tj
+T* (- bot stores their file IDs in a session) Tj
+T* (- /done creates a folder in DB) Tj
+T* (- folder link becomes /folder/{folder_id}) Tj
+T* () Tj
+T* (B\) /folders manager) Tj
+T* (- list user folders) Tj
+T* (- open details) Tj
+T* (- rename folder) Tj
+T* (- delete folder) Tj
+T* (- open folder link) Tj
+T* () Tj
+T* (Folders are basically saved groups of file DB IDs.) Tj
+T* () Tj
+T* () Tj
+T* (17\) Admin features) Tj
+T* (------------------) Tj
+T* (File:) Tj
+T* (- FileStream/bot/plugins/admin.py) Tj
+T* () Tj
+T* (Important commands:) Tj
+T* (- /id) Tj
+T* (- /urlshortener on|off) Tj
+T* (- /status) Tj
+T* (- /speedtest) Tj
+T* (- /ban) Tj
+T* (- /unban) Tj
+T* (- /broadcast \(reply required\)) Tj
+T* (- /del <file_id>) Tj
+T* () Tj
+T* (These let owner/admin manage users, links, and bot health.) Tj
+T* () Tj
+T* () Tj
+T* (18\) Callback buttons) Tj
+T* (--------------------) Tj
+T* (File:) Tj
+T* (- FileStream/bot/plugins/callback.py) Tj
+T* () Tj
+T* (Handles inline button actions like:) Tj
+T* (- home/help/about pages) Tj
+T* (- file list pagination) Tj
+T* (- open a file menu) Tj
+T* (- send original file to user) Tj
+T* (- delete/revoke file) Tj
+T* (- back/close actions) Tj
+T* () Tj
+T* (So most inline button behavior is centralized there.) Tj
+T* () Tj
+T* () Tj
+T* (19\) Force subscribe) Tj
+T* (-------------------) Tj
+T* (File:) Tj
+T* (- FileStream/utils/bot_utils.py) Tj
+T* () Tj
+T* (If FORCE_SUB is enabled:) Tj
+T* (- user must join FORCE_SUB_ID channel) Tj
+ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 14 0 R >>
+endobj
+16 0 obj
+<< /Length 2147 >>
+stream
+BT
+/F1 9 Tf
+11 TL
+36 797 Td
+(- otherwise bot sends join button) Tj
+T* (- non-members cannot use the bot) Tj
+T* () Tj
+T* (Admins/authorized users can bypass this.) Tj
+T* () Tj
+T* () Tj
+T* (20\) URL shortener system) Tj
+T* (------------------------) Tj
+T* (File:) Tj
+T* (- FileStream/utils/shortener.py) Tj
+T* () Tj
+T* (Supported styles include:) Tj
+T* (- GPLinks) Tj
+T* (- ShrinkMe) Tj
+T* (- Ouo.io) Tj
+T* (- YOURLS) Tj
+T* (- generic API-based shorteners) Tj
+T* () Tj
+T* (System behavior:) Tj
+T* (- initializes lazily) Tj
+T* (- caches results) Tj
+T* (- uses cooldown after repeated failures) Tj
+T* (- has timeout protection) Tj
+T* (- falls back to original URL if shortener fails) Tj
+T* () Tj
+T* (So broken shortener config should not fully break the bot.) Tj
+T* () Tj
+T* () Tj
+T* (21\) NSFW reporting and scanning) Tj
+T* (-------------------------------) Tj
+T* (Files:) Tj
+T* (- FileStream/bot/plugins/nsfw_report.py) Tj
+T* (- FileStream/utils/nsfw.py) Tj
+T* () Tj
+T* (Feature flow:) Tj
+T* (1. user reports file or folder) Tj
+T* (2. bot creates report record in DB) Tj
+T* (3. bot fetches actual media from FLOG_CHANNEL) Tj
+T* (4. NudeNet scans image/video) Tj
+T* (5. if adult content is detected:) Tj
+T* (   - file/folder is removed) Tj
+T* (   - uploader may be notified) Tj
+T* (   - report status is updated) Tj
+T* (6. reporter is notified of result) Tj
+T* () Tj
+T* (Video scanning uses sampled frames with OpenCV.) Tj
+T* () Tj
+T* () Tj
+T* (22\) Categories and sorting) Tj
+T* (--------------------------) Tj
+T* (The project tries to categorize files based on:) Tj
+T* (- file name) Tj
+T* (- mime type) Tj
+T* (- extension) Tj
+T* () Tj
+T* (It also improves folder ordering by detecting patterns like:) Tj
+T* (- S01E02) Tj
+T* (- 1x02) Tj
+T* (- episode 12) Tj
+T* () Tj
+T* (That makes series folders appear in better order on the web page.) Tj
+T* () Tj
+T* () Tj
+T* (23\) Generated web URLs summary) Tj
+T* (------------------------------) Tj
+T* (Assuming your domain is in FQDN:) Tj
+T* (- status:   http\(s\)://your-domain/status) Tj
+T* (- watch:    http\(s\)://your-domain/watch/<file_id>) Tj
+T* (- direct:   http\(s\)://your-domain/dl/<file_id>) Tj
+ET
+endstream
+endobj
+17 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 16 0 R >>
+endobj
+18 0 obj
+<< /Length 2063 >>
+stream
+BT
+/F1 9 Tf
+11 TL
+36 797 Td
+(- folder:   http\(s\)://your-domain/folder/<folder_id>) Tj
+T* (- token API:http\(s\)://your-domain/get-download-token/<file_id>) Tj
+T* (- token dl: http\(s\)://your-domain/file/<token>) Tj
+T* () Tj
+T* (Base URL is built in config.py from:) Tj
+T* (- FQDN) Tj
+T* (- PORT) Tj
+T* (- HAS_SSL) Tj
+T* (- NO_PORT) Tj
+T* () Tj
+T* () Tj
+T* (24\) Required environment variables) Tj
+T* (----------------------------------) Tj
+T* (Main required ones are:) Tj
+T* (- API_ID) Tj
+T* (- API_HASH) Tj
+T* (- BOT_TOKEN) Tj
+T* (- OWNER_ID) Tj
+T* (- FLOG_CHANNEL) Tj
+T* (- ULOG_CHANNEL) Tj
+T* (- DATABASE_URL) Tj
+T* (- FQDN) Tj
+T* () Tj
+T* (Very useful optional ones:) Tj
+T* (- MULTI_TOKEN1, MULTI_TOKEN2...) Tj
+T* (- FORCE_SUB) Tj
+T* (- FORCE_SUB_ID) Tj
+T* (- URL_SHORTENER_SITE) Tj
+T* (- URL_SHORTENER_API_KEY) Tj
+T* (- NUDENET_ENABLE) Tj
+T* (- MODE) Tj
+T* () Tj
+T* () Tj
+T* (25\) Deployment modes) Tj
+T* (--------------------) Tj
+T* (This project can run on:) Tj
+T* (- local machine) Tj
+T* (- VPS) Tj
+T* (- Docker) Tj
+T* (- Heroku-like platforms) Tj
+T* () Tj
+T* (Files for deployment:) Tj
+T* (- Dockerfile) Tj
+T* (- Procfile) Tj
+T* (- app.json) Tj
+T* () Tj
+T* () Tj
+T* (26\) What happens end-to-end for one video) Tj
+T* (-----------------------------------------) Tj
+T* (Example:) Tj
+T* (1. user sends video to bot privately) Tj
+T* (2. bot extracts metadata) Tj
+T* (3. bot inserts a DB record) Tj
+T* (4. bot may store per-client file IDs through FLOG_CHANNEL) Tj
+T* (5. bot replies with a stream button) Tj
+T* (6. user clicks stream button) Tj
+T* (7. browser opens /watch/<db_id>) Tj
+T* (8. HTML player loads /dl/<db_id>) Tj
+T* (9. server asks Telegram for byte ranges) Tj
+T* (10. browser plays video immediately) Tj
+T* () Tj
+T* (This is the real working cycle of the app.) Tj
+T* () Tj
+T* () Tj
+T* (27\) Strong points of this project) Tj
+T* (---------------------------------) Tj
+T* (- no need to permanently store huge files on server) Tj
+T* (- direct web streaming from Telegram source) Tj
+T* (- supports multiple clients for better load sharing) Tj
+ET
+endstream
+endobj
+19 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 18 0 R >>
+endobj
+20 0 obj
+<< /Length 1711 >>
+stream
+BT
+/F1 9 Tf
+11 TL
+36 797 Td
+(- folder pages for grouped content) Tj
+T* (- URL shortener monetization support) Tj
+T* (- optional NSFW moderation) Tj
+T* (- admin tools for user management and broadcast) Tj
+T* () Tj
+T* () Tj
+T* (28\) Weak points / things to watch) Tj
+T* (---------------------------------) Tj
+T* (- depends heavily on Telegram API behavior) Tj
+T* (- FLOG_CHANNEL is important for stable multi-client operation) Tj
+T* (- if MongoDB is down, core features fail) Tj
+T* (- if domain/FQDN is wrong, links break) Tj
+T* (- NSFW scan can be CPU-heavy) Tj
+T* (- in-memory one-time download tokens are lost on restart) Tj
+T* (- some features depend on bot having correct Telegram permissions) Tj
+T* () Tj
+T* () Tj
+T* (29\) Simple mental model) Tj
+T* (-----------------------) Tj
+T* (Think of the project as 3 layers:) Tj
+T* () Tj
+T* (Layer 1: Telegram bot layer) Tj
+T* (- receives files) Tj
+T* (- verifies users) Tj
+T* (- stores metadata) Tj
+T* (- sends buttons/links) Tj
+T* () Tj
+T* (Layer 2: Database layer) Tj
+T* (- remembers files, users, folders, settings, reports) Tj
+T* () Tj
+T* (Layer 3: Web streaming layer) Tj
+T* (- renders HTML pages) Tj
+T* (- fetches Telegram chunks) Tj
+T* (- streams bytes to browser) Tj
+T* () Tj
+T* () Tj
+T* (30\) Final summary) Tj
+T* (-----------------) Tj
+T* (FileStreamBot does NOT work like a normal upload server.) Tj
+T* (It works like a bridge between Telegram and the web.) Tj
+T* () Tj
+T* (The bot saves file metadata in MongoDB.) Tj
+T* (When someone opens a generated link, the aiohttp server fetches the file chunks from Telegram ) Tj
+T* (through Pyrogram/raw API and streams them to the browser.) Tj
+T* () Tj
+T* (That is the core design of the entire project.) Tj
+ET
+endstream
+endobj
+21 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 20 0 R >>
+endobj
+xref
+0 22
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000175 00000 n 
+0000000243 00000 n 
+0000002669 00000 n 
+0000002795 00000 n 
+0000005131 00000 n 
+0000005257 00000 n 
+0000007769 00000 n 
+0000007895 00000 n 
+0000010302 00000 n 
+0000010430 00000 n 
+0000012376 00000 n 
+0000012504 00000 n 
+0000014442 00000 n 
+0000014570 00000 n 
+0000016770 00000 n 
+0000016898 00000 n 
+0000019014 00000 n 
+0000019142 00000 n 
+0000020906 00000 n 
+trailer
+<< /Size 22 /Root 1 0 R >>
+startxref
+21034
+%%EOF
