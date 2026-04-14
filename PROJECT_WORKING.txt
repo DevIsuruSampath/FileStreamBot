@@ -1,0 +1,596 @@
+FileStreamBot - Full Project Working Explanation
+===============================================
+
+1) What this project is
+-----------------------
+FileStreamBot is a Telegram bot plus a small web server.
+
+Its job is:
+- receive media files from Telegram users or channels
+- save file metadata in MongoDB
+- generate stream/download links
+- serve the actual file bytes from Telegram directly through a web URL
+- avoid storing big files permanently on the server
+
+So the server mainly stores metadata, not the full media file.
+The real media still comes from Telegram when someone opens the web link.
+
+
+2) Main idea in one line
+------------------------
+Telegram file -> bot reads file info -> metadata saved in MongoDB -> web link created -> aiohttp route streams bytes from Telegram to browser/user.
+
+
+3) Important files
+------------------
+Main startup:
+- FileStream/__main__.py
+- FileStream/main.py
+
+Config:
+- FileStream/config.py
+- .env.example
+
+Bot setup:
+- FileStream/bot/__init__.py
+- FileStream/bot/clients.py
+
+Telegram handlers:
+- FileStream/bot/plugins/start.py
+- FileStream/bot/plugins/stream.py
+- FileStream/bot/plugins/callback.py
+- FileStream/bot/plugins/batch.py
+- FileStream/bot/plugins/folder_manager.py
+- FileStream/bot/plugins/admin.py
+- FileStream/bot/plugins/nsfw_report.py
+
+Web server:
+- FileStream/server/__init__.py
+- FileStream/server/stream_routes.py
+
+Database and helpers:
+- FileStream/utils/database.py
+- FileStream/utils/file_properties.py
+- FileStream/utils/custom_dl.py
+- FileStream/utils/render_template.py
+- FileStream/utils/bot_utils.py
+- FileStream/utils/shortener.py
+- FileStream/utils/nsfw.py
+
+Templates:
+- FileStream/template/play.html
+- FileStream/template/folder.html
+- FileStream/template/dl.html
+
+
+4) How startup works
+--------------------
+When you run:
+- python3 -m FileStream
+
+The entrypoint is FileStream/__main__.py.
+
+Startup order:
+1. load config from environment in FileStream/config.py
+2. create aiohttp web app
+3. start web server on BIND_ADDRESS:PORT
+4. start the main Pyrogram bot client
+5. get bot info (username, id, first name)
+6. initialize extra clients from MULTI_TOKEN1, MULTI_TOKEN2, etc.
+7. keep bot alive with Pyrogram idle()
+
+Important note:
+- Primary mode = bot + web server
+- Secondary mode = only server behavior, no bot plugin updates
+  This is controlled by MODE in config.py
+
+
+5) What the bot stores in MongoDB
+---------------------------------
+Collections used in FileStream/utils/database.py:
+
+- users
+  Stores bot users/channels and link counts
+
+- blacklist
+  Banned users/channels
+
+- file
+  Main file metadata collection
+  Stores things like:
+  - file_id
+  - file_unique_id
+  - file_name
+  - file_size
+  - mime_type
+  - category
+  - uploader info
+  - Telegram message/chat info
+  - per-client file_ids
+  - flog_msg_id
+
+- settings
+  Stores toggles like URL shortener on/off and web ads settings
+
+- folders
+  Stores user-created folder groups of file IDs
+
+- nsfw_reports
+  Stores adult-content reports and scan results
+
+
+6) Private user flow, normal file upload
+----------------------------------------
+Main handler:
+- FileStream/bot/plugins/stream.py
+- function: private_receive_handler
+
+Flow:
+1. user sends media in private chat
+2. verify_user() checks:
+   - authorized user rules
+   - banned status
+   - user registration in DB
+   - force-subscribe if enabled
+3. get_file_info(message) extracts metadata
+4. db.add_file(info) saves metadata in MongoDB
+5. get_file_ids(...) prepares file IDs for all active clients
+6. gen_link(...) creates buttons and response text
+7. bot replies with:
+   - Stream button for video/audio
+   - Download button for other files
+   - Get File button
+   - Revoke button
+
+This is the main user-facing path.
+
+
+7) Channel post flow
+--------------------
+Handler:
+- FileStream/bot/plugins/stream.py
+- function: channel_receive_handler
+
+Flow:
+1. media is posted in a channel
+2. bot checks if channel is banned
+3. channel is registered in DB if new
+4. file metadata is saved
+5. bot edits the channel post keyboard
+6. adds a button that opens start link:
+   /start stream_<file_id>
+
+That means channel posts can become shareable stream links.
+
+
+8) Why FLOG_CHANNEL exists
+--------------------------
+FLOG_CHANNEL is very important for multi-client support.
+
+Why:
+- Telegram file_id can vary per bot/client
+- this project may run multiple bots/sessions
+- each client may need its own valid file_id to access the same media
+
+How it works:
+1. bot forwards or sends cached media to FLOG_CHANNEL
+2. every active client reads that same message from FLOG_CHANNEL
+3. project stores each client's file_id in DB under file_ids
+4. later the web streamer picks the best available client and uses that client's file_id
+
+If FLOG_CHANNEL is not set:
+- the project falls back to simpler behavior
+- but multi-client support is weaker
+
+
+9) Multi-client mode
+--------------------
+Files:
+- FileStream/bot/__init__.py
+- FileStream/bot/clients.py
+
+If environment contains MULTI_TOKEN1, MULTI_TOKEN2, etc.:
+- extra Pyrogram clients are started
+- primary bot handlers are cloned to them
+- each client is tracked in multi_clients
+- current load per client is tracked in work_loads
+
+Purpose:
+- distribute streaming load
+- reduce rate limit pressure
+- improve reliability for high traffic
+
+During streaming, the project picks the client with the lowest current load.
+
+
+10) How web streaming works
+---------------------------
+Main file:
+- FileStream/server/stream_routes.py
+
+Important routes:
+- /status
+- /watch/{path}
+- /folder/{folder_id}
+- /folderm/{folder_id}
+- /dl/{path}
+- /get-download-token/{path}
+- /file/{token}
+
+Meaning:
+- /watch/{id}
+  returns HTML player page for one file
+
+- /dl/{id}
+  streams file bytes directly
+
+- /folder/{id}
+  returns HTML page listing files in a folder
+
+- /get-download-token/{id}
+  creates a one-time token for safer download
+
+- /file/{token}
+  downloads/streams file using one-time token
+
+
+11) What happens when someone opens /dl/{id}
+--------------------------------------------
+Function:
+- media_streamer(request, db_id)
+
+Flow:
+1. choose the least loaded client
+2. create or reuse ByteStreamer for that client
+3. load file properties from DB
+4. decode Telegram file_id into Pyrogram FileId object
+5. support HTTP Range requests for streaming/seek
+6. open Telegram media session to correct data center
+7. fetch chunks from Telegram using raw upload.GetFile
+8. yield chunks to aiohttp response
+9. browser/player receives bytes like a normal file server
+
+This is the core of the whole project.
+
+Very important point:
+- the file is not first fully downloaded to your VPS
+- chunks are fetched from Telegram and passed through to the client
+
+That is why the bot can stream large files without full server storage.
+
+
+12) ByteStreamer internals
+--------------------------
+File:
+- FileStream/utils/custom_dl.py
+
+ByteStreamer does these jobs:
+- cache file properties in memory
+- create media sessions for the correct Telegram DC
+- build file location objects
+- fetch media chunks from Telegram raw API
+- yield bytes piece by piece
+- update client workload counters while serving
+
+It also periodically clears cache to reduce memory usage.
+
+
+13) How file metadata is built
+------------------------------
+File:
+- FileStream/utils/file_properties.py
+
+get_file_info(message) extracts:
+- user_id or channel id
+- Telegram file_id
+- file_unique_id
+- file_name
+- file_size
+- mime_type
+- extension
+- category
+- uploader name/id/username
+- message_id
+- chat_id
+
+That metadata is what gets saved in MongoDB.
+
+
+14) How stream/download links are created
+-----------------------------------------
+File:
+- FileStream/utils/bot_utils.py
+
+Functions:
+- gen_link()
+- gen_linkx()
+
+For each saved file, the project creates:
+- page link: /watch/{id}
+- stream/download link: /dl/{id}
+- Telegram start link for sending original cached media back to user
+
+If URL shortener is enabled:
+- links are shortened before sending to the user
+
+If file is video/audio:
+- user gets Stream button
+Else:
+- user gets Download button
+
+
+15) HTML pages
+--------------
+File:
+- FileStream/utils/render_template.py
+
+This generates the web pages for:
+- single file play page
+- folder page
+
+It reads DB info and injects data into Jinja templates.
+
+Single file page includes things like:
+- file name
+- file size
+- mime type
+- category
+- uploader
+- actual /dl/{id} source URL
+
+Folder page includes:
+- all files in a folder
+- natural sorting
+- special sorting for series/anime episode patterns
+- play/download data for each item
+
+
+16) Folder feature
+------------------
+Files:
+- FileStream/bot/plugins/batch.py
+- FileStream/bot/plugins/folder_manager.py
+
+There are two folder-related parts:
+
+A) /folder mode (manual collecting)
+- user starts folder mode
+- sends multiple media files
+- bot stores their file IDs in a session
+- /done creates a folder in DB
+- folder link becomes /folder/{folder_id}
+
+B) /folders manager
+- list user folders
+- open details
+- rename folder
+- delete folder
+- open folder link
+
+Folders are basically saved groups of file DB IDs.
+
+
+17) Admin features
+------------------
+File:
+- FileStream/bot/plugins/admin.py
+
+Important commands:
+- /id
+- /urlshortener on|off
+- /status
+- /speedtest
+- /ban
+- /unban
+- /broadcast (reply required)
+- /del <file_id>
+
+These let owner/admin manage users, links, and bot health.
+
+
+18) Callback buttons
+--------------------
+File:
+- FileStream/bot/plugins/callback.py
+
+Handles inline button actions like:
+- home/help/about pages
+- file list pagination
+- open a file menu
+- send original file to user
+- delete/revoke file
+- back/close actions
+
+So most inline button behavior is centralized there.
+
+
+19) Force subscribe
+-------------------
+File:
+- FileStream/utils/bot_utils.py
+
+If FORCE_SUB is enabled:
+- user must join FORCE_SUB_ID channel
+- otherwise bot sends join button
+- non-members cannot use the bot
+
+Admins/authorized users can bypass this.
+
+
+20) URL shortener system
+------------------------
+File:
+- FileStream/utils/shortener.py
+
+Supported styles include:
+- GPLinks
+- ShrinkMe
+- Ouo.io
+- YOURLS
+- generic API-based shorteners
+
+System behavior:
+- initializes lazily
+- caches results
+- uses cooldown after repeated failures
+- has timeout protection
+- falls back to original URL if shortener fails
+
+So broken shortener config should not fully break the bot.
+
+
+21) NSFW reporting and scanning
+-------------------------------
+Files:
+- FileStream/bot/plugins/nsfw_report.py
+- FileStream/utils/nsfw.py
+
+Feature flow:
+1. user reports file or folder
+2. bot creates report record in DB
+3. bot fetches actual media from FLOG_CHANNEL
+4. NudeNet scans image/video
+5. if adult content is detected:
+   - file/folder is removed
+   - uploader may be notified
+   - report status is updated
+6. reporter is notified of result
+
+Video scanning uses sampled frames with OpenCV.
+
+
+22) Categories and sorting
+--------------------------
+The project tries to categorize files based on:
+- file name
+- mime type
+- extension
+
+It also improves folder ordering by detecting patterns like:
+- S01E02
+- 1x02
+- episode 12
+
+That makes series folders appear in better order on the web page.
+
+
+23) Generated web URLs summary
+------------------------------
+Assuming your domain is in FQDN:
+- status:   http(s)://your-domain/status
+- watch:    http(s)://your-domain/watch/<file_id>
+- direct:   http(s)://your-domain/dl/<file_id>
+- folder:   http(s)://your-domain/folder/<folder_id>
+- token API:http(s)://your-domain/get-download-token/<file_id>
+- token dl: http(s)://your-domain/file/<token>
+
+Base URL is built in config.py from:
+- FQDN
+- PORT
+- HAS_SSL
+- NO_PORT
+
+
+24) Required environment variables
+----------------------------------
+Main required ones are:
+- API_ID
+- API_HASH
+- BOT_TOKEN
+- OWNER_ID
+- FLOG_CHANNEL
+- ULOG_CHANNEL
+- DATABASE_URL
+- FQDN
+
+Very useful optional ones:
+- MULTI_TOKEN1, MULTI_TOKEN2...
+- FORCE_SUB
+- FORCE_SUB_ID
+- URL_SHORTENER_SITE
+- URL_SHORTENER_API_KEY
+- NUDENET_ENABLE
+- MODE
+
+
+25) Deployment modes
+--------------------
+This project can run on:
+- local machine
+- VPS
+- Docker
+- Heroku-like platforms
+
+Files for deployment:
+- Dockerfile
+- Procfile
+- app.json
+
+
+26) What happens end-to-end for one video
+-----------------------------------------
+Example:
+1. user sends video to bot privately
+2. bot extracts metadata
+3. bot inserts a DB record
+4. bot may store per-client file IDs through FLOG_CHANNEL
+5. bot replies with a stream button
+6. user clicks stream button
+7. browser opens /watch/<db_id>
+8. HTML player loads /dl/<db_id>
+9. server asks Telegram for byte ranges
+10. browser plays video immediately
+
+This is the real working cycle of the app.
+
+
+27) Strong points of this project
+---------------------------------
+- no need to permanently store huge files on server
+- direct web streaming from Telegram source
+- supports multiple clients for better load sharing
+- folder pages for grouped content
+- URL shortener monetization support
+- optional NSFW moderation
+- admin tools for user management and broadcast
+
+
+28) Weak points / things to watch
+---------------------------------
+- depends heavily on Telegram API behavior
+- FLOG_CHANNEL is important for stable multi-client operation
+- if MongoDB is down, core features fail
+- if domain/FQDN is wrong, links break
+- NSFW scan can be CPU-heavy
+- in-memory one-time download tokens are lost on restart
+- some features depend on bot having correct Telegram permissions
+
+
+29) Simple mental model
+-----------------------
+Think of the project as 3 layers:
+
+Layer 1: Telegram bot layer
+- receives files
+- verifies users
+- stores metadata
+- sends buttons/links
+
+Layer 2: Database layer
+- remembers files, users, folders, settings, reports
+
+Layer 3: Web streaming layer
+- renders HTML pages
+- fetches Telegram chunks
+- streams bytes to browser
+
+
+30) Final summary
+-----------------
+FileStreamBot does NOT work like a normal upload server.
+It works like a bridge between Telegram and the web.
+
+The bot saves file metadata in MongoDB.
+When someone opens a generated link, the aiohttp server fetches the file chunks from Telegram through Pyrogram/raw API and streams them to the browser.
+
+That is the core design of the entire project.
