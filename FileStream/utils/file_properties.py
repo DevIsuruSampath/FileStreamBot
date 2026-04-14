@@ -14,10 +14,19 @@ from pyrogram.file_id import FileId
 from FileStream.bot import FileStream
 from FileStream.utils.database import Database
 from FileStream.utils.category import detect_category
+from FileStream.utils.file_cleanup import delete_file_entry, invalidate_runtime_access
 from FileStream.config import Telegram, Server
 from FileStream.server.exceptions import FileNotFound
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
+
+_FLOG_MISSING_MARKERS = (
+    "message_id_invalid",
+    "msg_id_invalid",
+    "message ids empty",
+    "message not found",
+    "chat not found",
+)
 
 
 async def get_file_ids(client: Client | bool, db_id: str, multi_clients, message=None) -> Optional[FileId]:
@@ -78,6 +87,50 @@ async def get_file_ids(client: Client | bool, db_id: str, multi_clients, message
     setattr(file_id, "unique_id", file_info['file_unique_id'])
     logging.debug("Ending of get_file_ids")
     return file_id
+
+
+async def ensure_flog_media_exists(
+    file_info: dict,
+    bot: Client | None = None,
+    prune_stale: bool = False,
+    db_instance: Database | None = None,
+) -> dict:
+    if not file_info:
+        raise FileNotFound
+
+    if not Telegram.FLOG_CHANNEL:
+        return file_info
+
+    flog_msg_id = file_info.get("flog_msg_id")
+    if not flog_msg_id:
+        return file_info
+
+    client = bot or FileStream
+    log_msg = None
+
+    try:
+        log_msg = await client.get_messages(Telegram.FLOG_CHANNEL, int(flog_msg_id))
+    except Exception as exc:
+        error_text = str(exc or "").lower()
+        if not any(marker in error_text for marker in _FLOG_MISSING_MARKERS):
+            logging.warning("Unable to validate FLOG media for %s: %s", file_info.get("_id"), exc)
+            return file_info
+
+    media = get_media_from_message(log_msg)
+    if media:
+        return file_info
+
+    file_db_id = str(file_info.get("_id") or "")
+    invalidate_runtime_access(file_db_id)
+
+    if prune_stale:
+        cleanup_db = db_instance or db
+        try:
+            await delete_file_entry(cleanup_db, file_info, bot=client)
+        except Exception:
+            logging.debug("Failed to prune stale file %s after missing FLOG media", file_db_id, exc_info=True)
+
+    raise FileNotFound("File no longer available")
 
 
 def get_media_from_message(message: "Message") -> Any:
@@ -279,4 +332,3 @@ async def send_file(client: Client, db_id, file_id: str, message=None, file_name
 
     return log_msg
     # return await client.send_cached_media(Telegram.BIN_CHANNEL, file_id)
-

@@ -11,6 +11,7 @@ from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.shortener import shorten
 from FileStream.utils.file_cleanup import delete_file_entry
+from FileStream.utils.file_properties import ensure_flog_media_exists
 from FileStream.server.exceptions import FileNotFound
 from FileStream.utils.client_identity import get_bot_name, get_bot_username
 from pyrogram import filters
@@ -158,6 +159,7 @@ async def cb_data(bot, update: CallbackQuery):
             return
         try:
             myfile = await db.get_file(usr_cmd[1])
+            await ensure_flog_media_exists(myfile, bot=bot, prune_stale=True, db_instance=db)
         except FileNotFound:
             await update.answer("File Not Found")
             return

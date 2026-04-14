@@ -10,6 +10,7 @@ from FileStream.bot import FileStream
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.category import detect_category
+from FileStream.utils.file_properties import ensure_flog_media_exists
 from FileStream.server.exceptions import FileNotFound
 
 
@@ -85,6 +86,7 @@ async def render_page(db_id):
     file_data = await db.get_file(db_id)
     if not file_data:
         raise FileNotFound
+    file_data = await ensure_flog_media_exists(file_data, bot=FileStream, prune_stale=True, db_instance=db)
 
     template_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "template", "play.html")
     with open(template_file, "r", encoding="utf-8") as f:

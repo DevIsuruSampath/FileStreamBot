@@ -13,6 +13,7 @@ from FileStream.config import Telegram, Server
 from FileStream.server.exceptions import FileNotFound, InvalidHash
 from FileStream import utils, StartTime, __version__
 from FileStream.utils.database import Database
+from FileStream.utils.file_properties import ensure_flog_media_exists
 from FileStream.utils.render_template import render_page, render_folder
 
 routes = web.RouteTableDef()
@@ -154,7 +155,8 @@ async def get_download_token_handler(request: web.Request):
     """Generate a one-time download token for the file"""
     try:
         path = request.match_info["path"]
-        await db.get_file(path)
+        file_info = await db.get_file(path)
+        await ensure_flog_media_exists(file_info, bot=FileStream, prune_stale=True, db_instance=db)
         # Create a token that expires in 5 minutes
         token = _create_download_token(path, expires_in_seconds=300)
         download_url = f"{Server.URL}file/{token}"
@@ -248,7 +250,8 @@ async def media_streamer(request: web.Request, db_id: str):
     # MongoDB remains the source of truth for whether a file is still active.
     # This prevents stale in-memory file_id cache entries from keeping deleted
     # files accessible until cache expiry.
-    await db.get_file(db_id)
+    file_info = await db.get_file(db_id)
+    await ensure_flog_media_exists(file_info, bot=FileStream, prune_stale=True, db_instance=db)
 
     if not work_loads:
         raise web.HTTPServiceUnavailable(text="No available clients")
