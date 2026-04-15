@@ -22,6 +22,7 @@ from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.speedtest import run_speedtest, format_speedtest, MSG_SPEEDTEST_START, MSG_SPEEDTEST_ERROR
 from FileStream.utils.file_cleanup import delete_file_entry
 from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
+from FileStream.utils.bot_commands import build_admin_help_text
 
 speedtest_lock = asyncio.Lock()
 _last_speedtest_at = 0
@@ -33,8 +34,23 @@ broadcast_ids = {}
 # Record Bot Start Time
 BOT_START_TIME = time.time()
 
-# Create Admin List
-ADMIN_IDS = list(set([Telegram.OWNER_ID] + (Telegram.AUTH_USERS or [])))
+def _build_admin_ids():
+    seen = set()
+    admin_ids = []
+    for raw_id in [Telegram.OWNER_ID, *(Telegram.AUTH_USERS or [])]:
+        try:
+            admin_id = int(raw_id)
+        except Exception:
+            continue
+        if admin_id in seen:
+            continue
+        seen.add(admin_id)
+        admin_ids.append(admin_id)
+    return admin_ids
+
+
+ADMIN_IDS = _build_admin_ids()
+OWNER_ID = int(Telegram.OWNER_ID)
 
 
 def _parse_ref(value: str) -> tuple[str | None, str]:
@@ -128,6 +144,19 @@ async def get_id(c: Client, m: Message):
         quote=True
     )
 
+
+@FileStream.on_message(filters.command("admin") & filters.private)
+async def admin_help(c: Client, m: Message):
+    if m.from_user.id not in ADMIN_IDS:
+        await m.reply_text("⚠️ **Access Denied.**", quote=True)
+        return
+    await m.reply_text(
+        build_admin_help_text(),
+        parse_mode=ParseMode.HTML,
+        quote=True,
+        disable_web_page_preview=True,
+    )
+
 # ---------------------[ URL SHORTENER TOGGLE COMMAND ]---------------------#
 @FileStream.on_message(filters.command(["urlshortener", "ads"]) & filters.private)
 async def urlshortener_toggle(c: Client, m: Message):
@@ -183,7 +212,7 @@ async def urlshortener_toggle(c: Client, m: Message):
         )
 
 # ---------------------[ STATUS COMMAND (FIXED) ]---------------------#
-@FileStream.on_message(filters.command("status") & filters.private & filters.user(Telegram.OWNER_ID))
+@FileStream.on_message(filters.command("status") & filters.private & filters.user(OWNER_ID))
 async def sts(c: Client, m: Message):
     # 1. Calculate Uptime
     bot_uptime = get_readable_time(int(time.time() - BOT_START_TIME))
@@ -279,7 +308,7 @@ async def speedtest_cmd(c: Client, m: Message):
             await msg.edit_text(MSG_SPEEDTEST_ERROR)
 
 
-@FileStream.on_message(filters.command("ban") & filters.private & filters.user(Telegram.OWNER_ID))
+@FileStream.on_message(filters.command("ban") & filters.private & filters.user(OWNER_ID))
 async def ban_user(b: Client, m: Message):
     if len(m.command) < 2:
         await m.reply_text("**Usage:** `/ban [User_ID]`", quote=True)
@@ -312,7 +341,7 @@ async def ban_user(b: Client, m: Message):
         await m.reply_text(text=f"`{target_id}`** is Already Banned** ", parse_mode=ParseMode.MARKDOWN, quote=True)
 
 # ---------------------[ UNBAN USER ]---------------------#
-@FileStream.on_message(filters.command("unban") & filters.private & filters.user(Telegram.OWNER_ID))
+@FileStream.on_message(filters.command("unban") & filters.private & filters.user(OWNER_ID))
 async def unban_user(b: Client, m: Message):
     if len(m.command) < 2:
         await m.reply_text("**Usage:** `/unban [User_ID]`", quote=True)
@@ -344,7 +373,7 @@ async def unban_user(b: Client, m: Message):
         await m.reply_text(text=f"`{target_id}`** is not Banned** ", parse_mode=ParseMode.MARKDOWN, quote=True)
 
 # ---------------------[ BROADCAST ]---------------------#
-@FileStream.on_message(filters.command("broadcast") & filters.private & filters.user(Telegram.OWNER_ID) & filters.reply)
+@FileStream.on_message(filters.command("broadcast") & filters.private & filters.user(OWNER_ID) & filters.reply)
 async def broadcast_(c, m):
     all_users = await db.get_all_users()
     broadcast_msg = m.reply_to_message
@@ -419,7 +448,7 @@ async def broadcast_(c, m):
         os.remove(log_file)
 
 # ---------------------[ DELETE FILE ]---------------------#
-@FileStream.on_message(filters.command("del") & filters.private & filters.user(Telegram.OWNER_ID))
+@FileStream.on_message(filters.command("del") & filters.private & filters.user(OWNER_ID))
 async def del_file(c: Client, m: Message):
     if len(m.command) < 2:
         await m.reply_text("**Usage:** `/del [File_ID]`", quote=True)
@@ -442,7 +471,7 @@ async def del_file(c: Client, m: Message):
     )
 
 
-@FileStream.on_message(filters.command("linkinfo") & filters.private & filters.user(Telegram.OWNER_ID))
+@FileStream.on_message(filters.command("linkinfo") & filters.private & filters.user(OWNER_ID))
 async def link_info(c: Client, m: Message):
     if len(m.command) < 2:
         await m.reply_text("**Usage:** `/linkinfo [public_id|file:<id>|folder:<id>]`", quote=True)
@@ -480,7 +509,7 @@ async def link_info(c: Client, m: Message):
     )
 
 
-@FileStream.on_message(filters.command("revoke_link") & filters.private & filters.user(Telegram.OWNER_ID))
+@FileStream.on_message(filters.command("revoke_link") & filters.private & filters.user(OWNER_ID))
 async def revoke_link(c: Client, m: Message):
     if len(m.command) < 2:
         await m.reply_text("**Usage:** `/revoke_link [public_id|file:<id>|folder:<id>]`", quote=True)
@@ -504,7 +533,7 @@ async def revoke_link(c: Client, m: Message):
     )
 
 
-@FileStream.on_message(filters.command("regen_link") & filters.private & filters.user(Telegram.OWNER_ID))
+@FileStream.on_message(filters.command("regen_link") & filters.private & filters.user(OWNER_ID))
 async def regenerate_link(c: Client, m: Message):
     if len(m.command) < 2:
         await m.reply_text("**Usage:** `/regen_link [public_id|file:<id>|folder:<id>]`", quote=True)
@@ -543,7 +572,7 @@ async def regenerate_link(c: Client, m: Message):
     )
 
 
-@FileStream.on_message(filters.command("expire_link") & filters.private & filters.user(Telegram.OWNER_ID))
+@FileStream.on_message(filters.command("expire_link") & filters.private & filters.user(OWNER_ID))
 async def expire_link(c: Client, m: Message):
     if len(m.command) < 3:
         await m.reply_text("**Usage:** `/expire_link [public_id|file:<id>|folder:<id>] [now|clear|hours]`", quote=True)

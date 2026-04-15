@@ -38,12 +38,17 @@ Links stay active as long as the original file exists. Adult content isn't allow
 • <code>/about</code> — About this bot ℹ️
 • <code>/files</code> — Browse your uploads 📂
 • <code>/folders</code> — Manage your folders 📁
-• <code>/del</code> — Delete a file (reply to it) 🗑️
-• <code>/status</code> — Bot status (Admin only) ⚡️
+• <code>/folder</code> — Start folder mode 📦
+• <code>/done</code> — Finish folder mode ✅
+• <code>/cancel</code> — Cancel folder mode ❌
+• <code>/id</code> — Show your Telegram ID 🆔
 
 <b>🔥 Power Moves:</b>
-• <code>/folder</code> — Create a folder link for multiple files
+• Send or forward files — get a share link instantly 🔗
 • Forward from channels — instant processing ⚡️
+
+<b>🛠️ Admins:</b>
+• <code>/admin</code> — Show admin commands 🔐
 
 <b>🚫️ What's not allowed:</b>
 Adult/NSFW content is strictly prohibited. Let's keep this space safe for everyone. ✨

@@ -11,6 +11,7 @@ from pyrogram.errors import FloodWait
 from FileStream.bot import FileStream
 from FileStream.server import web_server
 from FileStream.bot.clients import initialize_clients
+from FileStream.utils.bot_commands import register_bot_commands
 
 logging.basicConfig(
     level=logging.INFO,
@@ -67,6 +68,7 @@ async def start_services():
     FileStream.id = bot_info.id
     FileStream.username = bot_info.username
     FileStream.fname = bot_info.first_name
+    await register_bot_commands(FileStream)
     print("------------------------------ DONE ------------------------------")
 
     print()
