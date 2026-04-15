@@ -73,28 +73,29 @@ Transform Telegram files into streaming + download links — no waiting, no comp
 """
 
     STREAM_TEXT = """
-<b>✨ Your link is ready! 💯⚡️</b>
+<b>✨ Your share link is ready! 💯⚡️</b>
 
 <b>📄 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
 <b>🏷️ Category:</b> <code>{}</code>
 
-<b>🔗 Your Link:</b>
-<b>▶️ Stream:</b> <code>{}</code>
+<b>🔗 Public Link:</b>
+<code>{}</code>
 
-<i>💡 Tip: Stream and download from the link above! ⭐️</i>
+<i>💡 Open this page to watch, download, or open in Telegram. ⭐️</i>
 """
 
     STREAM_TEXT_X = """
-<b>✨ Your link is ready! 💯⚡️</b>
+<b>✨ Your share link is ready! 💯⚡️</b>
 
 <b>📄 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
 <b>🏷️ Category:</b> <code>{}</code>
 
-<b>⬇️ Download:</b> <code>{}</code>
+<b>🔗 Public Link:</b>
+<code>{}</code>
 
-<i>💡 Tip: Links work as long as the file exists. Save them! ⭐️</i>
+<i>💡 Open this page to download or open in Telegram. ⭐️</i>
 """
 
     BAN_TEXT = "<b>🚫️ Access Restricted</b>\n\n<i>Your account has been restricted from using this bot.</i>\n\n<b>❓ Think this is a mistake?</b>\n<a href='tg://user?id={}'>Contact Admin 💬</a>"

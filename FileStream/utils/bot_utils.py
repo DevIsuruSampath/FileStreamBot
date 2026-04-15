@@ -10,13 +10,24 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from FileStream.utils.translation import LANG
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
-from FileStream.utils.shortener import shorten
 from FileStream.utils.category import detect_category
 from FileStream.config import Telegram, Server
 from FileStream.bot import FileStream
-from FileStream.utils.client_identity import build_start_link
+from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
+
+
+async def get_public_file_context(file_ref) -> tuple[dict, dict, str]:
+    file_info = file_ref if isinstance(file_ref, dict) else await db.get_file(file_ref)
+    link_doc = await db.ensure_public_link_for_file(file_info)
+    return file_info, link_doc, build_public_file_url(link_doc["public_id"])
+
+
+async def get_public_folder_context(folder_ref) -> tuple[dict, dict, str]:
+    folder = folder_ref if isinstance(folder_ref, dict) else await db.get_folder(folder_ref)
+    link_doc = await db.ensure_public_link_for_folder(folder)
+    return folder, link_doc, build_public_folder_url(link_doc["public_id"])
 
 async def get_invite_link(bot, chat_id: Union[str, int]):
     while True:
@@ -102,7 +113,7 @@ async def is_user_joined(bot, message: Message):
 #---------------------[ PRIVATE GEN LINK + CALLBACK ]---------------------#
 
 async def gen_link(_id, bot=None):
-    file_info = await db.get_file(_id)
+    file_info, link_doc, public_url = await get_public_file_context(_id)
     file_name = file_info.get('file_name') or "file"
     file_size = humanbytes(file_info.get('file_size') or 0)
     mime_type = (file_info.get('mime_type') or "").lower()
@@ -115,39 +126,27 @@ async def gen_link(_id, bot=None):
 
     safe_name = html.escape(file_name)
     safe_category = html.escape(category)
+    safe_public_url = html.escape(public_url)
     if len(safe_name) > 200:
         safe_name = safe_name[:200] + "…"
 
-    # 1. Base Links (Normal)
-    page_link = f"{Server.URL}watch/{_id}"
-    stream_link = f"{Server.URL}dl/{_id}"
-    file_link = build_start_link(f"file_{_id}", bot)
-
-    # 2. Check Database for URL shortener status
-    if await db.get_urlshortener_status():
-        # Only shorten links that will actually be shown
-        if is_streamable:
-            page_link = await shorten(page_link)
-        stream_link = await shorten(stream_link)
-
-    safe_stream = html.escape(stream_link)
-    safe_page = html.escape(page_link)
-
     if is_streamable:
-        stream_text = LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_page)
+        stream_text = LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_public_url)
         reply_markup = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("▶️ Stream", url=page_link)],
-                [InlineKeyboardButton("📥 Get File", url=file_link), InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelpvt_{_id}")],
+                [InlineKeyboardButton("Open", url=public_url)],
+                [InlineKeyboardButton("Share", url=public_url), InlineKeyboardButton("Open in Bot", url=public_url)],
+                [InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelpvt_{_id}")],
                 [InlineKeyboardButton("❌ Close", callback_data="close")]
             ]
         )
     else:
-        stream_text = LANG.STREAM_TEXT_X.format(safe_name, file_size, safe_category, safe_stream)
+        stream_text = LANG.STREAM_TEXT_X.format(safe_name, file_size, safe_category, safe_public_url)
         reply_markup = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("⬇️ Download", url=stream_link)],
-                [InlineKeyboardButton("📥 Get File", url=file_link), InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelpvt_{_id}")],
+                [InlineKeyboardButton("Open", url=public_url)],
+                [InlineKeyboardButton("Share", url=public_url), InlineKeyboardButton("Open in Bot", url=public_url)],
+                [InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelpvt_{_id}")],
                 [InlineKeyboardButton("❌ Close", callback_data="close")]
             ]
         )
@@ -156,7 +155,7 @@ async def gen_link(_id, bot=None):
 #---------------------[ GEN STREAM LINKS FOR CHANNEL ]---------------------#
 
 async def gen_linkx(m:Message , _id, bot=None):
-    file_info = await db.get_file(_id)
+    file_info, link_doc, public_url = await get_public_file_context(_id)
     file_name = file_info.get('file_name') or "file"
     mime_type = (file_info.get('mime_type') or "").lower()
     file_size = humanbytes(file_info.get('file_size') or 0)
@@ -169,35 +168,22 @@ async def gen_linkx(m:Message , _id, bot=None):
 
     safe_name = html.escape(file_name)
     safe_category = html.escape(category)
+    safe_public_url = html.escape(public_url)
     if len(safe_name) > 200:
         safe_name = safe_name[:200] + "…"
 
-    # 1. Base Links (Normal)
-    page_link = f"{Server.URL}watch/{_id}"
-    stream_link = f"{Server.URL}dl/{_id}"
-    
-    # 2. Check Database for URL shortener status
-    if await db.get_urlshortener_status():
-        # Only shorten links that will actually be shown
-        if is_streamable:
-            page_link = await shorten(page_link)
-        stream_link = await shorten(stream_link)
-
-    safe_stream = html.escape(stream_link)
-    safe_page = html.escape(page_link)
-
     if is_streamable:
-        stream_text= LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_page)
+        stream_text= LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_public_url)
         reply_markup = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("▶️ Stream", url=page_link)]
+                [InlineKeyboardButton("Open", url=public_url)]
             ]
         )
     else:
-        stream_text= LANG.STREAM_TEXT_X.format(safe_name, file_size, safe_category, safe_stream)
+        stream_text= LANG.STREAM_TEXT_X.format(safe_name, file_size, safe_category, safe_public_url)
         reply_markup = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("⬇️ Download", url=stream_link)]
+                [InlineKeyboardButton("Open", url=public_url)]
             ]
         )
     return reply_markup, stream_text

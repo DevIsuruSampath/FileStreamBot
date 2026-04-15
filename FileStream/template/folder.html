@@ -599,10 +599,11 @@
             <div id="selectedName" class="selected-name"></div>
             <div id="selectedMeta" class="selected-meta"></div>
             <div class="actions">
-                <button id="playBtn" class="btn btn-primary">▶️ Play</button>
+                <button id="playBtn" class="btn btn-primary">▶️ Watch</button>
                 <button id="continueBtn" class="btn btn-secondary btn-continue hidden" type="button">⏯ Continue</button>
                 <button id="downloadBtn" class="btn btn-secondary">⬇️ Download</button>
-                <button id="copyBtn" class="btn btn-secondary">📋 Copy Stream Link</button>
+                <button id="copyBtn" class="btn btn-secondary">📋 Share</button>
+                <a id="telegramBtn" href="#" class="btn btn-secondary hidden">🤖 Open in Telegram</a>
                 {% if report_url %}
                 <a href="{{ report_url }}" class="btn btn-danger">🚫 Report Adult Content</a>
                 {% endif %}
@@ -925,6 +926,7 @@
     const continueBtn = document.getElementById('continueBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const copyBtn = document.getElementById('copyBtn');
+    const telegramBtn = document.getElementById('telegramBtn');
 
     const videoWrap = document.getElementById('videoWrap');
     const audioWrap = document.getElementById('audioWrap');
@@ -971,7 +973,7 @@
 
     function itemProgressKey(item) {
         if (!item) return '';
-        return String(item.id || item.url || '').trim();
+        return String(item.id || item.stream_url || '').trim();
     }
 
     function getItemProgress(item) {
@@ -1116,7 +1118,6 @@
             `Uploader: ${item.uploader || 'Unknown uploader'}`,
             resumeSeconds > 0 ? `Resume: ${formatClock(resumeSeconds)} (${resumePercent}%)` : '',
         ];
-        if (item.message_id) info.push(`Message ID: ${item.message_id}`);
         selectedMeta.textContent = info.filter(Boolean).join(' • ');
 
         actionPanel.classList.remove('hidden');
@@ -1134,6 +1135,16 @@
             continueBtn.classList.toggle('hidden', !canContinue);
             continueBtn.disabled = !canContinue;
             continueBtn.classList.toggle('disabled', !canContinue);
+        }
+
+        if (telegramBtn) {
+            if (item.telegram_url) {
+                telegramBtn.href = item.telegram_url;
+                telegramBtn.classList.remove('hidden');
+            } else {
+                telegramBtn.classList.add('hidden');
+                telegramBtn.removeAttribute('href');
+            }
         }
     }
 
@@ -1217,7 +1228,7 @@
         if (item.kind === 'audio') {
             videoWrap.classList.add('hidden');
             audioWrap.classList.remove('hidden');
-            audioPlayer.src = item.url;
+            audioPlayer.src = item.stream_url;
             showPlayerView();
             playMediaAt(audioPlayer, startAt);
             return;
@@ -1225,7 +1236,7 @@
 
         audioWrap.classList.add('hidden');
         videoWrap.classList.remove('hidden');
-        videoPlayer.src = item.url;
+        videoPlayer.src = item.stream_url;
         showPlayerView();
         playMediaAt(videoPlayer, startAt);
     }
@@ -1271,10 +1282,9 @@
         if (!item) return;
         openSmartlink();
         
-        // Extract file ID from URL (format: /dl/{file_id})
-        const fileId = item.url.split('/dl/')[1];
+        const fileId = item.download_id;
         if (!fileId) {
-            window.location.href = item.url;
+            window.location.href = item.share_url || item.stream_url;
             return;
         }
         
@@ -1350,10 +1360,10 @@
         openSmartlink();
         const old = copyBtn.textContent;
         try {
-            await navigator.clipboard.writeText(item.url);
+            await navigator.clipboard.writeText(item.share_url || '');
             copyBtn.textContent = '✅ Copied';
         } catch (_) {
-            window.prompt('Copy this link:', item.url);
+            window.prompt('Copy this link:', item.share_url || '');
             copyBtn.textContent = '📋 Link Ready';
         }
         setTimeout(() => { copyBtn.textContent = old; }, 1700);

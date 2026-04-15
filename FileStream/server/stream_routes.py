@@ -14,7 +14,8 @@ from FileStream.server.exceptions import FileNotFound, InvalidHash
 from FileStream import utils, StartTime, __version__
 from FileStream.utils.database import Database
 from FileStream.utils.file_properties import ensure_flog_media_exists
-from FileStream.utils.render_template import render_page, render_folder
+from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
+from FileStream.utils.render_template import render_page, render_folder, render_public_page, render_public_folder
 
 routes = web.RouteTableDef()
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
@@ -101,7 +102,8 @@ async def root_route_handler(_):
 async def watch_handler(request: web.Request):
     try:
         path = request.match_info["path"]
-        return web.Response(text=await render_page(path), content_type='text/html')
+        _, public_link = await db.resolve_file_reference(path)
+        raise web.HTTPFound(location=build_public_file_url(public_link["public_id"]))
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
     except FileNotFound as e:
@@ -109,13 +111,52 @@ async def watch_handler(request: web.Request):
     except (AttributeError, BadStatusLine, ConnectionResetError):
         raise web.HTTPServiceUnavailable(text="Service Unavailable")
 
-# legacy route removed
+def _public_link_error_page(title: str, message: str) -> str:
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{title}</title>
+  <style>
+    body {{ font-family: Arial, sans-serif; background: #0f172a; color: #e5e7eb; margin: 0; }}
+    main {{ min-height: 100vh; display: grid; place-items: center; padding: 24px; }}
+    .card {{ max-width: 560px; width: 100%; background: #111827; border: 1px solid #334155; border-radius: 20px; padding: 28px; }}
+    h1 {{ margin: 0 0 12px; font-size: 28px; }}
+    p {{ margin: 0; line-height: 1.6; color: #cbd5e1; }}
+  </style>
+</head>
+<body>
+  <main>
+    <section class="card">
+      <h1>{title}</h1>
+      <p>{message}</p>
+    </section>
+  </main>
+</body>
+</html>"""
+
+
+@routes.get("/gen/{public_id}", allow_head=True)
+async def gen_handler(request: web.Request):
+    public_id = request.match_info["public_id"]
+    try:
+        return web.Response(text=await render_public_page(public_id), content_type="text/html")
+    except FileNotFound as e:
+        return web.Response(
+            text=_public_link_error_page("Link unavailable", e.message or "This file link is not available anymore."),
+            content_type="text/html",
+            status=404,
+        )
+    except (AttributeError, BadStatusLine, ConnectionResetError):
+        raise web.HTTPServiceUnavailable(text="Service Unavailable")
 
 @routes.get("/folder/{folder_id}", allow_head=True)
 async def folder_handler(request: web.Request):
     try:
         folder_id = request.match_info["folder_id"]
-        return web.Response(text=await render_folder(folder_id, title="Folder"), content_type='text/html')
+        _, public_link = await db.resolve_folder_reference(folder_id)
+        raise web.HTTPFound(location=build_public_folder_url(public_link["public_id"]))
     except FileNotFound as e:
         raise web.HTTPNotFound(text=e.message)
     except (AttributeError, BadStatusLine, ConnectionResetError):
@@ -126,9 +167,25 @@ async def folder_handler(request: web.Request):
 async def folderm_handler(request: web.Request):
     try:
         folder_id = request.match_info["folder_id"]
-        return web.Response(text=await render_folder(folder_id, title="Folder"), content_type='text/html')
+        _, public_link = await db.resolve_folder_reference(folder_id)
+        raise web.HTTPFound(location=build_public_folder_url(public_link["public_id"]))
     except FileNotFound as e:
         raise web.HTTPNotFound(text=e.message)
+    except (AttributeError, BadStatusLine, ConnectionResetError):
+        raise web.HTTPServiceUnavailable(text="Service Unavailable")
+
+
+@routes.get("/gfolder/{public_id}", allow_head=True)
+async def gfolder_handler(request: web.Request):
+    public_id = request.match_info["public_id"]
+    try:
+        return web.Response(text=await render_public_folder(public_id, title="Folder"), content_type="text/html")
+    except FileNotFound as e:
+        return web.Response(
+            text=_public_link_error_page("Folder unavailable", e.message or "This folder link is not available anymore."),
+            content_type="text/html",
+            status=404,
+        )
     except (AttributeError, BadStatusLine, ConnectionResetError):
         raise web.HTTPServiceUnavailable(text="Service Unavailable")
 
@@ -155,10 +212,11 @@ async def get_download_token_handler(request: web.Request):
     """Generate a one-time download token for the file"""
     try:
         path = request.match_info["path"]
-        file_info = await db.get_file(path)
+        file_info, public_link = await db.resolve_file_reference(path)
         await ensure_flog_media_exists(file_info, bot=FileStream, prune_stale=True, db_instance=db)
         # Create a token that expires in 5 minutes
-        token = _create_download_token(path, expires_in_seconds=300)
+        token_path = public_link["public_id"] if public_link else str(file_info["_id"])
+        token = _create_download_token(token_path, expires_in_seconds=300)
         download_url = f"{Server.URL}file/{token}"
         return web.json_response({
             "success": True,
@@ -250,8 +308,9 @@ async def media_streamer(request: web.Request, db_id: str):
     # MongoDB remains the source of truth for whether a file is still active.
     # This prevents stale in-memory file_id cache entries from keeping deleted
     # files accessible until cache expiry.
-    file_info = await db.get_file(db_id)
+    file_info, _ = await db.resolve_file_reference(db_id)
     await ensure_flog_media_exists(file_info, bot=FileStream, prune_stale=True, db_instance=db)
+    internal_db_id = str(file_info["_id"])
 
     if not work_loads:
         raise web.HTTPServiceUnavailable(text="No available clients")
@@ -271,7 +330,7 @@ async def media_streamer(request: web.Request, db_id: str):
         class_cache[faster_client] = tg_connect
     
     logging.debug("before calling get_file_properties")
-    file_id = await tg_connect.get_file_properties(db_id, multi_clients)
+    file_id = await tg_connect.get_file_properties(internal_db_id, multi_clients)
     logging.debug("after calling get_file_properties")
     
     file_size = file_id.file_size

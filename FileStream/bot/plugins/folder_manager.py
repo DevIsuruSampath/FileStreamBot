@@ -6,8 +6,7 @@ from pyrogram.enums.parse_mode import ParseMode
 
 from FileStream.bot import FileStream
 from FileStream.utils.database import Database
-from FileStream.utils.bot_utils import verify_user
-from FileStream.utils.shortener import shorten
+from FileStream.utils.bot_utils import verify_user, get_public_folder_context
 from FileStream.config import Telegram, Server
 
 
@@ -169,9 +168,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
         title = _fmt_title(folder)
         count = len(folder.get("files", []))
         created = _fmt_date(folder.get("created_at"))
-        link = f"{Server.URL}folder/{folder_id}"
-        if await db.get_urlshortener_status():
-            link = await shorten(link)
+        _, _, link = await get_public_folder_context(folder)
 
         safe_title = html.escape(title)
 
@@ -186,7 +183,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
             f"<b>{safe_title}</b>\n"
             f"Files: <code>{count}</code>\n"
             f"Created: <code>{created}</code>\n"
-            f"ID: <code>{folder_id}</code>",
+            f"Share: <code>{html.escape(link)}</code>",
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode=ParseMode.HTML,
         )
@@ -294,9 +291,7 @@ async def rename_folder_text(bot: Client, message: Message):
         folder = await db.get_folder_for_user(folder_id, user_id)
         count = len(folder.get("files", []))
         created = _fmt_date(folder.get("created_at"))
-        link = f"{Server.URL}folder/{folder_id}"
-        if await db.get_urlshortener_status():
-            link = await shorten(link)
+        _, _, link = await get_public_folder_context(folder)
         safe_title = html.escape(_fmt_title(folder))
         buttons = [
             [InlineKeyboardButton("Open Folder", url=link)],
@@ -311,7 +306,7 @@ async def rename_folder_text(bot: Client, message: Message):
                 f"<b>{safe_title}</b>\n"
                 f"Files: <code>{count}</code>\n"
                 f"Created: <code>{created}</code>\n"
-                f"ID: <code>{folder_id}</code>",
+                f"Share: <code>{html.escape(link)}</code>",
                 reply_markup=InlineKeyboardMarkup(buttons),
                 parse_mode=ParseMode.HTML,
             )

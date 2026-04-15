@@ -11,6 +11,13 @@ from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.category import detect_category
 from FileStream.utils.file_properties import ensure_flog_media_exists
+from FileStream.utils.public_links import (
+    build_public_bot_open_link,
+    build_public_download_token_path,
+    build_public_file_url,
+    build_public_folder_url,
+    build_public_stream_url,
+)
 from FileStream.server.exceptions import FileNotFound
 
 
@@ -82,11 +89,13 @@ def _template_context(**kwargs):
     }
 
 
-async def render_page(db_id):
-    file_data = await db.get_file(db_id)
+async def render_page(db_id, file_data: dict | None = None, public_link: dict | None = None):
+    file_data = file_data or await db.get_file(db_id)
     if not file_data:
         raise FileNotFound
     file_data = await ensure_flog_media_exists(file_data, bot=FileStream, prune_stale=True, db_instance=db)
+    public_link = public_link or await db.ensure_public_link_for_file(file_data)
+    public_id = public_link["public_id"]
 
     template_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "template", "play.html")
     with open(template_file, "r", encoding="utf-8") as f:
@@ -97,7 +106,8 @@ async def render_page(db_id):
     if len(file_name) > 75:
         file_name = file_name[:75] + "…"
 
-    src = urllib.parse.urljoin(Server.URL, f"dl/{db_id}")
+    stream_url = build_public_stream_url(public_id)
+    share_url = build_public_file_url(public_id)
     file_size = humanbytes(file_data.get("file_size") or 0)
 
     mime_type = (file_data.get("mime_type") or "").lower()
@@ -132,13 +142,17 @@ async def render_page(db_id):
 
     report_url = None
     if getattr(FileStream, "username", None):
-        report_url = f"https://t.me/{FileStream.username}?start=report_file_{db_id}"
+        report_url = f"https://t.me/{FileStream.username}?start=report_file_{public_id}"
 
     return template.render(
         **_template_context(
             file_name=file_name,
-            file_url=src,
-            file_id=db_id,
+            file_url=stream_url,
+            file_id=public_id,
+            share_url=share_url,
+            telegram_url=build_public_bot_open_link(public_id, FileStream),
+            public_id=public_id,
+            download_token_path=build_public_download_token_path(public_id),
             file_size=file_size,
             mime_type=resolved_mime,
             category=category,
@@ -151,10 +165,17 @@ async def render_page(db_id):
     )
 
 
-async def render_folder(folder_id: str, title: str = "Folder"):
-    folder_doc = await db.get_folder(folder_id)
+async def render_public_page(public_id: str):
+    file_data, public_link = await db.resolve_public_file(public_id, increment_click=True)
+    return await render_page(str(file_data["_id"]), file_data=file_data, public_link=public_link)
+
+
+async def render_folder(folder_id: str, title: str = "Folder", folder_doc: dict | None = None, public_link: dict | None = None):
+    folder_doc = folder_doc or await db.get_folder(folder_id)
     if not folder_doc:
         raise FileNotFound
+    public_link = public_link or await db.ensure_public_link_for_folder(folder_doc)
+    folder_public_id = public_link["public_id"]
 
     file_ids = folder_doc.get("files") or []
     files = []
@@ -163,6 +184,8 @@ async def render_folder(folder_id: str, title: str = "Folder"):
         file_data = await db.get_file(fid)
         if not file_data:
             continue
+        file_public = await db.ensure_public_link_for_file(file_data)
+        file_public_id = file_public["public_id"]
 
         raw_name = file_data.get("file_name") or "file"
         file_name = raw_name.replace("_", " ")
@@ -191,7 +214,7 @@ async def render_folder(folder_id: str, title: str = "Folder"):
 
         files.append(
             {
-                "id": str(file_data.get("_id")),
+                "id": file_public_id,
                 "name": file_name,
                 "_sort_name": raw_name,
                 "size": humanbytes(file_data.get("file_size") or 0),
@@ -199,9 +222,11 @@ async def render_folder(folder_id: str, title: str = "Folder"):
                 "kind": kind,
                 "category": category,
                 "uploader": uploader,
-                "message_id": file_data.get("message_id"),
                 "playable": playable,
-                "url": urllib.parse.urljoin(Server.URL, f"dl/{file_data['_id']}"),
+                "stream_url": build_public_stream_url(file_public_id),
+                "share_url": build_public_file_url(file_public_id),
+                "download_id": file_public_id,
+                "telegram_url": build_public_bot_open_link(file_public_id, FileStream),
             }
         )
 
@@ -220,11 +245,12 @@ async def render_folder(folder_id: str, title: str = "Folder"):
 
     report_url = None
     if getattr(FileStream, "username", None):
-        report_url = f"https://t.me/{FileStream.username}?start=report_folder_{folder_id}"
+        report_url = f"https://t.me/{FileStream.username}?start=report_folder_{folder_public_id}"
 
     return template.render(
         **_template_context(
-            folder_id=str(folder_id),
+            folder_id=folder_public_id,
+            folder_share_url=build_public_folder_url(folder_public_id),
             folder_json=folder_json,
             files=files,
             count=len(files),
@@ -232,3 +258,8 @@ async def render_folder(folder_id: str, title: str = "Folder"):
             report_url=report_url,
         )
     )
+
+
+async def render_public_folder(public_id: str, title: str = "Folder"):
+    folder_doc, public_link = await db.resolve_public_folder(public_id, increment_click=True)
+    return await render_folder(str(folder_doc["_id"]), title=title, folder_doc=folder_doc, public_link=public_link)

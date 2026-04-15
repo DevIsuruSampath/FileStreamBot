@@ -6,10 +6,9 @@ from FileStream import __version__
 from FileStream.bot import FileStream
 from FileStream.config import Telegram, Server
 from FileStream.utils.translation import LANG, BUTTON
-from FileStream.utils.bot_utils import gen_link, gen_file_list_button
+from FileStream.utils.bot_utils import gen_link, gen_file_list_button, get_public_file_context
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
-from FileStream.utils.shortener import shorten
 from FileStream.utils.file_cleanup import delete_file_entry
 from FileStream.utils.file_properties import ensure_flog_media_exists
 from FileStream.server.exceptions import FileNotFound
@@ -223,36 +222,17 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
     is_streamable = file_type in ("Video", "Audio") or ext in video_ext or ext in audio_ext
 
-    # --- [ START ADS LOGIC ] ---
-    page_link = f"{Server.URL}watch/{myfile_info['_id']}"
-    stream_link = f"{Server.URL}dl/{myfile_info['_id']}"
+    _, _, public_url = await get_public_file_context(myfile_info)
 
-    # Check database status and Shorten if enabled
-    if await db.get_urlshortener_status():
-        # Only shorten links that will actually be shown
-        if is_streamable:
-            page_link = await shorten(page_link)
-        stream_link = await shorten(stream_link)
-    # --- [ END ADS LOGIC ] ---
-
-    if is_streamable:
-        MYFILES_BUTTONS = InlineKeyboardMarkup(
-            [
-                [InlineKeyboardButton("▶️ Stream", url=page_link)],
-                [InlineKeyboardButton("📥 Get File", callback_data=f"sendfile_{myfile_info['_id']}"),
-                 InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelete_{myfile_info['_id']}_{file_list_no}")],
-                [InlineKeyboardButton("⬅️ Back", callback_data="userfiles_{}".format(file_list_no))]
-            ]
-        )
-    else:
-        MYFILES_BUTTONS = InlineKeyboardMarkup(
-            [
-                [InlineKeyboardButton("⬇️ Download", url=stream_link)],
-                [InlineKeyboardButton("📥 Get File", callback_data=f"sendfile_{myfile_info['_id']}"),
-                 InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelete_{myfile_info['_id']}_{file_list_no}")],
-                [InlineKeyboardButton("⬅️ Back", callback_data="userfiles_{}".format(file_list_no))]
-            ]
-        )
+    MYFILES_BUTTONS = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("Open", url=public_url)],
+            [InlineKeyboardButton("Share", url=public_url), InlineKeyboardButton("Open in Bot", url=public_url)],
+            [InlineKeyboardButton("📥 Get File", callback_data=f"sendfile_{myfile_info['_id']}"),
+             InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelete_{myfile_info['_id']}_{file_list_no}")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="userfiles_{}".format(file_list_no))]
+        ]
+    )
 
     TiMe = myfile_info['time']
     if isinstance(TiMe, (int, float)):

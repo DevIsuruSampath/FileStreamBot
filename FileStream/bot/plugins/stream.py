@@ -2,11 +2,10 @@
 import asyncio
 import traceback
 from FileStream.bot import FileStream, multi_clients
-from FileStream.utils.bot_utils import verify_user, gen_link, is_channel_banned, is_channel_exist
+from FileStream.utils.bot_utils import verify_user, gen_link, is_channel_banned, is_channel_exist, get_public_file_context
 from FileStream.utils.database import Database
 from FileStream.utils.file_properties import get_file_ids, get_file_info
 from FileStream.config import Telegram
-from FileStream.utils.client_identity import build_start_link
 from pyrogram import filters, Client
 from pyrogram.errors import FloodWait
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
@@ -85,12 +84,12 @@ async def channel_receive_handler(bot: Client, message: Message):
             return
         inserted_id = await db.add_file(info)
         await get_file_ids(False, inserted_id, multi_clients, message)
+        _, _, public_url = await get_public_file_context(str(inserted_id))
         await bot.edit_message_reply_markup(
             chat_id=message.chat.id,
             message_id=message.id,
             reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("⬇️ Download Link",
-                                       url=build_start_link(f"stream_{str(inserted_id)}", bot))]])
+                [[InlineKeyboardButton("Open", url=public_url)]])
         )
 
     except FloodWait as w:

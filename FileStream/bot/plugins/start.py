@@ -9,6 +9,7 @@ from FileStream.config import Telegram
 from FileStream.utils.database import Database
 from FileStream.utils.translation import LANG, BUTTON
 from FileStream.utils.client_identity import get_bot_name, get_bot_username
+from FileStream.utils.file_properties import ensure_flog_media_exists
 from pyrogram import filters, Client
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from pyrogram.enums.parse_mode import ParseMode
@@ -75,6 +76,7 @@ async def start(bot: Client, message: Message):
             file_id = payload.split("file_", 1)[1]
             try:
                 file_check = await db.get_file(file_id)
+                await ensure_flog_media_exists(file_check, bot=bot, prune_stale=True, db_instance=db)
                 file_id = file_check['file_id']
                 file_name = file_check.get('file_name') or "file"
                 safe_name = html.escape(file_name)
@@ -88,6 +90,28 @@ async def start(bot: Client, message: Message):
                 asyncio.create_task(delete_later(filex, message))
 
             except FileNotFound as e:
+                await message.reply_text("**File Not Found**", parse_mode=ParseMode.MARKDOWN)
+            except Exception as e:
+                await message.reply_text("Something Went Wrong")
+                logging.error(e)
+
+        elif payload.startswith("open_"):
+            public_id = payload.split("open_", 1)[1]
+            try:
+                file_check, _ = await db.resolve_public_file(public_id)
+                await ensure_flog_media_exists(file_check, bot=bot, prune_stale=True, db_instance=db)
+                file_id = file_check['file_id']
+                file_name = file_check.get('file_name') or "file"
+                safe_name = html.escape(file_name)
+                if len(safe_name) > 1000:
+                    safe_name = safe_name[:1000] + "…"
+                filex = await message.reply_cached_media(
+                    file_id=file_id,
+                    caption=f"<b>{safe_name}</b>",
+                    parse_mode=ParseMode.HTML,
+                )
+                asyncio.create_task(delete_later(filex, message))
+            except FileNotFound:
                 await message.reply_text("**File Not Found**", parse_mode=ParseMode.MARKDOWN)
             except Exception as e:
                 await message.reply_text("Something Went Wrong")

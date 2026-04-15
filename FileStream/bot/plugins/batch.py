@@ -9,8 +9,7 @@ from FileStream.bot import FileStream, multi_clients
 from FileStream.utils.database import Database
 from FileStream.utils.file_properties import get_file_info, get_file_ids
 from FileStream.utils.human_readable import humanbytes
-from FileStream.utils.bot_utils import verify_user
-from FileStream.utils.shortener import shorten
+from FileStream.utils.bot_utils import verify_user, get_public_folder_context
 from FileStream.utils.file_cleanup import delete_file_entry
 from FileStream.config import Telegram, Server
 
@@ -359,9 +358,7 @@ async def finish_folderm(bot: Client, message: Message, user_id: int | None = No
     folder_id = await db.create_folder(user_id, file_list)
     folderm_sessions.pop(user_id, None)
 
-    link = f"{Server.URL}folder/{folder_id}"
-    if await db.get_urlshortener_status():
-        link = await shorten(link)
+    folder_doc, _, link = await get_public_folder_context(folder_id)
     await message.reply_text(
         f"✅ Folder created!\n"
         f"Total files: **{total_files}**\n\n"

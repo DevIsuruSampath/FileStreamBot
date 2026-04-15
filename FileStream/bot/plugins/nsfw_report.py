@@ -86,23 +86,29 @@ async def process_report(bot: Client, message: Message, target_type: str, target
 
     if target_type == "file":
         try:
-            file_info = await db.get_file(target_id)
+            try:
+                file_info = await db.get_file(target_id)
+            except Exception:
+                file_info, _ = await db.resolve_public_file(target_id)
         except Exception:
             await message.reply_text("File not found.", quote=True)
             return
         uploader_id = file_info.get("user_id")
         uploader_ref = f"<code>{uploader_id}</code>"
-        target_label = f"File ID: <code>{target_id}</code>"
+        target_label = f"File Ref: <code>{target_id}</code>"
         target_name = html.escape(file_info.get("file_name") or "file")
     else:
         try:
-            folder = await db.get_folder(target_id)
+            try:
+                folder = await db.get_folder(target_id)
+            except Exception:
+                folder, _ = await db.resolve_public_folder(target_id)
         except Exception:
             await message.reply_text("Folder not found.", quote=True)
             return
         uploader_id = folder.get("user_id")
         uploader_ref = f"<code>{uploader_id}</code>"
-        target_label = f"Folder ID: <code>{target_id}</code>"
+        target_label = f"Folder Ref: <code>{target_id}</code>"
         target_name = html.escape(folder.get("title") or "Folder")
 
     doc = {

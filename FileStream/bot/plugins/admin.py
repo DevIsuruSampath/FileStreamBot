@@ -8,6 +8,7 @@ import random
 import asyncio
 import aiofiles
 import datetime
+import html
 from pyrogram import filters, Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums.parse_mode import ParseMode
@@ -20,6 +21,7 @@ from FileStream.config import Telegram
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.speedtest import run_speedtest, format_speedtest, MSG_SPEEDTEST_START, MSG_SPEEDTEST_ERROR
 from FileStream.utils.file_cleanup import delete_file_entry
+from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
 
 speedtest_lock = asyncio.Lock()
 _last_speedtest_at = 0
@@ -33,6 +35,68 @@ BOT_START_TIME = time.time()
 
 # Create Admin List
 ADMIN_IDS = list(set([Telegram.OWNER_ID] + (Telegram.AUTH_USERS or [])))
+
+
+def _parse_ref(value: str) -> tuple[str | None, str]:
+    raw = str(value or "").strip()
+    if ":" in raw:
+        kind, target = raw.split(":", 1)
+        kind = kind.strip().lower()
+        if kind in {"file", "folder", "public"}:
+            return kind, target.strip()
+    return None, raw
+
+
+def _public_link_url(link: dict) -> str:
+    if link.get("type") == "folder":
+        return build_public_folder_url(link.get("public_id"))
+    return build_public_file_url(link.get("public_id"))
+
+
+def _public_link_status(link: dict) -> str:
+    if link.get("revoked"):
+        return "revoked"
+    expires_at = link.get("expires_at")
+    if expires_at is not None and float(expires_at) <= time.time():
+        return "expired"
+    return "active"
+
+
+async def _resolve_link_reference(raw: str) -> tuple[str, str, dict]:
+    kind, value = _parse_ref(raw)
+    if not value:
+        raise FileNotFound
+
+    if kind == "public":
+        link = await db.get_public_link(value)
+        return link["type"], str(link["target_id"]), link
+
+    if kind == "file":
+        file_info = await db.get_file(value)
+        link = await db.ensure_public_link_for_file(file_info)
+        return "file", str(file_info["_id"]), link
+
+    if kind == "folder":
+        folder = await db.get_folder(value)
+        link = await db.ensure_public_link_for_folder(folder)
+        return "folder", str(folder["_id"]), link
+
+    try:
+        link = await db.get_public_link(value)
+        return link["type"], str(link["target_id"]), link
+    except FileNotFound:
+        pass
+
+    try:
+        file_info = await db.get_file(value)
+        link = await db.ensure_public_link_for_file(file_info)
+        return "file", str(file_info["_id"]), link
+    except FileNotFound:
+        pass
+
+    folder = await db.get_folder(value)
+    link = await db.ensure_public_link_for_folder(folder)
+    return "folder", str(folder["_id"]), link
 
 # ---------------------[ HELPER FUNCTIONS ]---------------------#
 def get_readable_time(seconds: int) -> str:
@@ -375,4 +439,146 @@ async def del_file(c: Client, m: Message):
     await m.reply_text(
         text=f"**File Deleted Successfully!** ",
         quote=True
+    )
+
+
+@FileStream.on_message(filters.command("linkinfo") & filters.private & filters.user(Telegram.OWNER_ID))
+async def link_info(c: Client, m: Message):
+    if len(m.command) < 2:
+        await m.reply_text("**Usage:** `/linkinfo [public_id|file:<id>|folder:<id>]`", quote=True)
+        return
+
+    try:
+        link_type, target_id, link = await _resolve_link_reference(m.command[1])
+    except FileNotFound:
+        await m.reply_text("**Public link or target not found.**", quote=True)
+        return
+
+    status = _public_link_status(link)
+    expires_at = link.get("expires_at")
+    expires_text = (
+        datetime.datetime.utcfromtimestamp(float(expires_at)).strftime("%Y-%m-%d %H:%M:%S UTC")
+        if expires_at is not None else "Never"
+    )
+    title = link.get("file_name") or link.get("folder_name") or "N/A"
+    safe_title = html.escape(str(title))
+    url = _public_link_url(link)
+
+    await m.reply_text(
+        text=(
+            f"<b>Type:</b> <code>{link_type}</code>\n"
+            f"<b>Target:</b> <code>{target_id}</code>\n"
+            f"<b>Public ID:</b> <code>{link.get('public_id')}</code>\n"
+            f"<b>Status:</b> <code>{status}</code>\n"
+            f"<b>Clicks:</b> <code>{int(link.get('click_count', 0))}</code>\n"
+            f"<b>Expires:</b> <code>{expires_text}</code>\n"
+            f"<b>Name:</b> <code>{safe_title}</code>\n"
+            f"<b>URL:</b> <code>{html.escape(url)}</code>"
+        ),
+        parse_mode=ParseMode.HTML,
+        quote=True,
+    )
+
+
+@FileStream.on_message(filters.command("revoke_link") & filters.private & filters.user(Telegram.OWNER_ID))
+async def revoke_link(c: Client, m: Message):
+    if len(m.command) < 2:
+        await m.reply_text("**Usage:** `/revoke_link [public_id|file:<id>|folder:<id>]`", quote=True)
+        return
+
+    try:
+        link_type, target_id, link = await _resolve_link_reference(m.command[1])
+    except FileNotFound:
+        await m.reply_text("**Public link or target not found.**", quote=True)
+        return
+
+    revoked = await db.revoke_public_link(public_id=link["public_id"])
+    if not revoked:
+        await m.reply_text("**No active public link found.**", quote=True)
+        return
+
+    await m.reply_text(
+        text=f"**Revoked public link:** `{revoked['public_id']}`",
+        parse_mode=ParseMode.MARKDOWN,
+        quote=True,
+    )
+
+
+@FileStream.on_message(filters.command("regen_link") & filters.private & filters.user(Telegram.OWNER_ID))
+async def regenerate_link(c: Client, m: Message):
+    if len(m.command) < 2:
+        await m.reply_text("**Usage:** `/regen_link [public_id|file:<id>|folder:<id>]`", quote=True)
+        return
+
+    try:
+        link_type, target_id, link = await _resolve_link_reference(m.command[1])
+    except FileNotFound:
+        await m.reply_text("**Public link or target not found.**", quote=True)
+        return
+
+    if link_type == "file":
+        file_info = await db.get_file(target_id)
+        new_link = await db.regenerate_public_link(
+            "file",
+            target_id,
+            file_name=file_info.get("file_name") or "file",
+            file_type=file_info.get("mime_type") or file_info.get("category") or "",
+        )
+    else:
+        folder = await db.get_folder(target_id)
+        title = (folder.get("title") or "").strip() or f"Folder {target_id}"
+        new_link = await db.regenerate_public_link(
+            "folder",
+            target_id,
+            folder_name=title,
+        )
+
+    await m.reply_text(
+        text=(
+            f"**New public link:** `{new_link['public_id']}`\n"
+            f"`{_public_link_url(new_link)}`"
+        ),
+        parse_mode=ParseMode.MARKDOWN,
+        quote=True,
+    )
+
+
+@FileStream.on_message(filters.command("expire_link") & filters.private & filters.user(Telegram.OWNER_ID))
+async def expire_link(c: Client, m: Message):
+    if len(m.command) < 3:
+        await m.reply_text("**Usage:** `/expire_link [public_id|file:<id>|folder:<id>] [now|clear|hours]`", quote=True)
+        return
+
+    try:
+        link_type, target_id, link = await _resolve_link_reference(m.command[1])
+    except FileNotFound:
+        await m.reply_text("**Public link or target not found.**", quote=True)
+        return
+
+    action = m.command[2].strip().lower()
+    if action == "clear":
+        expires_at = None
+    elif action == "now":
+        expires_at = time.time() - 1
+    else:
+        try:
+            hours = float(action)
+        except ValueError:
+            await m.reply_text("**Expiry must be `now`, `clear`, or a number of hours.**", quote=True)
+            return
+        expires_at = time.time() + max(hours, 0) * 3600
+
+    await db.set_public_link_expiry(link["public_id"], expires_at)
+
+    if expires_at is None:
+        result_text = "cleared"
+    elif expires_at <= time.time():
+        result_text = "expired immediately"
+    else:
+        result_text = datetime.datetime.utcfromtimestamp(expires_at).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    await m.reply_text(
+        text=f"**Expiry updated for:** `{link['public_id']}`\n`{result_text}`",
+        parse_mode=ParseMode.MARKDOWN,
+        quote=True,
     )

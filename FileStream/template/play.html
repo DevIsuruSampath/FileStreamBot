@@ -583,9 +583,12 @@
         <div id="actionPanel" class="action-panel hidden">
             <p class="action-label">✨ What would you like to do?</p>
             <div class="actions">
-                <button id="playBtn" class="btn btn-primary">▶️ Play Now</button>
+                <button id="playBtn" class="btn btn-primary">▶️ Watch</button>
                 <button id="downloadBtn" class="btn btn-secondary">⬇️ Download</button>
-                <button id="copyBtn" class="btn btn-secondary">📋 Copy Link</button>
+                <button id="copyBtn" class="btn btn-secondary">📋 Share</button>
+                {% if telegram_url %}
+                <a href="{{ telegram_url }}" class="btn btn-secondary">🤖 Open in Telegram</a>
+                {% endif %}
                 {% if report_url %}
                 <a href="{{ report_url }}" class="btn btn-danger">🚫 Report</a>
                 {% endif %}
@@ -892,8 +895,9 @@
         loadNext();
     }
 
-    const fileUrl = {{ file_url | tojson }};
-    const fileId = {{ file_id | tojson }};
+    const streamUrl = {{ file_url | tojson }};
+    const shareUrl = {{ share_url | tojson }};
+    const downloadTokenPath = {{ download_token_path | tojson }};
     const smartlinkUrl = {{ ad_config.smartlink_url | tojson }};
     const adGate = document.getElementById('adGate');
     const adGateReloadBtn = document.getElementById('adGateReloadBtn');
@@ -958,7 +962,7 @@
     }
 
     function progressStorageKey() {
-        return `fsb_progress::${encodeURIComponent(fileUrl)}`;
+        return `fsb_progress::${encodeURIComponent(shareUrl || streamUrl)}`;
     }
 
     function readProgress() {
@@ -1157,7 +1161,7 @@
         }, 1000);
         
         try {
-            const response = await fetch(`/get-download-token/${fileId}`);
+            const response = await fetch(downloadTokenPath);
             const data = await response.json();
             
             clearInterval(countdownInterval);
@@ -1192,10 +1196,10 @@
         openSmartlink();
         const old = copyBtn.textContent;
         try {
-            await navigator.clipboard.writeText(fileUrl);
+            await navigator.clipboard.writeText(shareUrl);
             copyBtn.textContent = '✅ Copied';
         } catch (_) {
-            window.prompt('Copy this link:', fileUrl);
+            window.prompt('Copy this link:', shareUrl);
             copyBtn.textContent = '📋 Link Ready';
         }
         setTimeout(() => { copyBtn.textContent = old; }, 1700);
