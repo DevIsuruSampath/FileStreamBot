@@ -147,7 +147,7 @@ async def cb_data(bot, update: CallbackQuery):
             page_no = int(usr_cmd[1])
         except Exception:
             page_no = 1
-        file_list, total_files = await gen_file_list_button(page_no, update.from_user.id)
+        file_list, total_files = await gen_file_list_button(page_no, update.from_user.id, bot=bot)
         await edit_message(update, "Total files: {}".format(total_files), InlineKeyboardMarkup(file_list))
     elif usr_cmd[0] == "myfile":
         if len(usr_cmd) < 3:
@@ -190,8 +190,15 @@ async def cb_data(bot, update: CallbackQuery):
 async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     try:
         myfile_info=await db.get_file(_id)
+        await ensure_flog_media_exists(myfile_info, bot=FileStream, prune_stale=True, db_instance=db)
     except FileNotFound:
         await update.answer("File Not Found")
+        try:
+            page_no = int(file_list_no)
+        except Exception:
+            page_no = 1
+        file_list, total_files = await gen_file_list_button(page_no, update.from_user.id, bot=FileStream)
+        await edit_message(update, "Total files: {}".format(total_files), InlineKeyboardMarkup(file_list))
         return
 
     if not _is_owner(myfile_info, update.from_user.id):

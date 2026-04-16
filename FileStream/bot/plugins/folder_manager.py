@@ -7,7 +7,9 @@ from pyrogram.enums.parse_mode import ParseMode
 from FileStream.bot import FileStream
 from FileStream.utils.database import Database
 from FileStream.utils.bot_utils import verify_user, get_public_folder_context, reply_with_optional_photo
+from FileStream.utils.file_properties import ensure_flog_media_exists
 from FileStream.config import Telegram, Server
+from FileStream.server.exceptions import FileNotFound
 
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
@@ -50,23 +52,67 @@ def _parse_page(value, default: int = 1) -> int:
         return default
 
 
-async def _send_folder_list(message: Message, page: int = 1, edit: bool = False, user_id: int | None = None):
+async def _sync_folder_files(folder: dict, bot: Client) -> dict | None:
+    folder_id = str(folder.get("_id") or "")
+    user_id = int(folder.get("user_id") or 0)
+    original_files = [str(fid) for fid in (folder.get("files") or []) if fid]
+    active_files = []
+    changed = len(original_files) != len(folder.get("files") or [])
+
+    for file_id in original_files:
+        try:
+            file_info = await db.get_file(file_id)
+            await ensure_flog_media_exists(file_info, bot=bot, prune_stale=True, db_instance=db)
+        except FileNotFound:
+            changed = True
+            continue
+        active_files.append(str(file_info["_id"]))
+
+    if not active_files:
+        try:
+            await db.delete_folder(folder_id, user_id)
+        except Exception:
+            pass
+        return None
+
+    if changed or active_files != original_files:
+        await db.folders.update_one(
+            {"_id": folder_id, "user_id": user_id},
+            {"$set": {"files": active_files}},
+        )
+        folder["files"] = active_files
+
+    return folder
+
+
+async def _get_visible_folders(user_id: int, bot: Client) -> list[dict]:
+    visible_folders = []
+    cursor = db.folders.find({"user_id": int(user_id)}).sort("created_at", -1)
+
+    async for folder in cursor:
+        synced = await _sync_folder_files(folder, bot)
+        if synced:
+            visible_folders.append(synced)
+
+    return visible_folders
+
+
+async def _send_folder_list(bot: Client, message: Message, page: int = 1, edit: bool = False, user_id: int | None = None):
     if user_id is None:
         user_id = message.from_user.id
     if page < 1:
         page = 1
 
-    total = await db.total_folders(user_id)
+    visible_folders = await _get_visible_folders(user_id, bot)
+    total = len(visible_folders)
     max_pages = max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1)
     if page > max_pages:
         page = max_pages
 
-    start = (page - 1) * PAGE_SIZE + 1
-    end = page * PAGE_SIZE
-    folders, _ = await db.list_folders(user_id, [start, end])
-
     buttons = []
-    async for f in folders:
+    start_idx = (page - 1) * PAGE_SIZE
+    end_idx = start_idx + PAGE_SIZE
+    for f in visible_folders[start_idx:end_idx]:
         title = _fmt_title(f)
         buttons.append([
             InlineKeyboardButton(title, callback_data=f"fld:open:{f['_id']}:{page}")
@@ -106,7 +152,7 @@ async def _send_folder_list(message: Message, page: int = 1, edit: bool = False,
 async def folders_cmd(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
-    await _send_folder_list(message, page=1, user_id=message.from_user.id)
+    await _send_folder_list(bot, message, page=1, user_id=message.from_user.id)
 
 
 @FileStream.on_callback_query(filters.regex(r"^fld:"))
@@ -145,7 +191,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
     if action == "list":
         page = _parse_page(data[2], 1) if len(data) > 2 else 1
         await cq.answer()
-        await _send_folder_list(cq.message, page=page, edit=True, user_id=user_id)
+        await _send_folder_list(bot, cq.message, page=page, edit=True, user_id=user_id)
         return
 
     if action == "open":
@@ -156,8 +202,13 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
         page = _parse_page(data[3], 1)
         try:
             folder = await db.get_folder_for_user(folder_id, user_id)
+            folder = await _sync_folder_files(folder, bot)
         except Exception:
             await cq.answer("Folder not found")
+            return
+        if not folder:
+            await cq.answer("Folder not found")
+            await _send_folder_list(bot, cq.message, page=page, edit=True, user_id=user_id)
             return
 
         title = _fmt_title(folder)
@@ -215,7 +266,7 @@ async def folder_callbacks(bot: Client, cq: CallbackQuery):
             await cq.answer("Folder not found")
             return
         await cq.answer("Deleted")
-        await _send_folder_list(cq.message, page=page, edit=True, user_id=user_id)
+        await _send_folder_list(bot, cq.message, page=page, edit=True, user_id=user_id)
         return
 
     if action == "ren":

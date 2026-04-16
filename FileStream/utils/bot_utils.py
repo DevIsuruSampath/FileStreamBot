@@ -15,6 +15,8 @@ from FileStream.utils.category import detect_category
 from FileStream.config import Telegram, Server
 from FileStream.bot import FileStream
 from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
+from FileStream.utils.file_properties import ensure_flog_media_exists
+from FileStream.server.exceptions import FileNotFound
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -241,21 +243,33 @@ async def gen_linkx(m:Message , _id, bot=None):
 
 #---------------------[ GEN FILE LIST BUTTON ]---------------------#
 
-async def gen_file_list_button(file_list_no: int, user_id: int):
+async def gen_file_list_button(file_list_no: int, user_id: int, bot=None):
     if file_list_no < 1:
         file_list_no = 1
 
-    total_files = await db.total_files(user_id)
+    visible_files = []
+    cursor = db.file.find({"user_id": user_id}).sort("_id", -1)
+
+    async for x in cursor:
+        try:
+            await ensure_flog_media_exists(x, bot=bot or FileStream, prune_stale=True, db_instance=db)
+        except FileNotFound:
+            continue
+        visible_files.append(x)
+
+    total_files = len(visible_files)
     if total_files > 0:
         max_pages = math.ceil(total_files / 10)
         if file_list_no > max_pages:
             file_list_no = max_pages
+    else:
+        max_pages = 1
 
-    file_range=[file_list_no*10-10+1, file_list_no*10]
-    user_files, _ = await db.find_files(user_id, file_range)
+    start_idx = (file_list_no - 1) * 10
+    end_idx = start_idx + 10
 
-    file_list=[]
-    async for x in user_files:
+    file_list = []
+    for x in visible_files[start_idx:end_idx]:
         name = x.get("file_name") or "file"
         # Prevent overly long button labels
         if len(name) > 50:

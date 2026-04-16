@@ -152,7 +152,7 @@ async def my_files(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
     
-    file_list, total_files = await gen_file_list_button(1, message.from_user.id)
+    file_list, total_files = await gen_file_list_button(1, message.from_user.id, bot=bot)
     await reply_with_optional_photo(
         message,
         Telegram.FILE_PIC,
