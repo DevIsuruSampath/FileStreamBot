@@ -13,6 +13,7 @@ PUBLIC_COMMANDS = [
     BotCommand("about", "About this bot"),
     BotCommand("files", "Browse your files"),
     BotCommand("folders", "Browse your folders"),
+    BotCommand("donation", "Support the bot with Stars"),
     BotCommand("folder", "Create a folder share"),
     BotCommand("done", "Finish folder mode"),
     BotCommand("cancel", "Cancel folder mode"),

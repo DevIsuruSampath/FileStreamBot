@@ -19,6 +19,7 @@ class Database:
         self.folders = self.db.folders
         self.nsfw_reports = self.db.nsfw_reports
         self.public_links = self.db.public_links
+        self.donations = self.db.donations
 
 #---------------------[ NEW USER ]---------------------#
     def new_user(self, id):
@@ -333,6 +334,55 @@ class Database:
 
     async def get_nsfw_report(self, report_id: str):
         return await self.nsfw_reports.find_one({"_id": str(report_id)})
+
+# ---------------------[ DONATIONS ]---------------------#
+    async def record_donation(
+        self,
+        *,
+        user_id: int,
+        amount: int,
+        currency: str,
+        payload: str,
+        telegram_payment_charge_id: str,
+        provider_payment_charge_id: str = "",
+        first_name: str = "",
+        username: str = "",
+    ) -> dict:
+        now = time.time()
+        doc = {
+            "user_id": int(user_id),
+            "amount": int(amount),
+            "currency": str(currency or ""),
+            "payload": str(payload or ""),
+            "telegram_payment_charge_id": str(telegram_payment_charge_id or ""),
+            "provider_payment_charge_id": str(provider_payment_charge_id or ""),
+            "first_name": str(first_name or ""),
+            "username": str(username or ""),
+            "paid_at": now,
+        }
+        await self.donations.update_one(
+            {"telegram_payment_charge_id": doc["telegram_payment_charge_id"]},
+            {"$setOnInsert": doc},
+            upsert=True,
+        )
+        return await self.donations.find_one({"telegram_payment_charge_id": doc["telegram_payment_charge_id"]})
+
+    async def get_user_donations(self, user_id: int, limit: int = 10) -> list[dict]:
+        cursor = self.donations.find({"user_id": int(user_id)}).sort("paid_at", pymongo.DESCENDING).limit(int(limit))
+        return [doc async for doc in cursor]
+
+    async def get_user_donation_stats(self, user_id: int) -> dict:
+        user_id = int(user_id)
+        total_count = await self.donations.count_documents({"user_id": user_id})
+        total_stars = 0
+        async for row in self.donations.aggregate(
+            [
+                {"$match": {"user_id": user_id}},
+                {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+            ]
+        ):
+            total_stars = int(row.get("total", 0) or 0)
+        return {"count": total_count, "total_stars": total_stars}
 
 # ---------------------[ PUBLIC LINK MAPPING ]---------------------#
     async def _generate_public_id(self, length: int = 12) -> str:

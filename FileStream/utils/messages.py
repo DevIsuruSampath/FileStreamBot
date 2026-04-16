@@ -38,6 +38,7 @@ Links stay active as long as the original file exists. Adult content isn't allow
 • <code>/about</code> — About this bot ℹ️
 • <code>/files</code> — Browse your uploads 📂
 • <code>/folders</code> — Manage your folders 📁
+• <code>/donation</code> — Support the bot with Stars ⭐
 • <code>/folder</code> — Start folder mode 📦
 • <code>/done</code> — Finish folder mode ✅
 • <code>/cancel</code> — Cancel folder mode ❌
