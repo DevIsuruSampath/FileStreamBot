@@ -211,6 +211,60 @@ async def urlshortener_toggle(c: Client, m: Message):
             quote=True
         )
 
+
+# ---------------------[ WEB ADS TOGGLE COMMAND ]---------------------#
+@FileStream.on_message(filters.command("webads") & filters.private)
+async def webads_toggle(c: Client, m: Message):
+    if m.from_user.id not in ADMIN_IDS:
+        await m.reply_text(f"⚠️ **Access Denied.**\nYour ID `{m.from_user.id}` is not in `OWNER_ID` or `AUTH_USERS`.", quote=True)
+        return
+
+    if len(m.command) < 2:
+        status = await db.get_web_ads_status()
+        state = "ON" if status else "OFF"
+        await m.reply_text(
+            text=(
+                f"**Web Ads are currently:** `{state}`\n"
+                "Usage: `/webads on` or `/webads off`"
+            ),
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+        return
+
+    action = m.command[1].strip().lower()
+
+    if action in {"status", "state"}:
+        status = await db.get_web_ads_status()
+        state = "ON" if status else "OFF"
+        await m.reply_text(
+            text=f"**Web Ads:** `{state}`",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+        return
+
+    if action == "on":
+        await db.update_web_ads_status(True)
+        await m.reply_text(
+            text="**✅ Web Ads have been enabled.**",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+    elif action == "off":
+        await db.update_web_ads_status(False)
+        await m.reply_text(
+            text="**❌ Web Ads have been disabled.**",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+    else:
+        await m.reply_text(
+            text="Usage: `/webads on` or `/webads off`",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True
+        )
+
 # ---------------------[ STATUS COMMAND (FIXED) ]---------------------#
 @FileStream.on_message(filters.command("status") & filters.private & filters.user(OWNER_ID))
 async def sts(c: Client, m: Message):

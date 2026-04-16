@@ -23,6 +23,7 @@ PUBLIC_COMMANDS = [
 ADMIN_COMMANDS = PUBLIC_COMMANDS + [
     BotCommand("admin", "Show admin commands"),
     BotCommand("urlshortener", "Toggle the shortener"),
+    BotCommand("webads", "Toggle web ads"),
     BotCommand("speedtest", "Run a speed test"),
     BotCommand("rm_adult", "Remove adult content"),
 ]
@@ -75,6 +76,7 @@ def build_admin_help_text() -> str:
     shared_admin = [
         ("/admin", "Show this admin command list"),
         ("/urlshortener <on|off>", "Enable or disable the shortener"),
+        ("/webads <on|off>", "Enable or disable web ads"),
         ("/speedtest", "Run a server speed test"),
         ("/rm_adult <file_id|folder_id>", "Remove adult content manually"),
     ]
