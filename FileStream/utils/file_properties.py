@@ -19,6 +19,7 @@ from FileStream.utils.optional_channels import (
     disable_optional_channel,
     is_invalid_optional_channel_error,
     optional_channel_available,
+    warm_optional_channel_peer,
 )
 from FileStream.config import Telegram, Server
 from FileStream.server.exceptions import FileNotFound
@@ -43,6 +44,17 @@ def _handle_invalid_flog(exc: Exception) -> bool:
         return False
     disable_optional_channel("FLOG_CHANNEL", Telegram.FLOG_CHANNEL, exc)
     return True
+
+
+async def _call_with_flog_retry(client: Client, operation):
+    try:
+        return await operation()
+    except Exception as exc:
+        if not is_invalid_optional_channel_error(exc):
+            raise
+        if await warm_optional_channel_peer(client, "FLOG_CHANNEL", Telegram.FLOG_CHANNEL):
+            return await operation()
+        raise
 
 
 async def get_file_ids(client: Client | bool, db_id: str, multi_clients, message=None) -> Optional[FileId]:
@@ -84,7 +96,10 @@ async def get_file_ids(client: Client | bool, db_id: str, multi_clients, message
             try:
                 logging.debug("Storing file_id in DB")
                 log_msg = await send_file(FileStream, db_id, file_info['file_id'], message, file_name=file_info.get('file_name'))
-                msg = await client.get_messages(Telegram.FLOG_CHANNEL, log_msg.id)
+                async def _get_flog_message():
+                    return await client.get_messages(Telegram.FLOG_CHANNEL, log_msg.id)
+
+                msg = await _call_with_flog_retry(client, _get_flog_message)
                 media = get_media_from_message(msg)
                 file_id_info[str(client.id)] = getattr(media, "file_id", "")
                 await db.update_file_ids(db_id, file_id_info)
@@ -101,7 +116,10 @@ async def get_file_ids(client: Client | bool, db_id: str, multi_clients, message
         if _flog_enabled():
             try:
                 log_msg = await send_file(FileStream, db_id, file_info['file_id'], message, file_name=file_info.get('file_name'))
-                msg = await client.get_messages(Telegram.FLOG_CHANNEL, log_msg.id)
+                async def _get_flog_message():
+                    return await client.get_messages(Telegram.FLOG_CHANNEL, log_msg.id)
+
+                msg = await _call_with_flog_retry(client, _get_flog_message)
                 media = get_media_from_message(msg)
                 file_id_info[str(client.id)] = getattr(media, "file_id", "")
                 await db.update_file_ids(db_id, file_id_info)
@@ -146,7 +164,10 @@ async def ensure_flog_media_exists(
     log_msg = None
 
     try:
-        log_msg = await client.get_messages(Telegram.FLOG_CHANNEL, int(flog_msg_id))
+        async def _get_flog_message():
+            return await client.get_messages(Telegram.FLOG_CHANNEL, int(flog_msg_id))
+
+        log_msg = await _call_with_flog_retry(client, _get_flog_message)
     except Exception as exc:
         if _handle_invalid_flog(exc):
             return file_info
@@ -304,7 +325,10 @@ async def update_file_id(msg_id, multi_clients):
     
     async def get_id(client):
         try:
-            log_msg = await client.get_messages(Telegram.FLOG_CHANNEL, msg_id)
+            async def _get_flog_message():
+                return await client.get_messages(Telegram.FLOG_CHANNEL, msg_id)
+
+            log_msg = await _call_with_flog_retry(client, _get_flog_message)
             media = get_media_from_message(log_msg)
             return str(client.id), getattr(media, "file_id", "")
         except Exception as exc:
@@ -343,12 +367,15 @@ async def send_file(client: Client, db_id, file_id: str, message=None, file_name
     safe_caption = html.escape(file_caption)
 
     try:
-        log_msg = await client.send_cached_media(
-            chat_id=Telegram.FLOG_CHANNEL,
-            file_id=file_id,
-            caption=f"<b>{safe_caption}</b>",
-            parse_mode=ParseMode.HTML,
-        )
+        async def _send_cached():
+            return await client.send_cached_media(
+                chat_id=Telegram.FLOG_CHANNEL,
+                file_id=file_id,
+                caption=f"<b>{safe_caption}</b>",
+                parse_mode=ParseMode.HTML,
+            )
+
+        log_msg = await _call_with_flog_retry(client, _send_cached)
     except Exception as exc:
         if _handle_invalid_flog(exc):
             raise FileNotFound from exc

@@ -8,10 +8,11 @@ from aiohttp import web
 from pyrogram import idle
 from pyrogram.errors import FloodWait
 
-from FileStream.bot import FileStream
+from FileStream.bot import FileStream, multi_clients
 from FileStream.server import web_server
 from FileStream.bot.clients import initialize_clients
 from FileStream.utils.bot_commands import register_bot_commands
+from FileStream.utils.optional_channels import warm_optional_channel_peer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -68,12 +69,16 @@ async def start_services():
     FileStream.id = bot_info.id
     FileStream.username = bot_info.username
     FileStream.fname = bot_info.first_name
+    await warm_optional_channel_peer(FileStream, "FLOG_CHANNEL", Telegram.FLOG_CHANNEL)
+    await warm_optional_channel_peer(FileStream, "ULOG_CHANNEL", Telegram.ULOG_CHANNEL)
     await register_bot_commands(FileStream)
     print("------------------------------ DONE ------------------------------")
 
     print()
     print("---------------------- Initializing Clients ----------------------")
     await initialize_clients()
+    for client in multi_clients.values():
+        await warm_optional_channel_peer(client, "FLOG_CHANNEL", Telegram.FLOG_CHANNEL)
     print("------------------------------ DONE ------------------------------")
 
     print()
