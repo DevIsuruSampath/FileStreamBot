@@ -10,7 +10,8 @@ import aiofiles
 import datetime
 import html
 from pyrogram import filters, Client
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.errors import MessageNotModified
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.enums.parse_mode import ParseMode
 
 from FileStream.utils.broadcast_helper import send_msg
@@ -22,7 +23,6 @@ from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.speedtest import run_speedtest, format_speedtest, MSG_SPEEDTEST_START, MSG_SPEEDTEST_ERROR
 from FileStream.utils.file_cleanup import delete_file_entry
 from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
-from FileStream.utils.bot_commands import build_admin_help_text
 
 speedtest_lock = asyncio.Lock()
 _last_speedtest_at = 0
@@ -51,6 +51,29 @@ def _build_admin_ids():
 
 ADMIN_IDS = _build_admin_ids()
 OWNER_ID = int(Telegram.OWNER_ID)
+OWNER_ONLY_ADMIN_ACTIONS = {
+    "ban",
+    "unban",
+    "broadcast",
+    "del",
+    "linkinfo",
+    "revoke_link",
+    "regen_link",
+    "expire_link",
+    "status",
+}
+
+ADMIN_USAGE = {
+    "rm_adult": "Usage: `/rm_adult <file_id|folder_id>`",
+    "ban": "Usage: `/ban <user_id>`",
+    "unban": "Usage: `/unban <user_id>`",
+    "broadcast": "Usage: reply to a message with `/broadcast`",
+    "del": "Usage: `/del <file_id>`",
+    "linkinfo": "Usage: `/linkinfo <public_id|file:<id>|folder:<id>>`",
+    "revoke_link": "Usage: `/revoke_link <public_id|file:<id>|folder:<id>>`",
+    "regen_link": "Usage: `/regen_link <public_id|file:<id>|folder:<id>>`",
+    "expire_link": "Usage: `/expire_link <public_id|file:<id>|folder:<id>> <now|clear|hours>`",
+}
 
 
 def _parse_ref(value: str) -> tuple[str | None, str]:
@@ -114,6 +137,186 @@ async def _resolve_link_reference(raw: str) -> tuple[str, str, dict]:
     link = await db.ensure_public_link_for_folder(folder)
     return "folder", str(folder["_id"]), link
 
+
+async def _build_admin_panel_text(user_id: int) -> str:
+    shortener_state = "ON" if await db.get_urlshortener_status() else "OFF"
+    webads_state = "ON" if await db.get_web_ads_status() else "OFF"
+    owner_mode = int(user_id) == OWNER_ID
+
+    lines = [
+        "<b>Admin Panel</b>",
+        "",
+        f"<b>URL Shortener:</b> <code>{shortener_state}</code>",
+        f"<b>Web Ads:</b> <code>{webads_state}</code>",
+        "",
+        "<i>Use the buttons below for quick actions or command usage.</i>",
+    ]
+
+    if owner_mode:
+        lines.extend([
+            "",
+            "<b>Access:</b> <code>owner + shared admin tools</code>",
+        ])
+    else:
+        lines.extend([
+            "",
+            "<b>Access:</b> <code>shared admin tools</code>",
+        ])
+
+    return "\n".join(lines)
+
+
+async def _build_admin_panel_markup(user_id: int) -> InlineKeyboardMarkup:
+    shortener_state = "ON" if await db.get_urlshortener_status() else "OFF"
+    webads_state = "ON" if await db.get_web_ads_status() else "OFF"
+    owner_mode = int(user_id) == OWNER_ID
+
+    rows = [
+        [
+            InlineKeyboardButton(f"Shortener: {shortener_state}", callback_data="admin:urlshortener:status"),
+            InlineKeyboardButton("ON", callback_data="admin:urlshortener:on"),
+            InlineKeyboardButton("OFF", callback_data="admin:urlshortener:off"),
+        ],
+        [
+            InlineKeyboardButton(f"Web Ads: {webads_state}", callback_data="admin:webads:status"),
+            InlineKeyboardButton("ON", callback_data="admin:webads:on"),
+            InlineKeyboardButton("OFF", callback_data="admin:webads:off"),
+        ],
+        [
+            InlineKeyboardButton("Speedtest", callback_data="admin:run:speedtest"),
+            InlineKeyboardButton("Remove Adult", callback_data="admin:help:rm_adult"),
+        ],
+    ]
+
+    if owner_mode:
+        rows.extend(
+            [
+                [
+                    InlineKeyboardButton("System Status", callback_data="admin:run:status"),
+                    InlineKeyboardButton("Broadcast", callback_data="admin:help:broadcast"),
+                ],
+                [
+                    InlineKeyboardButton("Ban", callback_data="admin:help:ban"),
+                    InlineKeyboardButton("Unban", callback_data="admin:help:unban"),
+                    InlineKeyboardButton("Delete", callback_data="admin:help:del"),
+                ],
+                [
+                    InlineKeyboardButton("Link Info", callback_data="admin:help:linkinfo"),
+                    InlineKeyboardButton("Revoke Link", callback_data="admin:help:revoke_link"),
+                ],
+                [
+                    InlineKeyboardButton("Regen Link", callback_data="admin:help:regen_link"),
+                    InlineKeyboardButton("Expire Link", callback_data="admin:help:expire_link"),
+                ],
+            ]
+        )
+
+    rows.append(
+        [
+            InlineKeyboardButton("Refresh", callback_data="admin:refresh"),
+            InlineKeyboardButton("Close", callback_data="close"),
+        ]
+    )
+
+    return InlineKeyboardMarkup(rows)
+
+
+async def _show_admin_panel(message: Message, user_id: int):
+    await message.reply_text(
+        await _build_admin_panel_text(user_id),
+        parse_mode=ParseMode.HTML,
+        quote=True,
+        disable_web_page_preview=True,
+        reply_markup=await _build_admin_panel_markup(user_id),
+    )
+
+
+async def _refresh_admin_panel(query: CallbackQuery, user_id: int, note: str | None = None):
+    text = await _build_admin_panel_text(user_id)
+    if note:
+        text = f"{text}\n\n<i>{html.escape(note)}</i>"
+    try:
+        await query.message.edit_text(
+            text=text,
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+            reply_markup=await _build_admin_panel_markup(user_id),
+        )
+    except MessageNotModified:
+        pass
+
+
+async def _build_status_text() -> str:
+    bot_uptime = get_readable_time(int(time.time() - BOT_START_TIME))
+    sys_uptime = get_readable_time(int(time.time() - psutil.boot_time()))
+    cpu_usage = psutil.cpu_percent(interval=0.1)
+    mem = psutil.virtual_memory()
+    ram_used = humanbytes(mem.used)
+    ram_total = humanbytes(mem.total)
+    ram_free = humanbytes(mem.available)
+    disk = shutil.disk_usage("/")
+    disk_used = humanbytes(disk.used)
+    disk_total = humanbytes(disk.total)
+    disk_percent = f"{int((disk.used / disk.total) * 100)}%"
+    net_io_counters = psutil.net_io_counters()
+    upload = humanbytes(net_io_counters.bytes_sent)
+    download = humanbytes(net_io_counters.bytes_recv)
+    total_users = await db.total_users_count()
+    banned_users = await db.total_banned_users_count()
+    total_files = await db.total_files()
+
+    return f"""<b>📊 System Statistics</b>
+
+<b>System Uptime:</b> {sys_uptime}
+<b>Bot Uptime:</b> {bot_uptime}
+
+<b>CPU:</b> {cpu_usage}%
+<b>RAM:</b> {ram_used} / {ram_total} (Free: {ram_free})
+<b>Disk:</b> {disk_used} / {disk_total} ({disk_percent})
+
+<b>Upload:</b> {upload}
+<b>Download:</b> {download}
+
+<b>-----------------------</b>
+
+<b>Total Users in DB:</b> {total_users}
+<b>Banned Users in DB:</b> {banned_users}
+<b>Total Links Generated:</b> {total_files}"""
+
+
+async def _run_speedtest_action(message: Message):
+    global _last_speedtest_at
+    now = time.time()
+    if now - _last_speedtest_at < SPEEDTEST_COOLDOWN:
+        wait = int(SPEEDTEST_COOLDOWN - (now - _last_speedtest_at))
+        await message.reply_text(f"Please wait {wait}s before running another speed test.", quote=True)
+        return
+
+    if speedtest_lock.locked():
+        await message.reply_text("Speedtest already running. Please wait...", quote=True)
+        return
+
+    _last_speedtest_at = now
+
+    async with speedtest_lock:
+        msg = await message.reply_text(MSG_SPEEDTEST_START, quote=True)
+        try:
+            result = await run_speedtest(retries=2, delay=3)
+            text = format_speedtest(result)
+            share_url = result.get("share") if isinstance(result, dict) else None
+
+            if share_url:
+                try:
+                    await message.reply_photo(share_url, caption=text, quote=True)
+                    await msg.delete()
+                    return
+                except Exception:
+                    pass
+
+            await msg.edit_text(text)
+        except Exception:
+            await msg.edit_text(MSG_SPEEDTEST_ERROR)
+
 # ---------------------[ HELPER FUNCTIONS ]---------------------#
 def get_readable_time(seconds: int) -> str:
     count = 0
@@ -150,12 +353,121 @@ async def admin_help(c: Client, m: Message):
     if m.from_user.id not in ADMIN_IDS:
         await m.reply_text("⚠️ **Access Denied.**", quote=True)
         return
-    await m.reply_text(
-        build_admin_help_text(),
-        parse_mode=ParseMode.HTML,
-        quote=True,
-        disable_web_page_preview=True,
-    )
+    await _show_admin_panel(m, m.from_user.id)
+
+
+@FileStream.on_callback_query(filters.regex(r"^admin:"))
+async def admin_panel_callback(c: Client, query: CallbackQuery):
+    user_id = int(query.from_user.id)
+    if user_id not in ADMIN_IDS:
+        await query.answer("Access denied.", show_alert=True)
+        return
+
+    data = query.data or ""
+    parts = data.split(":")
+    if len(parts) < 2:
+        await query.answer("Invalid action.", show_alert=True)
+        return
+
+    section = parts[1]
+    owner_mode = user_id == OWNER_ID
+
+    if section == "refresh":
+        await query.answer("Admin panel refreshed.")
+        await _refresh_admin_panel(query, user_id)
+        return
+
+    if section == "urlshortener":
+        if len(parts) < 3:
+            await query.answer("Invalid action.", show_alert=True)
+            return
+        action = parts[2]
+        if action == "status":
+            state = "ON" if await db.get_urlshortener_status() else "OFF"
+            await query.answer(f"URL Shortener: {state}", show_alert=True)
+            return
+        if action == "on":
+            await db.update_urlshortener_status(True)
+            await query.answer("URL Shortener enabled.")
+            await _refresh_admin_panel(query, user_id, "URL Shortener is now ON.")
+            return
+        if action == "off":
+            await db.update_urlshortener_status(False)
+            await query.answer("URL Shortener disabled.")
+            await _refresh_admin_panel(query, user_id, "URL Shortener is now OFF.")
+            return
+        await query.answer("Unknown action.", show_alert=True)
+        return
+
+    if section == "webads":
+        if len(parts) < 3:
+            await query.answer("Invalid action.", show_alert=True)
+            return
+        action = parts[2]
+        if action == "status":
+            state = "ON" if await db.get_web_ads_status() else "OFF"
+            await query.answer(f"Web Ads: {state}", show_alert=True)
+            return
+        if action == "on":
+            await db.update_web_ads_status(True)
+            await query.answer("Web Ads enabled.")
+            await _refresh_admin_panel(query, user_id, "Web Ads are now ON.")
+            return
+        if action == "off":
+            await db.update_web_ads_status(False)
+            await query.answer("Web Ads disabled.")
+            await _refresh_admin_panel(query, user_id, "Web Ads are now OFF.")
+            return
+        await query.answer("Unknown action.", show_alert=True)
+        return
+
+    if section == "run":
+        if len(parts) < 3:
+            await query.answer("Invalid action.", show_alert=True)
+            return
+        action = parts[2]
+        if action == "speedtest":
+            await query.answer("Running speedtest...")
+            await _run_speedtest_action(query.message)
+            return
+        if action == "status":
+            if not owner_mode:
+                await query.answer("Owner only command.", show_alert=True)
+                return
+            await query.answer()
+            await query.message.reply_text(
+                text=await _build_status_text(),
+                parse_mode=ParseMode.HTML,
+                quote=True,
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("Close", callback_data="close")]]
+                ),
+            )
+            return
+        await query.answer("Unknown action.", show_alert=True)
+        return
+
+    if section == "help":
+        if len(parts) < 3:
+            await query.answer("Invalid action.", show_alert=True)
+            return
+        command_key = parts[2]
+        if command_key in OWNER_ONLY_ADMIN_ACTIONS and not owner_mode:
+            await query.answer("Owner only command.", show_alert=True)
+            return
+        usage = ADMIN_USAGE.get(command_key)
+        if not usage:
+            await query.answer("Unknown command.", show_alert=True)
+            return
+        await query.answer()
+        await query.message.reply_text(
+            usage,
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True,
+        )
+        return
+
+    await query.answer("Unknown admin action.", show_alert=True)
 
 # ---------------------[ URL SHORTENER TOGGLE COMMAND ]---------------------#
 @FileStream.on_message(filters.command(["urlshortener", "ads"]) & filters.private)
@@ -268,55 +580,8 @@ async def webads_toggle(c: Client, m: Message):
 # ---------------------[ STATUS COMMAND (FIXED) ]---------------------#
 @FileStream.on_message(filters.command("status") & filters.private & filters.user(OWNER_ID))
 async def sts(c: Client, m: Message):
-    # 1. Calculate Uptime
-    bot_uptime = get_readable_time(int(time.time() - BOT_START_TIME))
-    sys_uptime = get_readable_time(int(time.time() - psutil.boot_time()))
-
-    # 2. CPU Usage
-    cpu_usage = psutil.cpu_percent(interval=0.1)
-    
-    # 3. RAM Usage
-    mem = psutil.virtual_memory()
-    ram_used = humanbytes(mem.used)
-    ram_total = humanbytes(mem.total)
-    ram_free = humanbytes(mem.available)
-    
-    # 4. Disk Usage
-    disk = shutil.disk_usage("/")
-    disk_used = humanbytes(disk.used)
-    disk_total = humanbytes(disk.total)
-    disk_percent = f"{int((disk.used / disk.total) * 100)}%"
-    
-    # 5. Network Usage (FIXED VARIABLE NAMES)
-    net_io_counters = psutil.net_io_counters()
-    upload = humanbytes(net_io_counters.bytes_sent)
-    download = humanbytes(net_io_counters.bytes_recv)
-
-    # 6. DB Stats
-    total_users = await db.total_users_count()
-    banned_users = await db.total_banned_users_count()
-    total_files = await db.total_files()
-
-    stats_text = f"""<b>📊 System Statistics</b>
-
-<b>System Uptime:</b> {sys_uptime}
-<b>Bot Uptime:</b> {bot_uptime}
-
-<b>CPU:</b> {cpu_usage}%
-<b>RAM:</b> {ram_used} / {ram_total} (Free: {ram_free})
-<b>Disk:</b> {disk_used} / {disk_total} ({disk_percent})
-
-<b>Upload:</b> {upload}
-<b>Download:</b> {download}
-
-<b>-----------------------</b>
-
-<b>Total Users in DB:</b> {total_users}
-<b>Banned Users in DB:</b> {banned_users}
-<b>Total Links Generated:</b> {total_files}"""
-
     await m.reply_text(
-        text=stats_text,
+        text=await _build_status_text(),
         parse_mode=ParseMode.HTML,
         quote=True,
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")]])
@@ -328,38 +593,7 @@ async def speedtest_cmd(c: Client, m: Message):
     if m.from_user.id not in ADMIN_IDS:
         await m.reply_text("⚠️ **Access Denied.**", quote=True)
         return
-
-    global _last_speedtest_at
-    now = time.time()
-    if now - _last_speedtest_at < SPEEDTEST_COOLDOWN:
-        wait = int(SPEEDTEST_COOLDOWN - (now - _last_speedtest_at))
-        await m.reply_text(f"Please wait {wait}s before running another speed test.", quote=True)
-        return
-
-    if speedtest_lock.locked():
-        await m.reply_text("Speedtest already running. Please wait...", quote=True)
-        return
-
-    _last_speedtest_at = now
-
-    async with speedtest_lock:
-        msg = await m.reply_text(MSG_SPEEDTEST_START, quote=True)
-        try:
-            result = await run_speedtest(retries=2, delay=3)
-            text = format_speedtest(result)
-            share_url = result.get("share") if isinstance(result, dict) else None
-
-            if share_url:
-                try:
-                    await m.reply_photo(share_url, caption=text, quote=True)
-                    await msg.delete()
-                    return
-                except Exception:
-                    pass
-
-            await msg.edit_text(text)
-        except Exception:
-            await msg.edit_text(MSG_SPEEDTEST_ERROR)
+    await _run_speedtest_action(m)
 
 
 @FileStream.on_message(filters.command("ban") & filters.private & filters.user(OWNER_ID))
