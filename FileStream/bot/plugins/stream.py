@@ -5,6 +5,7 @@ from FileStream.bot import FileStream, multi_clients
 from FileStream.utils.bot_utils import verify_user, gen_link, is_channel_banned, is_channel_exist, get_public_file_context
 from FileStream.utils.database import Database
 from FileStream.utils.file_properties import get_file_ids, get_file_info
+from FileStream.utils.optional_channels import safe_send_optional_message
 from FileStream.config import Telegram
 from pyrogram import filters, Client
 from pyrogram.errors import FloodWait
@@ -46,13 +47,20 @@ async def private_receive_handler(bot: Client, message: Message):
         print(f"Sleeping for {str(e.value)}s")
         await asyncio.sleep(e.value)
         if Telegram.ULOG_CHANNEL:
-            await bot.send_message(chat_id=Telegram.ULOG_CHANNEL,
-                                   text=f"Gᴏᴛ FʟᴏᴏᴅWᴀɪᴛ ᴏғ {str(e.value)}s ғʀᴏᴍ [{message.from_user.first_name}](tg://user?id={message.from_user.id})\n\n**ᴜsᴇʀ ɪᴅ :** `{str(message.from_user.id)}`",
-                                   disable_web_page_preview=True, parse_mode=ParseMode.MARKDOWN)
+            await safe_send_optional_message(
+                bot,
+                "ULOG_CHANNEL",
+                Telegram.ULOG_CHANNEL,
+                text=f"Gᴏᴛ FʟᴏᴏᴅWᴀɪᴛ ᴏғ {str(e.value)}s ғʀᴏᴍ [{message.from_user.first_name}](tg://user?id={message.from_user.id})\n\n**ᴜsᴇʀ ɪᴅ :** `{str(message.from_user.id)}`",
+                disable_web_page_preview=True,
+                parse_mode=ParseMode.MARKDOWN,
+            )
     except Exception as e:
         if Telegram.ULOG_CHANNEL:
-            await bot.send_message(
-                chat_id=Telegram.ULOG_CHANNEL,
+            await safe_send_optional_message(
+                bot,
+                "ULOG_CHANNEL",
+                Telegram.ULOG_CHANNEL,
                 text=f"**#EʀʀᴏʀTʀᴀᴄᴋᴇʙᴀᴄᴋ:** `{e}`",
                 disable_web_page_preview=True,
                 parse_mode=ParseMode.MARKDOWN,
@@ -96,11 +104,20 @@ async def channel_receive_handler(bot: Client, message: Message):
         print(f"Sleeping for {str(w.value)}s")
         await asyncio.sleep(w.value)
         if Telegram.ULOG_CHANNEL:
-            await bot.send_message(chat_id=Telegram.ULOG_CHANNEL,
-                                   text=f"ɢᴏᴛ ғʟᴏᴏᴅᴡᴀɪᴛ ᴏғ {str(w.value)}s ғʀᴏᴍ {message.chat.title}\n\n**ᴄʜᴀɴɴᴇʟ ɪᴅ :** `{str(message.chat.id)}`",
-                                   disable_web_page_preview=True)
+            await safe_send_optional_message(
+                bot,
+                "ULOG_CHANNEL",
+                Telegram.ULOG_CHANNEL,
+                text=f"ɢᴏᴛ ғʟᴏᴏᴅᴡᴀɪᴛ ᴏғ {str(w.value)}s ғʀᴏᴍ {message.chat.title}\n\n**ᴄʜᴀɴɴᴇʟ ɪᴅ :** `{str(message.chat.id)}`",
+                disable_web_page_preview=True,
+            )
     except Exception as e:
         if Telegram.ULOG_CHANNEL:
-            await bot.send_message(chat_id=Telegram.ULOG_CHANNEL, text=f"**#EʀʀᴏʀTʀᴀᴄᴋᴇʙᴀᴄᴋ:** `{e}`",
-                                   disable_web_page_preview=True)
+            await safe_send_optional_message(
+                bot,
+                "ULOG_CHANNEL",
+                Telegram.ULOG_CHANNEL,
+                text=f"**#EʀʀᴏʀTʀᴀᴄᴋᴇʙᴀᴄᴋ:** `{e}`",
+                disable_web_page_preview=True,
+            )
         print(f"Cᴀɴ'ᴛ Eᴅɪᴛ Bʀᴏᴀᴅᴄᴀsᴛ Mᴇssᴀɢᴇ!\nEʀʀᴏʀ:  **Gɪᴠᴇ ᴍᴇ ᴇᴅɪᴛ ᴘᴇʀᴍɪssɪᴏɴ ɪɴ ᴜᴘᴅᴀᴛᴇs ᴀɴᴅ ʙɪɴ Cʜᴀɴɴᴇʟ!{e}**")

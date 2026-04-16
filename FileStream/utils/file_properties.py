@@ -15,6 +15,11 @@ from FileStream.bot import FileStream
 from FileStream.utils.database import Database
 from FileStream.utils.category import detect_category
 from FileStream.utils.file_cleanup import delete_file_entry, invalidate_runtime_access
+from FileStream.utils.optional_channels import (
+    disable_optional_channel,
+    is_invalid_optional_channel_error,
+    optional_channel_available,
+)
 from FileStream.config import Telegram, Server
 from FileStream.server.exceptions import FileNotFound
 
@@ -29,50 +34,82 @@ _FLOG_MISSING_MARKERS = (
 )
 
 
+def _flog_enabled() -> bool:
+    return optional_channel_available("FLOG_CHANNEL", Telegram.FLOG_CHANNEL)
+
+
+def _handle_invalid_flog(exc: Exception) -> bool:
+    if not is_invalid_optional_channel_error(exc):
+        return False
+    disable_optional_channel("FLOG_CHANNEL", Telegram.FLOG_CHANNEL, exc)
+    return True
+
+
 async def get_file_ids(client: Client | bool, db_id: str, multi_clients, message=None) -> Optional[FileId]:
     logging.debug("Starting of get_file_ids")
     file_info = await db.get_file(db_id)
     if not file_info or not file_info.get("file_id"):
         raise FileNotFound
     if ("file_ids" not in file_info) or not client:
-        if not Telegram.FLOG_CHANNEL:
+        if not _flog_enabled():
             if not client:
                 return
             file_id_info = file_info.setdefault("file_ids", {})
             file_id_info[str(client.id)] = file_info.get("file_id", "")
             await db.update_file_ids(db_id, file_id_info)
         else:
-            logging.debug("Storing file_id of all clients in DB")
-            log_msg = await send_file(FileStream, db_id, file_info['file_id'], message, file_name=file_info.get('file_name'))
-            await db.update_file_ids(db_id, await update_file_id(log_msg.id, multi_clients))
-            logging.debug("Stored file_id of all clients in DB")
-            if not client:
-                return
-            file_info = await db.get_file(db_id)
+            try:
+                logging.debug("Storing file_id of all clients in DB")
+                log_msg = await send_file(FileStream, db_id, file_info['file_id'], message, file_name=file_info.get('file_name'))
+                await db.update_file_ids(db_id, await update_file_id(log_msg.id, multi_clients))
+                logging.debug("Stored file_id of all clients in DB")
+                if not client:
+                    return
+                file_info = await db.get_file(db_id)
+            except Exception as exc:
+                if not _handle_invalid_flog(exc):
+                    raise
+                if not client:
+                    return
+                file_id_info = file_info.setdefault("file_ids", {})
+                file_id_info[str(client.id)] = file_info.get("file_id", "")
+                await db.update_file_ids(db_id, file_id_info)
 
     file_id_info = file_info.setdefault("file_ids", {})
     if str(client.id) not in file_id_info:
-        if not Telegram.FLOG_CHANNEL:
+        if not _flog_enabled():
             file_id_info[str(client.id)] = file_info.get("file_id", "")
             await db.update_file_ids(db_id, file_id_info)
         else:
-            logging.debug("Storing file_id in DB")
-            log_msg = await send_file(FileStream, db_id, file_info['file_id'], message, file_name=file_info.get('file_name'))
-            msg = await client.get_messages(Telegram.FLOG_CHANNEL, log_msg.id)
-            media = get_media_from_message(msg)
-            file_id_info[str(client.id)] = getattr(media, "file_id", "")
-            await db.update_file_ids(db_id, file_id_info)
-            logging.debug("Stored file_id in DB")
+            try:
+                logging.debug("Storing file_id in DB")
+                log_msg = await send_file(FileStream, db_id, file_info['file_id'], message, file_name=file_info.get('file_name'))
+                msg = await client.get_messages(Telegram.FLOG_CHANNEL, log_msg.id)
+                media = get_media_from_message(msg)
+                file_id_info[str(client.id)] = getattr(media, "file_id", "")
+                await db.update_file_ids(db_id, file_id_info)
+                logging.debug("Stored file_id in DB")
+            except Exception as exc:
+                if not _handle_invalid_flog(exc):
+                    raise
+                file_id_info[str(client.id)] = file_info.get("file_id", "")
+                await db.update_file_ids(db_id, file_id_info)
 
     logging.debug("Middle of get_file_ids")
     if not file_id_info.get(str(client.id)):
         # Try to refresh missing/empty file_id for this client
-        if Telegram.FLOG_CHANNEL:
-            log_msg = await send_file(FileStream, db_id, file_info['file_id'], message, file_name=file_info.get('file_name'))
-            msg = await client.get_messages(Telegram.FLOG_CHANNEL, log_msg.id)
-            media = get_media_from_message(msg)
-            file_id_info[str(client.id)] = getattr(media, "file_id", "")
-            await db.update_file_ids(db_id, file_id_info)
+        if _flog_enabled():
+            try:
+                log_msg = await send_file(FileStream, db_id, file_info['file_id'], message, file_name=file_info.get('file_name'))
+                msg = await client.get_messages(Telegram.FLOG_CHANNEL, log_msg.id)
+                media = get_media_from_message(msg)
+                file_id_info[str(client.id)] = getattr(media, "file_id", "")
+                await db.update_file_ids(db_id, file_id_info)
+            except Exception as exc:
+                if not _handle_invalid_flog(exc):
+                    raise
+                file_id_info[str(client.id)] = file_info.get("file_id", "")
+                await db.update_file_ids(db_id, file_id_info)
         else:
             file_id_info[str(client.id)] = file_info.get("file_id", "")
             await db.update_file_ids(db_id, file_id_info)
@@ -98,7 +135,7 @@ async def ensure_flog_media_exists(
     if not file_info:
         raise FileNotFound
 
-    if not Telegram.FLOG_CHANNEL:
+    if not _flog_enabled():
         return file_info
 
     flog_msg_id = file_info.get("flog_msg_id")
@@ -111,6 +148,8 @@ async def ensure_flog_media_exists(
     try:
         log_msg = await client.get_messages(Telegram.FLOG_CHANNEL, int(flog_msg_id))
     except Exception as exc:
+        if _handle_invalid_flog(exc):
+            return file_info
         error_text = str(exc or "").lower()
         if not any(marker in error_text for marker in _FLOG_MISSING_MARKERS):
             logging.warning("Unable to validate FLOG media for %s: %s", file_info.get("_id"), exc)
@@ -260,13 +299,17 @@ def get_file_info(message):
 
 async def update_file_id(msg_id, multi_clients):
     file_ids = {}
+    if not _flog_enabled():
+        return file_ids
     
     async def get_id(client):
         try:
             log_msg = await client.get_messages(Telegram.FLOG_CHANNEL, msg_id)
             media = get_media_from_message(log_msg)
             return str(client.id), getattr(media, "file_id", "")
-        except Exception:
+        except Exception as exc:
+            if _handle_invalid_flog(exc):
+                return str(client.id), ""
             return str(client.id), ""
 
     # Run concurrently for speed
@@ -283,7 +326,7 @@ async def update_file_id(msg_id, multi_clients):
 
 
 async def send_file(client: Client, db_id, file_id: str, message=None, file_name: str | None = None):
-    if not Telegram.FLOG_CHANNEL:
+    if not _flog_enabled():
         raise FileNotFound
 
     if message:
@@ -299,12 +342,17 @@ async def send_file(client: Client, db_id, file_id: str, message=None, file_name
 
     safe_caption = html.escape(file_caption)
 
-    log_msg = await client.send_cached_media(
-        chat_id=Telegram.FLOG_CHANNEL,
-        file_id=file_id,
-        caption=f"<b>{safe_caption}</b>",
-        parse_mode=ParseMode.HTML,
-    )
+    try:
+        log_msg = await client.send_cached_media(
+            chat_id=Telegram.FLOG_CHANNEL,
+            file_id=file_id,
+            caption=f"<b>{safe_caption}</b>",
+            parse_mode=ParseMode.HTML,
+        )
+    except Exception as exc:
+        if _handle_invalid_flog(exc):
+            raise FileNotFound from exc
+        raise
     try:
         await db.update_file_flog_msg(db_id, log_msg.id)
     except Exception:
