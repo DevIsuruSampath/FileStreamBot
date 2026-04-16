@@ -15,8 +15,7 @@ from FileStream.utils.category import detect_category
 from FileStream.config import Telegram, Server
 from FileStream.bot import FileStream
 from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
-from FileStream.utils.file_properties import ensure_flog_media_exists
-from FileStream.server.exceptions import FileNotFound
+from FileStream.utils.flog_sync import reconcile_flog_storage
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -247,14 +246,12 @@ async def gen_file_list_button(file_list_no: int, user_id: int, bot=None):
     if file_list_no < 1:
         file_list_no = 1
 
+    await reconcile_flog_storage(bot or FileStream, user_id=int(user_id))
+
     visible_files = []
     cursor = db.file.find({"user_id": user_id}).sort("_id", -1)
 
     async for x in cursor:
-        try:
-            await ensure_flog_media_exists(x, bot=bot or FileStream, prune_stale=True, db_instance=db)
-        except FileNotFound:
-            continue
         visible_files.append(x)
 
     total_files = len(visible_files)

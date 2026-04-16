@@ -8,6 +8,7 @@ from FileStream.bot import FileStream
 from FileStream.utils.database import Database
 from FileStream.utils.bot_utils import verify_user, get_public_folder_context, reply_with_optional_photo
 from FileStream.utils.file_properties import ensure_flog_media_exists
+from FileStream.utils.flog_sync import reconcile_flog_storage
 from FileStream.config import Telegram, Server
 from FileStream.server.exceptions import FileNotFound
 
@@ -86,6 +87,8 @@ async def _sync_folder_files(folder: dict, bot: Client) -> dict | None:
 
 
 async def _get_visible_folders(user_id: int, bot: Client) -> list[dict]:
+    await reconcile_flog_storage(bot, user_id=int(user_id))
+
     visible_folders = []
     cursor = db.folders.find({"user_id": int(user_id)}).sort("created_at", -1)
 

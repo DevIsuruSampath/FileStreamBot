@@ -12,6 +12,7 @@ from FileStream.bot import FileStream, multi_clients
 from FileStream.server import web_server
 from FileStream.bot.clients import initialize_clients
 from FileStream.utils.bot_commands import register_bot_commands
+from FileStream.utils.flog_sync import reconcile_flog_storage, start_flog_sync_task, stop_flog_sync_task
 from FileStream.utils.optional_channels import warm_optional_channel_peer
 
 logging.basicConfig(
@@ -79,6 +80,8 @@ async def start_services():
     await initialize_clients()
     for client in multi_clients.values():
         await warm_optional_channel_peer(client, "FLOG_CHANNEL", Telegram.FLOG_CHANNEL)
+    await reconcile_flog_storage(FileStream, force=True)
+    start_flog_sync_task(FileStream)
     print("------------------------------ DONE ------------------------------")
 
     print()
@@ -91,6 +94,11 @@ async def start_services():
     await idle()
 
 async def cleanup():
+    try:
+        await stop_flog_sync_task()
+    except Exception:
+        pass
+
     try:
         await server.cleanup()
     except Exception:
