@@ -156,12 +156,19 @@ async def _edit_message_text(message: Message, text: str, reply_markup: InlineKe
     )
 
 
+async def open_donation_menu(message: Message, bot: Client, note: str | None = None, *, edit: bool = False):
+    if edit:
+        await _edit_message_text(message, _donation_text(bot, note=note), _main_keyboard())
+        return
+    await _show_menu(message, bot, note=note)
+
+
 @FileStream.on_message(filters.command("donation") & filters.private)
 async def donation_command(bot: Client, message: Message):
     if not await verify_user(bot, message):
         return
     pending_custom_amounts.pop(message.from_user.id, None)
-    await _show_menu(message, bot)
+    await open_donation_menu(message, bot)
 
 
 @FileStream.on_callback_query(filters.regex(r"^donate:"))
@@ -184,7 +191,7 @@ async def donation_callbacks(bot: Client, query: CallbackQuery):
 
     if action == "menu":
         pending_custom_amounts.pop(user_id, None)
-        await _edit_message_text(query.message, _donation_text(bot), _main_keyboard())
+        await open_donation_menu(query.message, bot, edit=True)
         await query.answer()
         return
 

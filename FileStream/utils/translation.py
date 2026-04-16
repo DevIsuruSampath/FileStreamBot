@@ -1,11 +1,5 @@
 from FileStream.utils.messages import LANG
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from FileStream.config import Telegram
-from FileStream.utils.client_identity import build_add_to_group_link
-
-
-_updates_username = str(Telegram.UPDATES_CHANNEL or "").lstrip("@").strip()
-_updates_link = f"https://t.me/{_updates_username}" if _updates_username else "https://t.me"
 
 
 class LANG(LANG):
@@ -21,6 +15,9 @@ class BUTTON(object):
                     InlineKeyboardButton("ℹ️ About", callback_data="about"),
                     InlineKeyboardButton("❓ Help", callback_data="help"),
                 ],
+                [
+                    InlineKeyboardButton("⭐ Support", callback_data="support"),
+                ],
             ]
         )
 
@@ -33,7 +30,7 @@ class BUTTON(object):
                     InlineKeyboardButton("ℹ️ About", callback_data="about"),
                 ],
                 [
-                    InlineKeyboardButton("📢 Updates", url=_updates_link),
+                    InlineKeyboardButton("⭐ Support", callback_data="support"),
                     InlineKeyboardButton("❌ Close", callback_data="close"),
                 ],
             ]
@@ -48,7 +45,7 @@ class BUTTON(object):
                     InlineKeyboardButton("❓ Help", callback_data="help"),
                 ],
                 [
-                    InlineKeyboardButton("📢 Updates", url=_updates_link),
+                    InlineKeyboardButton("⭐ Support", callback_data="support"),
                     InlineKeyboardButton("❌ Close", callback_data="close"),
                 ],
             ]

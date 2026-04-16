@@ -13,6 +13,7 @@ from FileStream.utils.file_cleanup import delete_file_entry
 from FileStream.utils.file_properties import ensure_flog_media_exists
 from FileStream.server.exceptions import FileNotFound
 from FileStream.utils.client_identity import get_bot_name, get_bot_username
+from FileStream.bot.plugins.donation import open_donation_menu
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.file_id import FileId, FileType, PHOTO_TYPES
@@ -40,7 +41,7 @@ def _is_owner(file_info: dict, user_id: int) -> bool:
 
 #---------------------[ START CMD ]---------------------#
 @FileStream.on_callback_query(
-    filters.regex(r"^(home|help|about|N/A|close|msgdelete_|msgdelyes_|msgdelpvt_|msgdelpvtyes_|mainstream_|userfiles_|myfile_|sendfile_)")
+    filters.regex(r"^(home|help|about|support|N/A|close|msgdelete_|msgdelyes_|msgdelpvt_|msgdelpvtyes_|mainstream_|userfiles_|myfile_|sendfile_)")
 )
 async def cb_data(bot, update: CallbackQuery):
     try:
@@ -77,6 +78,8 @@ async def cb_data(bot, update: CallbackQuery):
             reply_markup=BUTTON.about_buttons(bot),
             parse_mode=ParseMode.HTML
         )
+    elif usr_cmd[0] == "support":
+        await open_donation_menu(update.message, bot, edit=True)
 
     #---------------------[ MY FILES CMD ]---------------------#
 
