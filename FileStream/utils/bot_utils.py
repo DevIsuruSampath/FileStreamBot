@@ -2,6 +2,7 @@
 import asyncio
 import math
 import html
+import logging
 import os
 from typing import Union
 from pyrogram.errors import UserNotParticipant, FloodWait
@@ -16,6 +17,62 @@ from FileStream.bot import FileStream
 from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+
+
+def resolve_media_source(value: str | None) -> str | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+
+    lowered = raw.lower()
+    if lowered.startswith(("http://", "https://")):
+        return raw
+
+    candidates = []
+    if os.path.isabs(raw):
+        candidates.append(raw)
+    else:
+        candidates.append(os.path.join(PROJECT_ROOT, raw))
+        candidates.append(os.path.join(PROJECT_ROOT, "images", raw))
+
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            return os.path.abspath(candidate)
+
+    return raw
+
+
+async def reply_with_optional_photo(
+    message: Message,
+    photo: str | None,
+    text: str,
+    *,
+    reply_markup=None,
+    parse_mode=None,
+    disable_web_page_preview: bool = True,
+    quote: bool | None = None,
+):
+    resolved_photo = resolve_media_source(photo)
+    if resolved_photo:
+        try:
+            return await message.reply_photo(
+                photo=resolved_photo,
+                caption=text,
+                parse_mode=parse_mode,
+                reply_markup=reply_markup,
+                quote=quote,
+            )
+        except Exception as exc:
+            logging.warning("Failed to send configured photo %r: %s", photo, exc)
+
+    return await message.reply_text(
+        text=text,
+        parse_mode=parse_mode,
+        disable_web_page_preview=disable_web_page_preview,
+        reply_markup=reply_markup,
+        quote=quote,
+    )
 
 
 async def get_public_file_context(file_ref) -> tuple[dict, dict, str]:
@@ -82,19 +139,13 @@ async def is_user_joined(bot, message: Message):
                 [[InlineKeyboardButton("🔔 Join Our Channel", url=join_url)]]
             )
 
-        if Telegram.VERIFY_PIC:
-            ver = await message.reply_photo(
-                photo=Telegram.VERIFY_PIC,
-                caption="<i>Jᴏɪɴ ᴍʏ ᴜᴘᴅᴀᴛᴇ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴜsᴇ ᴍᴇ 🔐</i>",
-                parse_mode=ParseMode.HTML,
-                reply_markup=join_markup
-            )
-        else:
-            ver = await message.reply_text(
-                text = "<i>Jᴏɪɴ ᴍʏ ᴜᴘᴅᴀᴛᴇ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴜsᴇ ᴍᴇ 🔐</i>",
-                reply_markup=join_markup,
-                parse_mode=ParseMode.HTML
-            )
+        ver = await reply_with_optional_photo(
+            message,
+            Telegram.VERIFY_PIC,
+            "<i>Jᴏɪɴ ᴍʏ ᴜᴘᴅᴀᴛᴇ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴜsᴇ ᴍᴇ 🔐</i>",
+            reply_markup=join_markup,
+            parse_mode=ParseMode.HTML,
+        )
         await asyncio.sleep(30)
         try:
             await ver.delete()

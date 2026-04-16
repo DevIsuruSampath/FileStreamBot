@@ -4,7 +4,7 @@ import html
 from FileStream import __version__
 from FileStream.bot import FileStream
 from FileStream.server.exceptions import FileNotFound
-from FileStream.utils.bot_utils import gen_linkx, verify_user, gen_file_list_button
+from FileStream.utils.bot_utils import gen_linkx, verify_user, gen_file_list_button, reply_with_optional_photo
 from FileStream.config import Telegram
 from FileStream.utils.database import Database
 from FileStream.utils.translation import LANG, BUTTON
@@ -37,20 +37,14 @@ async def start(bot: Client, message: Message):
         payload = message.text.split(" ", 1)[1].strip()
 
     if not payload:
-        if Telegram.START_PIC:
-            await message.reply_photo(
-                photo=Telegram.START_PIC,
-                caption=LANG.START_TEXT.format(message.from_user.mention, bot_username),
-                parse_mode=ParseMode.HTML,
-                reply_markup=BUTTON.start_buttons(bot)
-            )
-        else:
-            await message.reply_text(
-                text=LANG.START_TEXT.format(message.from_user.mention, bot_username),
-                parse_mode=ParseMode.HTML,
-                disable_web_page_preview=True,
-                reply_markup=BUTTON.start_buttons(bot)
-            )
+        await reply_with_optional_photo(
+            message,
+            Telegram.START_PIC,
+            LANG.START_TEXT.format(message.from_user.mention, bot_username),
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+            reply_markup=BUTTON.start_buttons(bot),
+        )
     else:
         if payload.startswith("stream_"):
             file_id = payload.split("stream_", 1)[1]
@@ -129,38 +123,27 @@ async def start(bot: Client, message: Message):
 async def about(bot, message):
     if not await verify_user(bot, message):
         return
-    if Telegram.START_PIC:
-        await message.reply_photo(
-            photo=Telegram.START_PIC,
-            caption=LANG.ABOUT_TEXT.format(get_bot_name(bot), __version__),
-            parse_mode=ParseMode.HTML,
-            reply_markup=BUTTON.about_buttons(bot)
-        )
-    else:
-        await message.reply_text(
-            text=LANG.ABOUT_TEXT.format(get_bot_name(bot), __version__),
-            disable_web_page_preview=True,
-            reply_markup=BUTTON.about_buttons(bot)
-        )
+    await reply_with_optional_photo(
+        message,
+        Telegram.START_PIC,
+        LANG.ABOUT_TEXT.format(get_bot_name(bot), __version__),
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+        reply_markup=BUTTON.about_buttons(bot),
+    )
 
 @FileStream.on_message((filters.command('help')) & filters.private)
 async def help_handler(bot, message):
     if not await verify_user(bot, message):
         return
-    if Telegram.START_PIC:
-        await message.reply_photo(
-            photo=Telegram.START_PIC,
-            caption=LANG.HELP_TEXT.format(Telegram.OWNER_ID),
-            parse_mode=ParseMode.HTML,
-            reply_markup=BUTTON.help_buttons(bot)
-        )
-    else:
-        await message.reply_text(
-            text=LANG.HELP_TEXT.format(Telegram.OWNER_ID),
-            parse_mode=ParseMode.HTML,
-            disable_web_page_preview=True,
-            reply_markup=BUTTON.help_buttons(bot)
-        )
+    await reply_with_optional_photo(
+        message,
+        Telegram.START_PIC,
+        LANG.HELP_TEXT.format(Telegram.OWNER_ID),
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+        reply_markup=BUTTON.help_buttons(bot),
+    )
 
 # ---------------------------------------------------------------------------------------------------
 
@@ -170,11 +153,9 @@ async def my_files(bot: Client, message: Message):
         return
     
     file_list, total_files = await gen_file_list_button(1, message.from_user.id)
-
-    if Telegram.FILE_PIC:
-        await message.reply_photo(photo=Telegram.FILE_PIC,
-                                  caption="Total files: {}".format(total_files),
-                                  reply_markup=InlineKeyboardMarkup(file_list))
-    else:
-        await message.reply_text(text="Total files: {}".format(total_files),
-                                 reply_markup=InlineKeyboardMarkup(file_list))
+    await reply_with_optional_photo(
+        message,
+        Telegram.FILE_PIC,
+        "Total files: {}".format(total_files),
+        reply_markup=InlineKeyboardMarkup(file_list),
+    )

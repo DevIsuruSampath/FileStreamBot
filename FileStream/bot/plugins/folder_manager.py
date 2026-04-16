@@ -6,7 +6,7 @@ from pyrogram.enums.parse_mode import ParseMode
 
 from FileStream.bot import FileStream
 from FileStream.utils.database import Database
-from FileStream.utils.bot_utils import verify_user, get_public_folder_context
+from FileStream.utils.bot_utils import verify_user, get_public_folder_context, reply_with_optional_photo
 from FileStream.config import Telegram, Server
 
 
@@ -93,18 +93,13 @@ async def _send_folder_list(message: Message, page: int = 1, edit: bool = False,
         except Exception:
             pass
 
-    if Telegram.FOLDERS_PIC:
-        await message.reply_photo(
-            photo=Telegram.FOLDERS_PIC,
-            caption=caption,
-            reply_markup=InlineKeyboardMarkup(buttons),
-        )
-    else:
-        await message.reply_text(
-            caption,
-            reply_markup=InlineKeyboardMarkup(buttons),
-            quote=True
-        )
+    await reply_with_optional_photo(
+        message,
+        Telegram.FOLDERS_PIC,
+        caption,
+        reply_markup=InlineKeyboardMarkup(buttons),
+        quote=True,
+    )
 
 
 @FileStream.on_message(filters.command("folders") & filters.private)

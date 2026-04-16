@@ -124,10 +124,10 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `URL_SHORTENER_TIMEOUT`: Shortener request timeout in seconds.
 - `URL_SHORTENER_FAIL_THRESHOLD`: Failures before shortener cooldown starts.
 - `URL_SHORTENER_COOLDOWN`: Cooldown duration in seconds after repeated failures.
-- `FILE_PIC`: Image for `/files` command.
-- `FOLDERS_PIC`: Image for `/folders` command.
-- `START_PIC`: Image for `/start` command.
-- `VERIFY_PIC`: Image for force subscribe verification.
+- `FILE_PIC`: Image for `/files` command. Supports an HTTP URL, Telegram `file_id`, or a local path like `images/files.png`.
+- `FOLDERS_PIC`: Image for `/folders` command. Supports an HTTP URL, Telegram `file_id`, or a local path like `images/folders.png`.
+- `START_PIC`: Image for `/start` command. Supports an HTTP URL, Telegram `file_id`, or a local path like `images/start.png`.
+- `VERIFY_PIC`: Image for force subscribe verification. Supports an HTTP URL, Telegram `file_id`, or a local path like `images/verify.png`.
 - `WEB_ADS_ENABLED`: Set to `True`/`False` to globally enable or disable web ad slots and social bar scripts.
 - `WEB_ADS_DESKTOP_TOP_BANNER_KEY`, `WEB_ADS_DESKTOP_TOP_BANNER_INVOKE_URL`, `WEB_ADS_DESKTOP_TOP_BANNER_WIDTH`, `WEB_ADS_DESKTOP_TOP_BANNER_HEIGHT`: Desktop top banner slot config. Defaults keep the current `728x90` placement.
 - `WEB_ADS_DESKTOP_INLINE_BANNER_KEY`, `WEB_ADS_DESKTOP_INLINE_BANNER_INVOKE_URL`, `WEB_ADS_DESKTOP_INLINE_BANNER_WIDTH`, `WEB_ADS_DESKTOP_INLINE_BANNER_HEIGHT`: Desktop inline banner slot config. Defaults keep the current `300x250` placement.
