@@ -84,6 +84,7 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `API_ID`: Your Telegram API ID.
 - `API_HASH`: Your Telegram API Hash.
 - `BOT_TOKEN`: Your Bot Token from @BotFather.
+  The bot username is auto-detected from this token at runtime. No separate bot username setting is required.
 - `OWNER_ID`: Your Telegram User ID.
 - `DATABASE_URL`: MongoDB Connection URI.
 - `FQDN`: Your public domain or IP (e.g., `files.example.com`).

@@ -16,6 +16,7 @@ from FileStream.utils.database import Database
 from FileStream.utils.file_properties import ensure_flog_media_exists
 from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
 from FileStream.utils.render_template import render_page, render_folder, render_public_page, render_public_folder
+from FileStream.utils.client_identity import get_bot_username
 
 routes = web.RouteTableDef()
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
@@ -82,11 +83,12 @@ def invalidate_file_access(path: str) -> None:
 
 @routes.get("/status", allow_head=True)
 async def root_route_handler(_):
+    bot_username = get_bot_username(FileStream)
     return web.json_response(
         {
             "server_status": "running",
             "uptime": utils.get_readable_time(time.time() - StartTime),
-            "telegram_bot": "@" + FileStream.username if getattr(FileStream, "username", None) else None,
+            "telegram_bot": f"@{bot_username}" if bot_username else None,
             "connected_bots": len(multi_clients),
             "loads": dict(
                 ("bot" + str(c + 1), l)

@@ -18,6 +18,7 @@ from FileStream.utils.public_links import (
     build_public_folder_url,
     build_public_stream_url,
 )
+from FileStream.utils.client_identity import build_start_link, get_bot_username
 from FileStream.server.exceptions import FileNotFound
 
 
@@ -141,8 +142,8 @@ async def render_page(db_id, file_data: dict | None = None, public_link: dict | 
         updates_url = f"https://t.me/{channel}"
 
     report_url = None
-    if getattr(FileStream, "username", None):
-        report_url = f"https://t.me/{FileStream.username}?start=report_file_{public_id}"
+    if get_bot_username(FileStream):
+        report_url = build_start_link(f"report_file_{public_id}", FileStream)
 
     return template.render(
         **_template_context(
@@ -244,8 +245,8 @@ async def render_folder(folder_id: str, title: str = "Folder", folder_doc: dict 
         template = env.from_string(f.read())
 
     report_url = None
-    if getattr(FileStream, "username", None):
-        report_url = f"https://t.me/{FileStream.username}?start=report_folder_{folder_public_id}"
+    if get_bot_username(FileStream):
+        report_url = build_start_link(f"report_folder_{folder_public_id}", FileStream)
 
     return template.render(
         **_template_context(
