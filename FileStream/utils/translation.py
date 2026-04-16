@@ -21,9 +21,6 @@ class BUTTON(object):
                     InlineKeyboardButton("ℹ️ About", callback_data="about"),
                     InlineKeyboardButton("❓ Help", callback_data="help"),
                 ],
-                [
-                    InlineKeyboardButton("📢 Updates", url=_updates_link),
-                ],
             ]
         )
 
