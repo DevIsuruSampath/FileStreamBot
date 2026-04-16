@@ -36,6 +36,13 @@ def _has_flog_storage() -> bool:
     return bool(Telegram.FLOG_CHANNEL) and optional_channel_available("FLOG_CHANNEL", Telegram.FLOG_CHANNEL)
 
 
+def _build_flog_query(user_id: int | None = None) -> dict:
+    query = {"flog_msg_id": {"$exists": True, "$nin": [None, ""]}}
+    if user_id is not None:
+        query["user_id"] = int(user_id)
+    return query
+
+
 async def _fetch_flog_messages(client: Client, message_ids: Iterable[int]):
     message_ids = [int(mid) for mid in message_ids if mid]
     if not message_ids:
@@ -110,6 +117,18 @@ async def _reconcile_batch(client: Client, batch: list[tuple[dict, int]], stats:
     return True
 
 
+async def _purge_all_flog_records(client: Client, user_id: int | None, stats: dict) -> None:
+    query = _build_flog_query(user_id)
+    projection = {"_id": 1, "user_id": 1, "flog_msg_id": 1}
+    async for file_info in db.file.find(query, projection).sort("_id", -1):
+        stats["checked_files"] += 1
+        try:
+            await delete_file_entry(db, file_info, bot=client)
+            stats["deleted_files"] += 1
+        except Exception:
+            logging.debug("Failed deleting FLOG-backed file %s during storage purge", file_info.get("_id"), exc_info=True)
+
+
 async def reconcile_flog_storage(
     bot: Client | None = None,
     *,
@@ -151,16 +170,38 @@ async def reconcile_flog_storage(
                 if now - _last_user_sync_at.get(scoped_user_id, 0.0) < FLOG_SYNC_MIN_USER_INTERVAL:
                     return stats
 
+        if not optional_channel_available("FLOG_CHANNEL", Telegram.FLOG_CHANNEL):
+            stats["channel_unavailable"] = True
+            await _purge_all_flog_records(client, scoped_user_id, stats)
+            stats["deleted_folders"] = await _prune_empty_folders(scoped_user_id)
+            if scoped_user_id is None:
+                _last_full_sync_at = time.time()
+            else:
+                _last_user_sync_at[scoped_user_id] = time.time()
+            logging.warning(
+                "FLOG channel unavailable; purged FLOG-backed records for %s",
+                f"user={scoped_user_id}" if scoped_user_id is not None else "global sync",
+            )
+            return stats
+
         if not _has_flog_storage():
             return stats
 
         if not await warm_optional_channel_peer(client, "FLOG_CHANNEL", Telegram.FLOG_CHANNEL):
             stats["channel_unavailable"] = True
+            await _purge_all_flog_records(client, scoped_user_id, stats)
+            stats["deleted_folders"] = await _prune_empty_folders(scoped_user_id)
+            if scoped_user_id is None:
+                _last_full_sync_at = time.time()
+            else:
+                _last_user_sync_at[scoped_user_id] = time.time()
+            logging.warning(
+                "FLOG channel could not be warmed; purged FLOG-backed records for %s",
+                f"user={scoped_user_id}" if scoped_user_id is not None else "global sync",
+            )
             return stats
 
-        query = {"flog_msg_id": {"$exists": True, "$nin": [None, ""]}}
-        if scoped_user_id is not None:
-            query["user_id"] = scoped_user_id
+        query = _build_flog_query(scoped_user_id)
 
         projection = {"_id": 1, "user_id": 1, "flog_msg_id": 1}
         cursor = db.file.find(query, projection).sort("_id", -1)
@@ -179,6 +220,9 @@ async def reconcile_flog_storage(
 
         if batch and not stats["channel_unavailable"]:
             await _reconcile_batch(client, batch, stats)
+
+        if stats["channel_unavailable"]:
+            await _purge_all_flog_records(client, scoped_user_id, stats)
 
         stats["deleted_folders"] = await _prune_empty_folders(scoped_user_id)
 
