@@ -44,11 +44,20 @@ class ByteStreamer:
         logging.debug(f"Cached media file with ID {db_id}")
         return self.cached_file_ids[db_id]
 
-    async def generate_media_session(self, client: Client, file_id: FileId) -> Session:
+    async def reset_media_session(self, client: Client, dc_id: int) -> None:
+        media_session = client.media_sessions.pop(dc_id, None)
+        if media_session is None:
+            return
+        with contextlib.suppress(Exception):
+            await media_session.stop()
+
+    async def generate_media_session(self, client: Client, file_id: FileId, *, refresh: bool = False) -> Session:
         """
         Generates the media session for the DC that contains the media file.
         This is required for getting the bytes from Telegram servers.
         """
+        if refresh:
+            await self.reset_media_session(client, file_id.dc_id)
 
         media_session = client.media_sessions.get(file_id.dc_id, None)
 
@@ -83,7 +92,9 @@ class ByteStreamer:
                         )
                         continue
                 else:
-                    await media_session.stop()
+                    with contextlib.suppress(Exception):
+                        await media_session.stop()
+                    await self.reset_media_session(client, file_id.dc_id)
                     raise AuthBytesInvalid
             else:
                 media_session = Session(
@@ -179,9 +190,42 @@ class ByteStreamer:
             current_part = 1
             media_session = None
             location = None
+            media_session_lock = asyncio.Lock()
             prefetch_depth = max(1, min(int(Server.STREAM_PREFETCH_CHUNKS), int(part_count), 8))
             pending_fetches: dict[int, asyncio.Task] = {}
             next_part_to_schedule = 1
+
+            async def ensure_media_ready():
+                nonlocal media_session, location
+
+                if media_session is not None and location is not None:
+                    return media_session, location
+
+                async with media_session_lock:
+                    if media_session is not None and location is not None:
+                        return media_session, location
+
+                    last_exc = None
+                    for attempt in range(2):
+                        try:
+                            media_session = await self.generate_media_session(
+                                client,
+                                file_id,
+                                refresh=(attempt > 0),
+                            )
+                            location = await self.get_location(file_id)
+                            return media_session, location
+                        except AuthBytesInvalid as exc:
+                            last_exc = exc
+                            logging.warning(
+                                "Media session auth failed for DC %s on client %s (attempt %s/2)",
+                                file_id.dc_id,
+                                index,
+                                attempt + 1,
+                            )
+                            await self.reset_media_session(client, file_id.dc_id)
+
+                    raise last_exc or AuthBytesInvalid
 
             async def fetch_chunk_from_telegram(part_offset: int) -> bytes:
                 nonlocal media_session, location, telegram_started_at, telegram_first_byte_delay, client_load_acquired
@@ -194,9 +238,7 @@ class ByteStreamer:
                 if telegram_started_at is None:
                     telegram_started_at = loop.time()
 
-                if media_session is None:
-                    media_session = await self.generate_media_session(client, file_id)
-                    location = await self.get_location(file_id)
+                media_session, location = await ensure_media_ready()
 
                 r = await self._fetch_chunk(media_session, location, part_offset, chunk_size)
                 if not isinstance(r, raw.types.upload.File):
