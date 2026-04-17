@@ -104,6 +104,7 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `PING_INTERVAL`: Health/ping interval for the web process (Default: 1200).
 - `HAS_SSL`: Generate `https://` links when your reverse proxy/domain uses SSL.
 - `NO_PORT`: Hide the explicit port from generated links when your proxy already terminates on the public host.
+- `STREAM_PREFETCH_CHUNKS`: Number of Telegram chunks to keep in-flight per stream (Default: `4`, max: `8`).
 - `SESSION_NAME`: Mongo database/session namespace (Default: `FileStream`).
 - `AUTH_USERS`: Space-separated user IDs allowed to use the bot when access restriction is enabled.
 - `MODE`: Use `secondary` if you only want server-side file serving.

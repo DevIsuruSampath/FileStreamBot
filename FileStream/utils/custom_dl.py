@@ -3,6 +3,7 @@ import contextlib
 import logging
 from typing import Dict, Union
 from FileStream.bot import work_loads
+from FileStream.config import Server
 from pyrogram import Client, utils, raw
 from .file_properties import get_file_ids
 from .client_balance import ensure_client_stat, record_stream_completed, record_stream_failed
@@ -175,21 +176,30 @@ class ByteStreamer:
             media_session = await self.generate_media_session(client, file_id)
             current_part = 1
             location = await self.get_location(file_id)
-            current_offset = offset
+            prefetch_depth = max(1, min(int(Server.STREAM_PREFETCH_CHUNKS), int(part_count), 8))
+            pending_fetches: dict[int, asyncio.Task] = {}
+            next_part_to_schedule = 1
 
-            pending_fetch = asyncio.create_task(self._fetch_chunk(media_session, location, current_offset, chunk_size))
+            while next_part_to_schedule <= prefetch_depth:
+                part_offset = offset + ((next_part_to_schedule - 1) * chunk_size)
+                pending_fetches[next_part_to_schedule] = asyncio.create_task(
+                    self._fetch_chunk(media_session, location, part_offset, chunk_size)
+                )
+                next_part_to_schedule += 1
 
             try:
                 while current_part <= part_count:
+                    pending_fetch = pending_fetches.pop(current_part, None)
+                    if pending_fetch is None:
+                        break
                     r = await pending_fetch
 
-                    next_offset = current_offset + chunk_size
-                    if current_part < part_count:
-                        pending_fetch = asyncio.create_task(
-                            self._fetch_chunk(media_session, location, next_offset, chunk_size)
+                    if next_part_to_schedule <= part_count:
+                        part_offset = offset + ((next_part_to_schedule - 1) * chunk_size)
+                        pending_fetches[next_part_to_schedule] = asyncio.create_task(
+                            self._fetch_chunk(media_session, location, part_offset, chunk_size)
                         )
-                    else:
-                        pending_fetch = None
+                        next_part_to_schedule += 1
 
                     if not isinstance(r, raw.types.upload.File):
                         break
@@ -215,7 +225,6 @@ class ByteStreamer:
                         yield payload
 
                     current_part += 1
-                    current_offset = next_offset
             except (TimeoutError, AttributeError):
                 stream_failed = True
                 record_stream_failed(index)
@@ -224,10 +233,15 @@ class ByteStreamer:
                 record_stream_failed(index)
                 raise
         finally:
+            pending_tasks = []
             if pending_fetch is not None and not pending_fetch.done():
-                pending_fetch.cancel()
+                pending_tasks.append(pending_fetch)
+            pending_tasks.extend(task for task in locals().get("pending_fetches", {}).values() if not task.done())
+            for task in pending_tasks:
+                task.cancel()
+            for task in pending_tasks:
                 with contextlib.suppress(asyncio.CancelledError):
-                    await pending_fetch
+                    await task
 
             duration = max(loop.time() - start_time, 0.001)
             if bytes_sent > 0 and not stream_failed:

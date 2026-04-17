@@ -18,6 +18,13 @@ def _int_or_none(key: str):
         return None
 
 
+def _int_env(key: str, default: int) -> int:
+    try:
+        return int(env.get(key, default))
+    except Exception:
+        return int(default)
+
+
 def _bool_env(key: str, default: bool = False) -> bool:
     return str(env.get(key, str(default))).lower() in ("1", "true", "t", "yes", "y")
 
@@ -82,11 +89,12 @@ class Telegram:
 
 
 class Server:
-    PORT = int(env.get("PORT", 8080))
+    PORT = _int_env("PORT", 8080)
     BIND_ADDRESS = str(env.get("BIND_ADDRESS", "0.0.0.0"))
-    PING_INTERVAL = int(env.get("PING_INTERVAL", "1200"))
+    PING_INTERVAL = _int_env("PING_INTERVAL", 1200)
     HAS_SSL = str(env.get("HAS_SSL", "0")).lower() in ("1", "true", "t", "yes", "y")
     NO_PORT = str(env.get("NO_PORT", "0")).lower() in ("1", "true", "t", "yes", "y")
+    STREAM_PREFETCH_CHUNKS = max(1, min(_int_env("STREAM_PREFETCH_CHUNKS", 4), 8))
     _raw_fqdn = str(env.get("FQDN", BIND_ADDRESS))
     parsed = urlparse(_raw_fqdn if "://" in _raw_fqdn else f"//{_raw_fqdn}")
     FQDN = parsed.netloc or parsed.path
