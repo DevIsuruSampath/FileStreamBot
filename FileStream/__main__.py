@@ -12,6 +12,7 @@ from FileStream.bot import FileStream, multi_clients
 from FileStream.server import web_server
 from FileStream.bot.clients import initialize_clients
 from FileStream.utils.bot_commands import register_bot_commands
+from FileStream.utils.database import Database
 from FileStream.utils.flog_sync import reconcile_flog_storage, start_flog_sync_task, stop_flog_sync_task
 from FileStream.utils.optional_channels import warm_optional_channel_peer
 
@@ -27,6 +28,7 @@ logging.getLogger("pyrogram").setLevel(logging.ERROR)
 logging.getLogger("aiohttp.web").setLevel(logging.ERROR)
 
 server = web.AppRunner(web_server())
+db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 
 loop = asyncio.get_event_loop()
 
@@ -49,6 +51,7 @@ async def start_services():
 
     print()
     print("--------------------- Initializing Web Server ---------------------")
+    await db.ensure_indexes()
     await server.setup()
     await web.TCPSite(server, Server.BIND_ADDRESS, Server.PORT).start()
     print("------------------------------ DONE ------------------------------")

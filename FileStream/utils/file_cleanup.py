@@ -5,12 +5,15 @@ import logging
 from pyrogram import Client
 
 from FileStream.config import Telegram
+from FileStream.utils.runtime_cache import invalidate_file_runtime
 
 
 def invalidate_runtime_access(file_id: str) -> None:
     file_id = str(file_id or "")
     if not file_id:
         return
+
+    invalidate_file_runtime(file_id)
 
     try:
         from FileStream.server.stream_routes import invalidate_file_access

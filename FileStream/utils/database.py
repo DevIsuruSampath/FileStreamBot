@@ -1,3 +1,4 @@
+import asyncio
 import pymongo
 import time
 import mimetypes
@@ -7,10 +8,25 @@ from bson.objectid import ObjectId
 from bson.errors import InvalidId
 from FileStream.server.exceptions import FileNotFound
 from FileStream.utils.category import detect_category
+from FileStream.utils.runtime_cache import (
+    cache_file_info,
+    cache_file_reference,
+    get_cached_file_info,
+    get_cached_file_reference,
+    invalidate_file_runtime,
+)
 
 class Database:
+    _clients: dict[str, motor.motor_asyncio.AsyncIOMotorClient] = {}
+    _index_locks: dict[tuple[str, str], asyncio.Lock] = {}
+    _indexes_ready: set[tuple[str, str]] = set()
+
     def __init__(self, uri, database_name):
-        self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
+        self._uri = str(uri)
+        self._database_name = str(database_name)
+        if self._uri not in self._clients:
+            self._clients[self._uri] = motor.motor_asyncio.AsyncIOMotorClient(uri)
+        self._client = self._clients[self._uri]
         self.db = self._client[database_name]
         self.col = self.db.users
         self.black = self.db.blacklist
@@ -20,6 +36,76 @@ class Database:
         self.nsfw_reports = self.db.nsfw_reports
         self.public_links = self.db.public_links
         self.donations = self.db.donations
+
+    @staticmethod
+    def normalize_file_doc(file_info: dict | None) -> dict | None:
+        if not file_info:
+            return file_info
+
+        normalized = dict(file_info)
+        file_name = normalized.get("file_name") or ""
+
+        mime_type = normalized.get("mime_type") or ""
+        if not mime_type and file_name:
+            guessed_mime, _ = mimetypes.guess_type(file_name)
+            mime_type = guessed_mime or ""
+
+        file_ext = normalized.get("file_ext") or ""
+        if not file_ext and file_name:
+            import os
+
+            file_ext = os.path.splitext(file_name)[1].lower()
+
+        detected_category = detect_category(
+            file_name=file_name,
+            mime_type=mime_type,
+            file_ext=file_ext,
+        )
+
+        current_category = (normalized.get("category") or "").strip()
+        if not current_category:
+            current_category = detected_category
+        elif current_category in {"Movies", "Other"} and detected_category not in {"Movies", "Other"}:
+            current_category = detected_category
+
+        normalized["mime_type"] = mime_type
+        normalized["file_ext"] = file_ext
+        normalized["category"] = current_category
+        return normalized
+
+    async def ensure_indexes(self) -> None:
+        key = (self._uri, self._database_name)
+        if key in self._indexes_ready:
+            return
+
+        if key not in self._index_locks:
+            self._index_locks[key] = asyncio.Lock()
+        lock = self._index_locks[key]
+        async with lock:
+            if key in self._indexes_ready:
+                return
+
+            index_specs = (
+                (self.col, [("id", pymongo.ASCENDING)]),
+                (self.black, [("id", pymongo.ASCENDING)]),
+                (self.file, [("user_id", pymongo.ASCENDING), ("_id", pymongo.DESCENDING)]),
+                (self.file, [("user_id", pymongo.ASCENDING), ("file_unique_id", pymongo.ASCENDING)]),
+                (self.file, [("flog_msg_id", pymongo.ASCENDING)]),
+                (self.folders, [("user_id", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)]),
+                (self.folders, [("files", pymongo.ASCENDING)]),
+                (self.public_links, [("type", pymongo.ASCENDING), ("target_id", pymongo.ASCENDING), ("revoked", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)]),
+                (self.public_links, [("expires_at", pymongo.ASCENDING)]),
+                (self.donations, [("user_id", pymongo.ASCENDING), ("paid_at", pymongo.DESCENDING)]),
+                (self.donations, [("telegram_payment_charge_id", pymongo.ASCENDING)]),
+            )
+
+            for collection, spec in index_specs:
+                try:
+                    await collection.create_index(spec)
+                except Exception:
+                    pass
+
+            self._indexes_ready.add(key)
 
 #---------------------[ NEW USER ]---------------------#
     def new_user(self, id):
@@ -81,6 +167,7 @@ class Database:
         
 # ---------------------[ ADD FILE TO DB ]---------------------#
     async def add_file(self, file_info):
+        file_info = self.normalize_file_doc(dict(file_info))
         file_info["time"] = time.time()
         file_unique_id = file_info.get("file_unique_id")
         if file_unique_id:
@@ -111,43 +198,16 @@ class Database:
 
     async def get_file(self, _id):
         try:
-            file_info=await self.file.find_one({"_id": ObjectId(_id)})
+            cache_key = str(_id)
+            cached = get_cached_file_info(cache_key)
+            if cached:
+                return cached
+
+            file_info = await self.file.find_one({"_id": ObjectId(_id)})
             if not file_info:
                 raise FileNotFound
-
-            updates = {}
-
-            # Backfill missing mime_type using file extension
-            if not file_info.get("mime_type") and file_info.get("file_name"):
-                mime, _ = mimetypes.guess_type(file_info.get("file_name"))
-                if mime:
-                    updates["mime_type"] = mime
-
-            # Backfill file_ext if missing
-            if not file_info.get("file_ext") and file_info.get("file_name"):
-                import os
-                updates["file_ext"] = os.path.splitext(file_info.get("file_name") or "")[1].lower()
-
-            detected_category = detect_category(
-                file_name=file_info.get("file_name"),
-                mime_type=updates.get("mime_type", file_info.get("mime_type")),
-                file_ext=updates.get("file_ext", file_info.get("file_ext")),
-            )
-
-            current_category = (file_info.get("category") or "").strip()
-            if not current_category:
-                updates["category"] = detected_category
-            elif current_category in {"Movies", "Other"} and detected_category not in {"Movies", "Other"}:
-                # Auto-correct older generic categories when we can now detect a better one.
-                updates["category"] = detected_category
-
-            if updates:
-                await self.file.update_one(
-                    {"_id": file_info["_id"]},
-                    {"$set": updates}
-                )
-                file_info.update(updates)
-
+            file_info = self.normalize_file_doc(file_info)
+            cache_file_info(file_info)
             return file_info
         except InvalidId:
             raise FileNotFound
@@ -156,9 +216,9 @@ class Database:
         if many:
             return self.file.find({"user_id": id, "file_unique_id": file_unique_id})
         else:
-            file_info=await self.file.find_one({"user_id": id, "file_unique_id": file_unique_id})
+            file_info = await self.file.find_one({"user_id": id, "file_unique_id": file_unique_id})
         if file_info:
-            return file_info
+            return self.normalize_file_doc(file_info)
         return False
 
 # ---------------------[ TOTAL FILES ]---------------------#
@@ -179,12 +239,14 @@ class Database:
     async def update_file_ids(self, _id, file_ids: dict):
         try:
             await self.file.update_one({"_id": ObjectId(_id)}, {"$set": {"file_ids": file_ids}})
+            invalidate_file_runtime(str(_id))
         except InvalidId:
             return
 
     async def update_file_flog_msg(self, _id, msg_id: int):
         try:
             await self.file.update_one({"_id": ObjectId(_id)}, {"$set": {"flog_msg_id": int(msg_id)}})
+            invalidate_file_runtime(str(_id))
         except Exception:
             return
         
@@ -535,6 +597,11 @@ class Database:
         return link, link
 
     async def resolve_public_file(self, public_id: str, *, increment_click: bool = False) -> tuple[dict, dict]:
+        if not increment_click:
+            cached = get_cached_file_reference(public_id)
+            if cached:
+                return cached
+
         link = await self.get_public_link(public_id)
         await self._assert_public_link_active(link)
         if link.get("type") != "file":
@@ -543,6 +610,8 @@ class Database:
         if increment_click:
             await self.increment_public_link_click(link["_id"])
             link["click_count"] = int(link.get("click_count", 0)) + 1
+        else:
+            cache_file_reference(public_id, file_info, link)
         return file_info, link
 
     async def resolve_public_folder(self, public_id: str, *, increment_click: bool = False) -> tuple[dict, dict]:
@@ -557,13 +626,27 @@ class Database:
         return folder, link
 
     async def resolve_file_reference(self, value: str, *, increment_click: bool = False) -> tuple[dict, dict | None]:
+        if not increment_click:
+            cached = get_cached_file_reference(value)
+            if cached:
+                file_info, link = cached
+                if link is None:
+                    link = await self.ensure_public_link_for_file(file_info)
+                    cache_file_reference(str(file_info["_id"]), file_info, link)
+                return file_info, link
+
         try:
             file_info = await self.get_file(value)
             link = await self.ensure_public_link_for_file(file_info)
+            if not increment_click:
+                cache_file_reference(value, file_info, link)
             return file_info, link
         except FileNotFound:
             pass
-        return await self.resolve_public_file(value, increment_click=increment_click)
+        file_info, link = await self.resolve_public_file(value, increment_click=increment_click)
+        if not increment_click:
+            cache_file_reference(value, file_info, link)
+        return file_info, link
 
     async def resolve_folder_reference(self, value: str, *, increment_click: bool = False) -> tuple[dict, dict | None]:
         try:
@@ -588,6 +671,8 @@ class Database:
         )
         link["revoked"] = True
         link["revoked_at"] = time.time()
+        if link.get("type") == "file":
+            invalidate_file_runtime(str(link.get("target_id") or ""), str(link.get("_id") or ""))
         return link
 
     async def regenerate_public_link(
@@ -613,12 +698,15 @@ class Database:
         )
 
     async def set_public_link_expiry(self, public_id: str, expires_at: float | None):
+        link = await self.get_public_link(public_id)
         res = await self.public_links.update_one(
             {"_id": str(public_id)},
             {"$set": {"expires_at": expires_at, "updated_at": time.time()}},
         )
         if res.matched_count == 0:
             raise FileNotFound("Public link not found")
+        if link.get("type") == "file":
+            invalidate_file_runtime(str(link.get("target_id") or ""), str(link.get("_id") or ""))
 
     async def set_active_public_link_expiry_for_target(self, target_type: str, target_id: str, expires_at: float | None):
         link = await self.get_active_public_link_for_target(target_type, str(target_id))

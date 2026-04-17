@@ -21,6 +21,7 @@ from FileStream.utils.optional_channels import (
     optional_channel_available,
     warm_optional_channel_peer,
 )
+from FileStream.utils.runtime_cache import cache_flog_validation, is_flog_validation_fresh
 from FileStream.config import Telegram, Server
 from FileStream.server.exceptions import FileNotFound
 
@@ -160,6 +161,9 @@ async def ensure_flog_media_exists(
     if not flog_msg_id:
         return file_info
 
+    if is_flog_validation_fresh(file_info):
+        return file_info
+
     client = bot or FileStream
     log_msg = None
 
@@ -178,6 +182,7 @@ async def ensure_flog_media_exists(
 
     media = get_media_from_message(log_msg)
     if media:
+        cache_flog_validation(file_info)
         return file_info
 
     file_db_id = str(file_info.get("_id") or "")
