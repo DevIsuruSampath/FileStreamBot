@@ -104,7 +104,7 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `PING_INTERVAL`: Health/ping interval for the web process (Default: 1200).
 - `HAS_SSL`: Generate `https://` links when your reverse proxy/domain uses SSL.
 - `NO_PORT`: Hide the explicit port from generated links when your proxy already terminates on the public host.
-- `STREAM_CHUNK_SIZE_MB`: Telegram stream chunk size in MB (Default: `1`, max: `8`).
+- `STREAM_CHUNK_SIZE_MB`: Telegram stream chunk size in MB (Default: `1`). Telegram only allows `1 MB` here, so higher values are clamped to `1`.
 - `STREAM_PREFETCH_CHUNKS`: Number of Telegram chunks to keep in-flight per stream (Default: `4`, max: `8`).
 - `STREAM_LOCAL_CACHE_ENABLED`: Enable local disk cache for hot stream chunks (Default: `True`).
 - `STREAM_CACHE_DIR`: Directory for local stream chunk cache (Default: `/tmp/filestream_stream_cache`).

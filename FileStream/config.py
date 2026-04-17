@@ -94,7 +94,7 @@ class Server:
     PING_INTERVAL = _int_env("PING_INTERVAL", 1200)
     HAS_SSL = str(env.get("HAS_SSL", "0")).lower() in ("1", "true", "t", "yes", "y")
     NO_PORT = str(env.get("NO_PORT", "0")).lower() in ("1", "true", "t", "yes", "y")
-    STREAM_CHUNK_SIZE_MB = max(1, min(_int_env("STREAM_CHUNK_SIZE_MB", 1), 8))
+    STREAM_CHUNK_SIZE_MB = max(1, _int_env("STREAM_CHUNK_SIZE_MB", 1))
     STREAM_PREFETCH_CHUNKS = max(1, min(_int_env("STREAM_PREFETCH_CHUNKS", 4), 8))
     STREAM_LOCAL_CACHE_ENABLED = _bool_env("STREAM_LOCAL_CACHE_ENABLED", True)
     STREAM_CACHE_DIR = _str_env("STREAM_CACHE_DIR", "/tmp/filestream_stream_cache")

@@ -13,6 +13,8 @@ from pyrogram.errors import AuthBytesInvalid
 from pyrogram.file_id import FileId, FileType, ThumbnailSource
 from pyrogram.types import Message
 
+TELEGRAM_GETFILE_LIMIT = 1024 * 1024
+
 class ByteStreamer:
     def __init__(self, client: Client):
         self.clean_timer = 30 * 60
@@ -350,11 +352,12 @@ class ByteStreamer:
         offset: int,
         chunk_size: int,
     ):
+        limit = min(int(chunk_size), TELEGRAM_GETFILE_LIMIT)
         return await media_session.invoke(
             raw.functions.upload.GetFile(
                 location=location,
                 offset=offset,
-                limit=chunk_size,
+                limit=limit,
             ),
         )
 

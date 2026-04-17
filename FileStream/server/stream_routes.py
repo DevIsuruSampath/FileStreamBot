@@ -21,6 +21,7 @@ from FileStream.utils.client_identity import get_bot_username
 
 routes = web.RouteTableDef()
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
+TELEGRAM_GETFILE_LIMIT = 1024 * 1024
 
 # One-time download token store
 # Format: {token: {"path": str, "expires": datetime, "used": bool}}
@@ -365,7 +366,13 @@ async def media_streamer(request: web.Request, db_id: str, *, force_download: bo
             headers={"Content-Range": f"bytes */{file_size}"},
         )
 
-    chunk_size = max(int(Server.STREAM_CHUNK_SIZE_MB), 1) * 1024 * 1024
+    configured_chunk_size = max(int(Server.STREAM_CHUNK_SIZE_MB), 1) * 1024 * 1024
+    if configured_chunk_size > TELEGRAM_GETFILE_LIMIT:
+        logging.warning(
+            "STREAM_CHUNK_SIZE_MB=%s exceeds Telegram upload.GetFile limit; clamping to 1 MB",
+            Server.STREAM_CHUNK_SIZE_MB,
+        )
+    chunk_size = min(configured_chunk_size, TELEGRAM_GETFILE_LIMIT)
     until_bytes = min(until_bytes, file_size - 1)
 
     offset = from_bytes - (from_bytes % chunk_size)
