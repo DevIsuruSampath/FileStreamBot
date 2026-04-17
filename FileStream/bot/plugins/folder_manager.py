@@ -86,18 +86,28 @@ async def _sync_folder_files(folder: dict, bot: Client) -> dict | None:
     return folder
 
 
-async def _get_visible_folders(user_id: int, bot: Client) -> list[dict]:
+async def _get_folder_page(user_id: int, bot: Client, page: int) -> tuple[list[dict], int, int, int]:
     await reconcile_flog_storage(bot, user_id=int(user_id))
 
-    visible_folders = []
-    cursor = db.folders.find({"user_id": int(user_id)}).sort("created_at", -1)
+    if page < 1:
+        page = 1
 
-    async for folder in cursor:
-        synced = await _sync_folder_files(folder, bot)
-        if synced:
-            visible_folders.append(synced)
+    start = (page - 1) * PAGE_SIZE + 1
+    end = start + PAGE_SIZE - 1
+    cursor, total = await db.list_folders(int(user_id), (start, end))
 
-    return visible_folders
+    if total > 0:
+        max_pages = max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1)
+        if page > max_pages:
+            page = max_pages
+            start = (page - 1) * PAGE_SIZE + 1
+            end = start + PAGE_SIZE - 1
+            cursor, total = await db.list_folders(int(user_id), (start, end))
+    else:
+        max_pages = 1
+
+    folders = [folder async for folder in cursor]
+    return folders, total, page, max_pages
 
 
 async def _send_folder_list(bot: Client, message: Message, page: int = 1, edit: bool = False, user_id: int | None = None):
@@ -106,16 +116,10 @@ async def _send_folder_list(bot: Client, message: Message, page: int = 1, edit: 
     if page < 1:
         page = 1
 
-    visible_folders = await _get_visible_folders(user_id, bot)
-    total = len(visible_folders)
-    max_pages = max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1)
-    if page > max_pages:
-        page = max_pages
+    visible_folders, total, page, max_pages = await _get_folder_page(user_id, bot, page)
 
     buttons = []
-    start_idx = (page - 1) * PAGE_SIZE
-    end_idx = start_idx + PAGE_SIZE
-    for f in visible_folders[start_idx:end_idx]:
+    for f in visible_folders:
         title = _fmt_title(f)
         buttons.append([
             InlineKeyboardButton(title, callback_data=f"fld:open:{f['_id']}:{page}")

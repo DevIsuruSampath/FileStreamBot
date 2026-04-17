@@ -1,9 +1,11 @@
 import asyncio
+import contextlib
 import logging
 from typing import Dict, Union
 from FileStream.bot import work_loads
 from pyrogram import Client, utils, raw
 from .file_properties import get_file_ids
+from .client_balance import ensure_client_stat, record_stream_completed, record_stream_failed
 from pyrogram.session import Session, Auth
 from pyrogram.errors import AuthBytesInvalid
 from pyrogram.file_id import FileId, FileType, ThumbnailSource
@@ -158,50 +160,105 @@ class ByteStreamer:
         Thanks to Eyaadh <https://github.com/eyaadh>
         """
         client = self.client
+        ensure_client_stat(index)
         work_loads[index] = work_loads.get(index, 0) + 1
         logging.debug(f"Starting to yielding file with client {index}.")
+
+        loop = asyncio.get_running_loop()
+        start_time = loop.time()
+        first_byte_delay = None
+        bytes_sent = 0
+        pending_fetch = None
+        stream_failed = False
 
         try:
             media_session = await self.generate_media_session(client, file_id)
             current_part = 1
             location = await self.get_location(file_id)
+            current_offset = offset
+
+            pending_fetch = asyncio.create_task(self._fetch_chunk(media_session, location, current_offset, chunk_size))
 
             try:
-                r = await media_session.invoke(
-                    raw.functions.upload.GetFile(
-                        location=location, offset=offset, limit=chunk_size
-                    ),
-                )
-                if isinstance(r, raw.types.upload.File):
-                    while True:
-                        chunk = r.bytes
-                        if not chunk:
-                            break
-                        elif part_count == 1:
-                            yield chunk[first_part_cut:last_part_cut]
-                        elif current_part == 1:
-                            yield chunk[first_part_cut:]
-                        elif current_part == part_count:
-                            yield chunk[:last_part_cut]
-                        else:
-                            yield chunk
+                while current_part <= part_count:
+                    r = await pending_fetch
 
-                        current_part += 1
-                        offset += chunk_size
-
-                        if current_part > part_count:
-                            break
-
-                        r = await media_session.invoke(
-                            raw.functions.upload.GetFile(
-                                location=location, offset=offset, limit=chunk_size
-                            ),
+                    next_offset = current_offset + chunk_size
+                    if current_part < part_count:
+                        pending_fetch = asyncio.create_task(
+                            self._fetch_chunk(media_session, location, next_offset, chunk_size)
                         )
+                    else:
+                        pending_fetch = None
+
+                    if not isinstance(r, raw.types.upload.File):
+                        break
+
+                    chunk = r.bytes
+                    if not chunk:
+                        break
+
+                    if first_byte_delay is None:
+                        first_byte_delay = loop.time() - start_time
+
+                    if part_count == 1:
+                        payload = chunk[first_part_cut:last_part_cut]
+                    elif current_part == 1:
+                        payload = chunk[first_part_cut:]
+                    elif current_part == part_count:
+                        payload = chunk[:last_part_cut]
+                    else:
+                        payload = chunk
+
+                    if payload:
+                        bytes_sent += len(payload)
+                        yield payload
+
+                    current_part += 1
+                    current_offset = next_offset
             except (TimeoutError, AttributeError):
-                pass
+                stream_failed = True
+                record_stream_failed(index)
+            except Exception:
+                stream_failed = True
+                record_stream_failed(index)
+                raise
         finally:
+            if pending_fetch is not None and not pending_fetch.done():
+                pending_fetch.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await pending_fetch
+
+            duration = max(loop.time() - start_time, 0.001)
+            if bytes_sent > 0 and not stream_failed:
+                record_stream_completed(
+                    index,
+                    bytes_sent=bytes_sent,
+                    duration_s=duration,
+                    first_byte_s=first_byte_delay,
+                )
+
             logging.debug(f"Finished yielding file with {locals().get('current_part', 0)} parts.")
             work_loads[index] = max(work_loads.get(index, 1) - 1, 0)
+
+    @staticmethod
+    async def _fetch_chunk(
+        media_session: Session,
+        location: Union[
+            raw.types.InputPhotoFileLocation,
+            raw.types.InputDocumentFileLocation,
+            raw.types.InputPeerPhotoFileLocation,
+        ],
+        offset: int,
+        chunk_size: int,
+    ):
+        return await media_session.invoke(
+            raw.functions.upload.GetFile(
+                location=location,
+                offset=offset,
+                limit=chunk_size,
+            ),
+        )
 
     
     async def clean_cache(self) -> None:

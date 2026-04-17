@@ -14,6 +14,7 @@ from FileStream.server.exceptions import FileNotFound, InvalidHash
 from FileStream import utils, StartTime, __version__
 from FileStream.utils.database import Database
 from FileStream.utils.file_properties import ensure_flog_media_exists
+from FileStream.utils.client_balance import choose_best_client
 from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
 from FileStream.utils.render_template import render_page, render_folder, render_public_page, render_public_folder
 from FileStream.utils.client_identity import get_bot_username
@@ -317,7 +318,7 @@ async def media_streamer(request: web.Request, db_id: str):
     if not work_loads:
         raise web.HTTPServiceUnavailable(text="No available clients")
 
-    index = min(work_loads, key=work_loads.get)
+    index = choose_best_client(multi_clients.keys())
     faster_client = multi_clients[index]
     
     if Telegram.MULTI_CLIENT:

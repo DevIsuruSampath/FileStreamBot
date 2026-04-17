@@ -19,6 +19,7 @@ from FileStream.utils.flog_sync import reconcile_flog_storage
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+FILE_LIST_PAGE_SIZE = 10
 
 
 def resolve_media_source(value: str | None) -> str | None:
@@ -247,36 +248,32 @@ async def gen_file_list_button(file_list_no: int, user_id: int, bot=None):
         file_list_no = 1
 
     await reconcile_flog_storage(bot or FileStream, user_id=int(user_id))
+    start_idx = (file_list_no - 1) * FILE_LIST_PAGE_SIZE + 1
+    end_idx = start_idx + FILE_LIST_PAGE_SIZE - 1
+    cursor, total_files = await db.find_files(int(user_id), (start_idx, end_idx))
 
-    visible_files = []
-    cursor = db.file.find({"user_id": user_id}).sort("_id", -1)
-
-    async for x in cursor:
-        visible_files.append(x)
-
-    total_files = len(visible_files)
     if total_files > 0:
-        max_pages = math.ceil(total_files / 10)
+        max_pages = math.ceil(total_files / FILE_LIST_PAGE_SIZE)
         if file_list_no > max_pages:
             file_list_no = max_pages
+            start_idx = (file_list_no - 1) * FILE_LIST_PAGE_SIZE + 1
+            end_idx = start_idx + FILE_LIST_PAGE_SIZE - 1
+            cursor, total_files = await db.find_files(int(user_id), (start_idx, end_idx))
     else:
         max_pages = 1
 
-    start_idx = (file_list_no - 1) * 10
-    end_idx = start_idx + 10
-
     file_list = []
-    for x in visible_files[start_idx:end_idx]:
+    async for x in cursor:
         name = x.get("file_name") or "file"
         # Prevent overly long button labels
         if len(name) > 50:
             name = name[:50] + "…"
         file_list.append([InlineKeyboardButton(name, callback_data=f"myfile_{x['_id']}_{file_list_no}")])
-    if total_files > 10:
+    if total_files > FILE_LIST_PAGE_SIZE:
         file_list.append(
                 [InlineKeyboardButton("◄", callback_data="{}".format("userfiles_"+str(file_list_no-1) if file_list_no > 1 else 'N/A')),
-                 InlineKeyboardButton(f"{file_list_no}/{math.ceil(total_files/10)}", callback_data="N/A"),
-                 InlineKeyboardButton("►", callback_data="{}".format("userfiles_"+str(file_list_no+1) if total_files > file_list_no*10 else 'N/A'))]
+                 InlineKeyboardButton(f"{file_list_no}/{max_pages}", callback_data="N/A"),
+                 InlineKeyboardButton("►", callback_data="{}".format("userfiles_"+str(file_list_no+1) if total_files > file_list_no*FILE_LIST_PAGE_SIZE else 'N/A'))]
         )
     if not file_list:
         file_list.append(

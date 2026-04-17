@@ -188,7 +188,7 @@ class Database:
         if start > end:
             return self.file.find({"_id": None}), 0
         user_files = (
-            self.file.find({"user_id": user_id})
+            self.file.find({"user_id": user_id}, {"_id": 1, "file_name": 1})
             .sort('_id', pymongo.DESCENDING)
             .skip(start - 1)
             .limit(end - start + 1)
@@ -348,7 +348,7 @@ class Database:
         if start > end:
             return self.folders.find({"_id": None}), 0
         folders = (
-            self.folders.find({"user_id": int(user_id)})
+            self.folders.find({"user_id": int(user_id)}, {"_id": 1, "title": 1, "created_at": 1, "files": 1})
             .sort('created_at', pymongo.DESCENDING)
             .skip(start - 1)
             .limit(end - start + 1)

@@ -5,6 +5,7 @@ from os import environ
 from ..config import Telegram
 from pyrogram import Client
 from . import multi_clients, work_loads, FileStream
+from FileStream.utils.client_balance import ensure_client_stat
 
 
 async def clone_primary_handlers(client: Client):
@@ -31,11 +32,13 @@ async def initialize_clients():
     if not all_tokens:
         multi_clients[0] = FileStream
         work_loads[0] = 0
+        ensure_client_stat(0)
         print("No additional clients found, using default client")
         return
 
     multi_clients[0] = FileStream
     work_loads[0] = 0
+    ensure_client_stat(0)
     
     async def start_client(client_id, token):
         try:
@@ -67,6 +70,7 @@ async def initialize_clients():
             client.username = me.username
             client.fname = me.first_name
             work_loads[client_id] = 0
+            ensure_client_stat(client_id)
             return client_id, client
         except Exception:
             logging.error(f"Failed starting Client - {client_id} Error:", exc_info=True)
