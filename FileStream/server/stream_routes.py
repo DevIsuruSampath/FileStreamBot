@@ -5,6 +5,7 @@ import mimetypes
 import traceback
 import os
 import re
+import secrets
 from aiohttp import web
 from aiohttp.http_exceptions import BadStatusLine
 from FileStream.bot import multi_clients, work_loads, FileStream
@@ -33,6 +34,8 @@ routes = web.RouteTableDef()
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 TELEGRAM_GETFILE_LIMIT = 1024 * 1024
 _OBJECT_ID_RE = re.compile(r"^[0-9a-fA-F]{24}$")
+PAGE_SESSION_COOKIE = "fs_page_session"
+PAGE_SESSION_TTL = 60 * 60 * 12
 
 
 def invalidate_file_access(path: str) -> None:
@@ -58,6 +61,22 @@ def _extract_page_token(request: web.Request) -> str:
     ).strip()
 
 
+def _current_page_session_id(request: web.Request) -> str:
+    return str(request.cookies.get(PAGE_SESSION_COOKIE, "") or "").strip()
+
+
+def _issue_page_session_cookie(response: web.StreamResponse, session_id: str) -> None:
+    response.set_cookie(
+        PAGE_SESSION_COOKIE,
+        str(session_id or "").strip(),
+        max_age=PAGE_SESSION_TTL,
+        httponly=True,
+        secure=bool(Server.HAS_SSL),
+        samesite="Lax",
+        path="/",
+    )
+
+
 def _validate_page_token(request: web.Request, expected_path: str) -> bool:
     token = _extract_page_token(request)
     if not token:
@@ -65,7 +84,13 @@ def _validate_page_token(request: web.Request, expected_path: str) -> bool:
     payload = validate_access_token(token, expected_kind="page", consume=False)
     if not payload:
         return False
-    return str(payload.get("path") or "") == str(expected_path or "")
+    session_id = _current_page_session_id(request)
+    token_session_id = str((payload.get("metadata") or {}).get("session_id") or "").strip()
+    return (
+        str(payload.get("path") or "") == str(expected_path or "")
+        and bool(session_id)
+        and session_id == token_session_id
+    )
 
 @routes.get("/status", allow_head=True)
 async def root_route_handler(_):
@@ -103,7 +128,13 @@ async def watch_handler(request: web.Request):
 async def gen_handler(request: web.Request):
     public_id = request.match_info["public_id"]
     try:
-        return web.Response(text=await render_public_page(public_id), content_type="text/html")
+        session_id = _current_page_session_id(request) or secrets.token_urlsafe(24)
+        response = web.Response(
+            text=await render_public_page(public_id, session_id=session_id),
+            content_type="text/html",
+        )
+        _issue_page_session_cookie(response, session_id)
+        return response
     except FileNotFound as e:
         return web.Response(
             text=await render_public_error_page("Link unavailable", e.message or "This file link is not available anymore."),
@@ -141,7 +172,13 @@ async def folderm_handler(request: web.Request):
 async def gfolder_handler(request: web.Request):
     public_id = request.match_info["public_id"]
     try:
-        return web.Response(text=await render_public_folder(public_id, title="Folder"), content_type="text/html")
+        session_id = _current_page_session_id(request) or secrets.token_urlsafe(24)
+        response = web.Response(
+            text=await render_public_folder(public_id, title="Folder", session_id=session_id),
+            content_type="text/html",
+        )
+        _issue_page_session_cookie(response, session_id)
+        return response
     except FileNotFound as e:
         return web.Response(
             text=await render_public_error_page("Folder unavailable", e.message or "This folder link is not available anymore."),
@@ -180,7 +217,14 @@ async def get_download_token_handler(request: web.Request):
             raise web.HTTPForbidden(text="Invalid or missing page token.")
         file_info, _ = await db.resolve_file_reference(path)
         await ensure_flog_media_exists(file_info, bot=FileStream, prune_stale=True, db_instance=db)
-        token = create_access_token(str(file_info["_id"]), kind="download", expires_in_seconds=300, single_use=True)
+        session_id = _current_page_session_id(request)
+        token = create_access_token(
+            str(file_info["_id"]),
+            kind="download",
+            expires_in_seconds=300,
+            single_use=True,
+            metadata={"session_id": session_id},
+        )
         download_url = f"{Server.URL}file/{token}"
         return web.json_response({
             "success": True,
@@ -204,7 +248,14 @@ async def get_stream_token_handler(request: web.Request):
             raise web.HTTPForbidden(text="Invalid or missing page token.")
         file_info, _ = await db.resolve_file_reference(path)
         await ensure_flog_media_exists(file_info, bot=FileStream, prune_stale=True, db_instance=db)
-        token = create_access_token(str(file_info["_id"]), kind="stream", expires_in_seconds=1800, single_use=False)
+        session_id = _current_page_session_id(request)
+        token = create_access_token(
+            str(file_info["_id"]),
+            kind="stream",
+            expires_in_seconds=1800,
+            single_use=False,
+            metadata={"session_id": session_id},
+        )
         return web.json_response(
             {
                 "success": True,
@@ -225,10 +276,17 @@ async def file_handler(request: web.Request):
     """Serve file using one-time token"""
     try:
         token = request.match_info["token"]
-        payload = validate_access_token(token, expected_kind="download", consume=True)
+        payload = validate_access_token(token, expected_kind="download", consume=False)
         
         if not payload:
             # Token invalid, expired, or already used
+            raise web.HTTPForbidden(text="Download link expired or already used. Please go back and click Download again.")
+        session_id = _current_page_session_id(request)
+        token_session_id = str((payload.get("metadata") or {}).get("session_id") or "").strip()
+        if not session_id or session_id != token_session_id:
+            raise web.HTTPForbidden(text="Download link is only valid for the page session that created it.")
+        payload = validate_access_token(token, expected_kind="download", consume=True)
+        if not payload:
             raise web.HTTPForbidden(text="Download link expired or already used. Please go back and click Download again.")
         
         # Serve the file
@@ -253,6 +311,10 @@ async def stream_handler(request: web.Request):
         payload = validate_access_token(token, expected_kind="stream", consume=False)
         if not payload:
             raise web.HTTPForbidden(text="Stream link expired. Please reload the share page.")
+        session_id = _current_page_session_id(request)
+        token_session_id = str((payload.get("metadata") or {}).get("session_id") or "").strip()
+        if not session_id or session_id != token_session_id:
+            raise web.HTTPForbidden(text="Stream link is only valid for the page session that created it.")
         return await media_streamer(request, str(payload["path"]), force_download=False)
     except web.HTTPForbidden:
         raise

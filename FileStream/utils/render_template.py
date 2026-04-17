@@ -102,7 +102,13 @@ async def _template_context(**kwargs):
     }
 
 
-async def render_page(db_id, file_data: dict | None = None, public_link: dict | None = None):
+async def render_page(
+    db_id,
+    file_data: dict | None = None,
+    public_link: dict | None = None,
+    *,
+    session_id: str | None = None,
+):
     file_data = file_data or await db.get_file(db_id)
     if not file_data:
         raise FileNotFound
@@ -121,7 +127,12 @@ async def render_page(db_id, file_data: dict | None = None, public_link: dict | 
 
     share_url = build_public_file_url(public_id)
     file_size = humanbytes(file_data.get("file_size") or 0)
-    page_token = create_access_token(public_id, kind="page", expires_in_seconds=1800)
+    page_token = create_access_token(
+        public_id,
+        kind="page",
+        expires_in_seconds=1800,
+        metadata={"session_id": str(session_id or "").strip()},
+    )
 
     mime_type = (file_data.get("mime_type") or "").lower()
     primary = mime_type.split("/")[0].strip() if mime_type else ""
@@ -148,11 +159,6 @@ async def render_page(db_id, file_data: dict | None = None, public_link: dict | 
         guessed, _ = mimetypes.guess_type(raw_name)
         resolved_mime = guessed or mime_type or "application/octet-stream"
 
-    updates_url = None
-    if Telegram.UPDATES_CHANNEL:
-        channel = str(Telegram.UPDATES_CHANNEL).replace("-100", "").replace("@", "")
-        updates_url = f"https://t.me/{channel}"
-
     report_url = None
     if get_bot_username(FileStream):
         report_url = build_start_link(f"report_file_{public_id}", FileStream)
@@ -173,18 +179,29 @@ async def render_page(db_id, file_data: dict | None = None, public_link: dict | 
             uploader=uploader,
             message_id=message_id,
             is_audio=is_audio,
-            updates_url=updates_url,
             report_url=report_url,
         )
     )
 
 
-async def render_public_page(public_id: str):
+async def render_public_page(public_id: str, *, session_id: str | None = None):
     file_data, public_link = await db.resolve_public_file(public_id, increment_click=True)
-    return await render_page(str(file_data["_id"]), file_data=file_data, public_link=public_link)
+    return await render_page(
+        str(file_data["_id"]),
+        file_data=file_data,
+        public_link=public_link,
+        session_id=session_id,
+    )
 
 
-async def render_folder(folder_id: str, title: str = "Folder", folder_doc: dict | None = None, public_link: dict | None = None):
+async def render_folder(
+    folder_id: str,
+    title: str = "Folder",
+    folder_doc: dict | None = None,
+    public_link: dict | None = None,
+    *,
+    session_id: str | None = None,
+):
     folder_doc = folder_doc or await db.get_folder(folder_id)
     if not folder_doc:
         raise FileNotFound
@@ -241,7 +258,12 @@ async def render_folder(folder_id: str, title: str = "Folder", folder_doc: dict 
                 "download_id": file_public_id,
                 "stream_token_path": build_public_stream_token_path(file_public_id),
                 "download_token_path": build_public_download_token_path(file_public_id),
-                "page_token": create_access_token(file_public_id, kind="page", expires_in_seconds=1800),
+                "page_token": create_access_token(
+                    file_public_id,
+                    kind="page",
+                    expires_in_seconds=1800,
+                    metadata={"session_id": str(session_id or "").strip()},
+                ),
                 "telegram_url": build_public_bot_open_link(file_public_id, FileStream),
             }
         )
@@ -276,9 +298,15 @@ async def render_folder(folder_id: str, title: str = "Folder", folder_doc: dict 
     )
 
 
-async def render_public_folder(public_id: str, title: str = "Folder"):
+async def render_public_folder(public_id: str, title: str = "Folder", *, session_id: str | None = None):
     folder_doc, public_link = await db.resolve_public_folder(public_id, increment_click=True)
-    return await render_folder(str(folder_doc["_id"]), title=title, folder_doc=folder_doc, public_link=public_link)
+    return await render_folder(
+        str(folder_doc["_id"]),
+        title=title,
+        folder_doc=folder_doc,
+        public_link=public_link,
+        session_id=session_id,
+    )
 
 
 async def render_public_error_page(title: str, message: str) -> str:
