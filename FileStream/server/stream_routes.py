@@ -4,8 +4,7 @@ import logging
 import mimetypes
 import traceback
 import os
-import secrets
-from datetime import datetime, timedelta
+import re
 from aiohttp import web
 from aiohttp.http_exceptions import BadStatusLine
 from FileStream.bot import multi_clients, work_loads, FileStream
@@ -13,59 +12,27 @@ from FileStream.config import Telegram, Server
 from FileStream.server.exceptions import FileNotFound, InvalidHash
 from FileStream import utils, StartTime, __version__
 from FileStream.utils.database import Database
+from FileStream.utils.access_tokens import (
+    create_access_token,
+    invalidate_access_tokens_for_path,
+    validate_access_token,
+)
 from FileStream.utils.file_properties import ensure_flog_media_exists
 from FileStream.utils.client_balance import choose_best_client
 from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
-from FileStream.utils.render_template import render_page, render_folder, render_public_page, render_public_folder
+from FileStream.utils.render_template import (
+    render_page,
+    render_folder,
+    render_public_page,
+    render_public_folder,
+    render_public_error_page,
+)
 from FileStream.utils.client_identity import get_bot_username
 
 routes = web.RouteTableDef()
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 TELEGRAM_GETFILE_LIMIT = 1024 * 1024
-
-# One-time download token store
-# Format: {token: {"path": str, "expires": datetime, "used": bool}}
-_download_tokens = {}
-
-def _generate_token():
-    """Generate a secure random token"""
-    return secrets.token_urlsafe(32)
-
-def _clean_expired_tokens():
-    """Remove expired tokens from store"""
-    now = datetime.utcnow()
-    expired = [k for k, v in _download_tokens.items() if v["expires"] < now]
-    for k in expired:
-        del _download_tokens[k]
-
-def _create_download_token(path: str, expires_in_seconds: int = 300) -> str:
-    """Create a one-time download token (default 5 min expiry)"""
-    _clean_expired_tokens()
-    token = _generate_token()
-    _download_tokens[token] = {
-        "path": path,
-        "expires": datetime.utcnow() + timedelta(seconds=expires_in_seconds),
-        "used": False
-    }
-    return token
-
-def _validate_and_consume_token(token: str) -> str | None:
-    """Validate token and return path if valid, None otherwise. Marks token as used."""
-    _clean_expired_tokens()
-    data = _download_tokens.get(token)
-    if not data:
-        return None
-    if data["used"]:
-        return None
-    if data["expires"] < datetime.utcnow():
-        del _download_tokens[token]
-        return None
-    # Mark as used (one-time)
-    data["used"] = True
-    path = data["path"]
-    # Clean up after use
-    del _download_tokens[token]
-    return path
+_OBJECT_ID_RE = re.compile(r"^[0-9a-fA-F]{24}$")
 
 
 def invalidate_file_access(path: str) -> None:
@@ -73,15 +40,32 @@ def invalidate_file_access(path: str) -> None:
     if not path:
         return
 
-    expired_tokens = [token for token, data in _download_tokens.items() if data.get("path") == path]
-    for token in expired_tokens:
-        _download_tokens.pop(token, None)
+    invalidate_access_tokens_for_path(path)
 
     for streamer in class_cache.values():
         try:
             streamer.cached_file_ids.pop(path, None)
         except Exception:
             continue
+
+
+def _extract_page_token(request: web.Request) -> str:
+    return (
+        request.headers.get("X-Page-Token")
+        or request.query.get("page_token")
+        or request.query.get("pageToken")
+        or ""
+    ).strip()
+
+
+def _validate_page_token(request: web.Request, expected_path: str) -> bool:
+    token = _extract_page_token(request)
+    if not token:
+        return False
+    payload = validate_access_token(token, expected_kind="page", consume=False)
+    if not payload:
+        return False
+    return str(payload.get("path") or "") == str(expected_path or "")
 
 @routes.get("/status", allow_head=True)
 async def root_route_handler(_):
@@ -115,32 +99,6 @@ async def watch_handler(request: web.Request):
     except (AttributeError, BadStatusLine, ConnectionResetError):
         raise web.HTTPServiceUnavailable(text="Service Unavailable")
 
-def _public_link_error_page(title: str, message: str) -> str:
-    return f"""<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{title}</title>
-  <style>
-    body {{ font-family: Arial, sans-serif; background: #0f172a; color: #e5e7eb; margin: 0; }}
-    main {{ min-height: 100vh; display: grid; place-items: center; padding: 24px; }}
-    .card {{ max-width: 560px; width: 100%; background: #111827; border: 1px solid #334155; border-radius: 20px; padding: 28px; }}
-    h1 {{ margin: 0 0 12px; font-size: 28px; }}
-    p {{ margin: 0; line-height: 1.6; color: #cbd5e1; }}
-  </style>
-</head>
-<body>
-  <main>
-    <section class="card">
-      <h1>{title}</h1>
-      <p>{message}</p>
-    </section>
-  </main>
-</body>
-</html>"""
-
-
 @routes.get("/gen/{public_id}", allow_head=True)
 async def gen_handler(request: web.Request):
     public_id = request.match_info["public_id"]
@@ -148,7 +106,7 @@ async def gen_handler(request: web.Request):
         return web.Response(text=await render_public_page(public_id), content_type="text/html")
     except FileNotFound as e:
         return web.Response(
-            text=_public_link_error_page("Link unavailable", e.message or "This file link is not available anymore."),
+            text=await render_public_error_page("Link unavailable", e.message or "This file link is not available anymore."),
             content_type="text/html",
             status=404,
         )
@@ -186,7 +144,7 @@ async def gfolder_handler(request: web.Request):
         return web.Response(text=await render_public_folder(public_id, title="Folder"), content_type="text/html")
     except FileNotFound as e:
         return web.Response(
-            text=_public_link_error_page("Folder unavailable", e.message or "This folder link is not available anymore."),
+            text=await render_public_error_page("Folder unavailable", e.message or "This folder link is not available anymore."),
             content_type="text/html",
             status=404,
         )
@@ -195,9 +153,11 @@ async def gfolder_handler(request: web.Request):
 
 @routes.get("/dl/{path}", allow_head=True)
 async def dl_handler(request: web.Request):
-    # Serve files for streaming (video/audio playback)
+    # Legacy/internal streaming route. Public pages now use tokenized /stream links.
     try:
         path = request.match_info["path"]
+        if not _OBJECT_ID_RE.fullmatch(path):
+            raise web.HTTPForbidden(text="Direct public stream access is disabled. Open the share page instead.")
         return await media_streamer(request, path)
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
@@ -216,11 +176,11 @@ async def get_download_token_handler(request: web.Request):
     """Generate a one-time download token for the file"""
     try:
         path = request.match_info["path"]
-        file_info, public_link = await db.resolve_file_reference(path)
+        if not _validate_page_token(request, path):
+            raise web.HTTPForbidden(text="Invalid or missing page token.")
+        file_info, _ = await db.resolve_file_reference(path)
         await ensure_flog_media_exists(file_info, bot=FileStream, prune_stale=True, db_instance=db)
-        # Create a token that expires in 5 minutes
-        token_path = public_link["public_id"] if public_link else str(file_info["_id"])
-        token = _create_download_token(token_path, expires_in_seconds=300)
+        token = create_access_token(str(file_info["_id"]), kind="download", expires_in_seconds=300, single_use=True)
         download_url = f"{Server.URL}file/{token}"
         return web.json_response({
             "success": True,
@@ -235,25 +195,73 @@ async def get_download_token_handler(request: web.Request):
         logging.error(f"Error generating download token: {e}")
         return web.json_response({"success": False, "error": str(e)}, status=500)
 
+
+@routes.get("/get-stream-token/{path}", allow_head=False)
+async def get_stream_token_handler(request: web.Request):
+    try:
+        path = request.match_info["path"]
+        if not _validate_page_token(request, path):
+            raise web.HTTPForbidden(text="Invalid or missing page token.")
+        file_info, _ = await db.resolve_file_reference(path)
+        await ensure_flog_media_exists(file_info, bot=FileStream, prune_stale=True, db_instance=db)
+        token = create_access_token(str(file_info["_id"]), kind="stream", expires_in_seconds=1800, single_use=False)
+        return web.json_response(
+            {
+                "success": True,
+                "stream_url": f"{Server.URL}stream/{token}",
+                "expires_in": 1800,
+            }
+        )
+    except InvalidHash as e:
+        raise web.HTTPForbidden(text=e.message)
+    except FileNotFound as e:
+        raise web.HTTPNotFound(text=e.message)
+    except Exception as e:
+        logging.error(f"Error generating stream token: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500)
+
 @routes.get("/file/{token}", allow_head=True)
 async def file_handler(request: web.Request):
     """Serve file using one-time token"""
     try:
         token = request.match_info["token"]
-        path = _validate_and_consume_token(token)
+        payload = validate_access_token(token, expected_kind="download", consume=True)
         
-        if not path:
+        if not payload:
             # Token invalid, expired, or already used
             raise web.HTTPForbidden(text="Download link expired or already used. Please go back and click Download again.")
         
         # Serve the file
-        return await media_streamer(request, path, force_download=True)
+        return await media_streamer(request, str(payload["path"]), force_download=True)
     except web.HTTPForbidden:
         raise
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
     except FileNotFound as e:
         raise web.HTTPNotFound(text=e.message)
+    except Exception as e:
+        traceback.print_exc()
+        logging.critical(e.with_traceback(None))
+        logging.debug(traceback.format_exc())
+        raise web.HTTPInternalServerError(text=str(e))
+
+
+@routes.get("/stream/{token}", allow_head=True)
+async def stream_handler(request: web.Request):
+    try:
+        token = request.match_info["token"]
+        payload = validate_access_token(token, expected_kind="stream", consume=False)
+        if not payload:
+            raise web.HTTPForbidden(text="Stream link expired. Please reload the share page.")
+        return await media_streamer(request, str(payload["path"]), force_download=False)
+    except web.HTTPForbidden:
+        raise
+    except InvalidHash as e:
+        raise web.HTTPForbidden(text=e.message)
+    except FileNotFound as e:
+        raise web.HTTPNotFound(text=e.message)
+    except (AttributeError, BadStatusLine, ConnectionResetError):
+        raise web.HTTPServiceUnavailable(text="Service Unavailable")
     except Exception as e:
         traceback.print_exc()
         logging.critical(e.with_traceback(None))

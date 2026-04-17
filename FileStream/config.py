@@ -158,10 +158,20 @@ class WebAds:
     )
 
     @classmethod
-    def _banner_slot(cls, device: str, key: str, width: int, height: int, invoke_url: str) -> dict:
+    def _banner_slot(
+        cls,
+        device: str,
+        key: str,
+        width: int,
+        height: int,
+        invoke_url: str,
+        *,
+        enabled_override: bool | None = None,
+    ) -> dict:
         key = str(key or "").strip()
         invoke_url = str(invoke_url or "").strip()
-        enabled = cls.ENABLED and bool(key and invoke_url and width and height)
+        enabled_flag = cls.ENABLED if enabled_override is None else bool(enabled_override)
+        enabled = enabled_flag and bool(key and invoke_url and width and height)
         return {
             "device": device,
             "key": key,
@@ -172,13 +182,15 @@ class WebAds:
         }
 
     @classmethod
-    def template_context(cls) -> dict:
+    def template_context(cls, enabled_override: bool | None = None) -> dict:
+        enabled_flag = cls.ENABLED if enabled_override is None else bool(enabled_override)
         desktop_top = cls._banner_slot(
             "desktop",
             cls.DESKTOP_TOP_BANNER_KEY,
             cls.DESKTOP_TOP_BANNER_WIDTH,
             cls.DESKTOP_TOP_BANNER_HEIGHT,
             cls.DESKTOP_TOP_BANNER_INVOKE_URL,
+            enabled_override=enabled_flag,
         )
         desktop_inline = cls._banner_slot(
             "desktop",
@@ -186,6 +198,7 @@ class WebAds:
             cls.DESKTOP_INLINE_BANNER_WIDTH,
             cls.DESKTOP_INLINE_BANNER_HEIGHT,
             cls.DESKTOP_INLINE_BANNER_INVOKE_URL,
+            enabled_override=enabled_flag,
         )
         mobile_top = cls._banner_slot(
             "mobile",
@@ -193,6 +206,7 @@ class WebAds:
             cls.MOBILE_TOP_BANNER_WIDTH,
             cls.MOBILE_TOP_BANNER_HEIGHT,
             cls.MOBILE_TOP_BANNER_INVOKE_URL,
+            enabled_override=enabled_flag,
         )
         mobile_bottom = cls._banner_slot(
             "mobile",
@@ -200,13 +214,14 @@ class WebAds:
             cls.MOBILE_BOTTOM_BANNER_WIDTH,
             cls.MOBILE_BOTTOM_BANNER_HEIGHT,
             cls.MOBILE_BOTTOM_BANNER_INVOKE_URL,
+            enabled_override=enabled_flag,
         )
 
-        desktop_social_bar_url = cls.DESKTOP_SOCIAL_BAR_URL if cls.ENABLED else ""
-        mobile_social_bar_url = cls.MOBILE_SOCIAL_BAR_URL if cls.ENABLED else ""
+        desktop_social_bar_url = cls.DESKTOP_SOCIAL_BAR_URL if enabled_flag else ""
+        mobile_social_bar_url = cls.MOBILE_SOCIAL_BAR_URL if enabled_flag else ""
 
         return {
-            "enabled": cls.ENABLED,
+            "enabled": enabled_flag,
             "desktop": {
                 "top_banner": desktop_top,
                 "inline_banner": desktop_inline,
@@ -217,7 +232,7 @@ class WebAds:
                 "bottom_banner": mobile_bottom,
                 "social_bar_url": mobile_social_bar_url,
             },
-            "smartlink_url": cls.SMARTLINK_URL if cls.ENABLED else "",
+            "smartlink_url": cls.SMARTLINK_URL if enabled_flag else "",
             "has_any_banner": any(
                 slot["enabled"] for slot in (desktop_top, desktop_inline, mobile_top, mobile_bottom)
             ),

@@ -6,6 +6,7 @@ import secrets
 import motor.motor_asyncio
 from bson.objectid import ObjectId
 from bson.errors import InvalidId
+from FileStream.config import WebAds
 from FileStream.server.exceptions import FileNotFound
 from FileStream.utils.category import detect_category
 from FileStream.utils.runtime_cache import (
@@ -292,7 +293,7 @@ class Database:
     async def get_web_ads_status(self):
         settings = await self.settings.find_one({"_id": "webads"})
         if not settings:
-            return False
+            return bool(WebAds.ENABLED)
         return bool(settings.get("status", False))
 
     # ---- Backward compatibility helpers (legacy /ads command code paths) ----

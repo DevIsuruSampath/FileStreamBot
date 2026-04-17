@@ -519,7 +519,12 @@
             <span class="dot"></span>
             {{ page_title or 'Folder' }}
         </div>
-        <span class="count-tag">{{ count }} items</span>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span class="count-tag">{{ count }} items</span>
+            {% if bot_join_url %}
+            <a href="{{ bot_join_url }}" class="count-tag" style="text-decoration:none;">🤖 Join @{{ bot_username }}</a>
+            {% endif %}
+        </div>
     </div>
 </header>
 
@@ -604,6 +609,9 @@
                 <button id="downloadBtn" class="btn btn-secondary">⬇️ Download</button>
                 <button id="copyBtn" class="btn btn-secondary">📋 Share</button>
                 <a id="telegramBtn" href="#" class="btn btn-secondary hidden">🤖 Open in Telegram</a>
+                {% if bot_join_url %}
+                <a href="{{ bot_join_url }}" class="btn btn-secondary">👋 Join @{{ bot_username }}</a>
+                {% endif %}
                 {% if report_url %}
                 <a href="{{ report_url }}" class="btn btn-danger">🚫 Report Adult Content</a>
                 {% endif %}
@@ -936,6 +944,7 @@
     let activeCategory = 'all';
     let selectedId = null;
     let bannerResizeTimer = null;
+    let playbackRequestInFlight = false;
 
     const FOLDER_PROGRESS_STORE_KEY = 'fsb_folder_progress_v1';
     const PROGRESS_MIN_SECONDS = 8;
@@ -944,6 +953,27 @@
     let activePlaybackId = null;
     let activePlaybackKind = null;
     let activeProgressTick = 0;
+
+    async function requestTokenizedUrl(path, pageToken) {
+        const separator = path.includes('?') ? '&' : '?';
+        const response = await fetch(`${path}${separator}page_token=${encodeURIComponent(pageToken || '')}`);
+        const data = await response.json();
+        if (!response.ok || !data || data.success !== true) {
+            throw new Error(data?.error || 'Token request failed');
+        }
+        return data;
+    }
+
+    function startDownload(url) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = '';
+        link.rel = 'noopener noreferrer';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    }
 
     function formatClock(seconds) {
         const s = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -973,7 +1003,7 @@
 
     function itemProgressKey(item) {
         if (!item) return '';
-        return String(item.id || item.stream_url || '').trim();
+        return String(item.id || item.share_url || '').trim();
     }
 
     function getItemProgress(item) {
@@ -1212,33 +1242,49 @@
         renderRows();
     }
 
-    function openSelectedPlayer(startAt = 0) {
+    async function openSelectedPlayer(startAt = 0) {
         const item = getSelectedItem();
         if (!item || !item.playable) return;
         openSmartlink();
+        if (playbackRequestInFlight) return;
+        playbackRequestInFlight = true;
+        playBtn.disabled = true;
+        playBtn.classList.add('disabled');
 
-        activePlaybackId = String(item.id);
-        activePlaybackKind = item.kind === 'audio' ? 'audio' : 'video';
+        try {
+            const tokenData = await requestTokenizedUrl(item.stream_token_path, item.page_token);
+            const streamUrl = tokenData.stream_url;
 
-        playerTitle.textContent = item.name || 'Player';
+            activePlaybackId = String(item.id);
+            activePlaybackKind = item.kind === 'audio' ? 'audio' : 'video';
 
-        try { videoPlayer.pause(); } catch (_) {}
-        try { audioPlayer.pause(); } catch (_) {}
+            playerTitle.textContent = item.name || 'Player';
 
-        if (item.kind === 'audio') {
-            videoWrap.classList.add('hidden');
-            audioWrap.classList.remove('hidden');
-            audioPlayer.src = item.stream_url;
+            try { videoPlayer.pause(); } catch (_) {}
+            try { audioPlayer.pause(); } catch (_) {}
+
+            if (item.kind === 'audio') {
+                videoWrap.classList.add('hidden');
+                audioWrap.classList.remove('hidden');
+                audioPlayer.src = streamUrl;
+                showPlayerView();
+                playMediaAt(audioPlayer, startAt);
+                return;
+            }
+
+            audioWrap.classList.add('hidden');
+            videoWrap.classList.remove('hidden');
+            videoPlayer.src = streamUrl;
             showPlayerView();
-            playMediaAt(audioPlayer, startAt);
-            return;
+            playMediaAt(videoPlayer, startAt);
+        } catch (error) {
+            console.error('Error getting stream token:', error);
+            alert('Failed to start playback. Please reload the page and try again.');
+        } finally {
+            playbackRequestInFlight = false;
+            playBtn.disabled = false;
+            playBtn.classList.remove('disabled');
         }
-
-        audioWrap.classList.add('hidden');
-        videoWrap.classList.remove('hidden');
-        videoPlayer.src = item.stream_url;
-        showPlayerView();
-        playMediaAt(videoPlayer, startAt);
     }
 
     continueBtn?.addEventListener('click', () => {
@@ -1246,7 +1292,7 @@
         if (!item) return;
         const resume = getResumeSeconds(item);
         if (resume <= 0) return;
-        openSelectedPlayer(resume);
+        void openSelectedPlayer(resume);
     });
 
     function bindMediaProgress(media, kind) {
@@ -1275,7 +1321,7 @@
     bindMediaProgress(audioPlayer, 'audio');
 
     backBtn.addEventListener('click', showManagerView);
-    playBtn.addEventListener('click', openSelectedPlayer);
+    playBtn.addEventListener('click', () => { void openSelectedPlayer(); });
 
     downloadBtn.addEventListener('click', async () => {
         const item = getSelectedItem();
@@ -1284,7 +1330,7 @@
         
         const fileId = item.download_id;
         if (!fileId) {
-            window.location.href = item.share_url || item.stream_url;
+            window.location.href = item.share_url || '#';
             return;
         }
         
@@ -1325,14 +1371,13 @@
         }, 1000);
         
         try {
-            const response = await fetch(`/get-download-token/${fileId}`);
-            const data = await response.json();
+            const data = await requestTokenizedUrl(item.download_token_path, item.page_token);
             
             clearInterval(countdownInterval);
             
             if (data.success && data.download_url) {
                 downloadBtn.innerHTML = `<span class="download-spinner"></span> Downloading...`;
-                window.location.href = data.download_url;
+                startDownload(data.download_url);
                 
                 // Reset button after a delay (in case download didn't start)
                 setTimeout(() => {

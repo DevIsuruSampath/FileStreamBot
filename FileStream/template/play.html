@@ -519,6 +519,9 @@
         {% if updates_url %}
         <a href="{{ updates_url }}" class="updates-link">✨ Updates</a>
         {% endif %}
+        {% if bot_join_url %}
+        <a href="{{ bot_join_url }}" class="updates-link">🤖 Join @{{ bot_username }}</a>
+        {% endif %}
     </div>
 </header>
 
@@ -589,6 +592,9 @@
                 {% if telegram_url %}
                 <a href="{{ telegram_url }}" class="btn btn-secondary">🤖 Open in Telegram</a>
                 {% endif %}
+                {% if bot_join_url %}
+                <a href="{{ bot_join_url }}" class="btn btn-secondary">👋 Join @{{ bot_username }}</a>
+                {% endif %}
                 {% if report_url %}
                 <a href="{{ report_url }}" class="btn btn-danger">🚫 Report</a>
                 {% endif %}
@@ -637,15 +643,11 @@
                 <span class="audio-icon">🎵</span>
                 <span>Audio Player</span>
             </div>
-            <audio id="player" controls preload="metadata" style="width:100%">
-                <source src="{{ file_url }}" type="{{ mime_type }}" />
-            </audio>
+            <audio id="player" controls preload="metadata" style="width:100%"></audio>
         </div>
         {% else %}
         <div class="video-shell">
-            <video id="player" playsinline controls preload="metadata">
-                <source src="{{ file_url }}" type="{{ mime_type }}" />
-            </video>
+            <video id="player" playsinline controls preload="metadata"></video>
         </div>
         {% endif %}
     </section>
@@ -895,9 +897,10 @@
         loadNext();
     }
 
-    const streamUrl = {{ file_url | tojson }};
     const shareUrl = {{ share_url | tojson }};
     const downloadTokenPath = {{ download_token_path | tojson }};
+    const streamTokenPath = {{ stream_token_path | tojson }};
+    const pageToken = {{ page_token | tojson }};
     const smartlinkUrl = {{ ad_config.smartlink_url | tojson }};
     const adGate = document.getElementById('adGate');
     const adGateReloadBtn = document.getElementById('adGateReloadBtn');
@@ -951,6 +954,28 @@
     const PROGRESS_MIN_SECONDS = 8;
     const PROGRESS_SAVE_INTERVAL_MS = 2500;
     let progressSaveTick = 0;
+    let playRequestInFlight = false;
+
+    async function requestTokenizedUrl(path) {
+        const separator = path.includes('?') ? '&' : '?';
+        const response = await fetch(`${path}${separator}page_token=${encodeURIComponent(pageToken)}`);
+        const data = await response.json();
+        if (!response.ok || !data || data.success !== true) {
+            throw new Error(data?.error || 'Token request failed');
+        }
+        return data;
+    }
+
+    function startDownload(url) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = '';
+        link.rel = 'noopener noreferrer';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    }
 
     function formatClock(seconds) {
         const s = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -962,7 +987,7 @@
     }
 
     function progressStorageKey() {
-        return `fsb_progress::${encodeURIComponent(shareUrl || streamUrl)}`;
+        return `fsb_progress::${encodeURIComponent(shareUrl || '')}`;
     }
 
     function readProgress() {
@@ -1044,11 +1069,19 @@
         refreshProgressUI();
     }
 
-    function openPlayerAt(startAt = 0) {
+    async function openPlayerAt(startAt = 0) {
         showPlayerView();
         if (!player) return;
+        if (playRequestInFlight) return;
+        playRequestInFlight = true;
+        playBtn.disabled = true;
+        playBtn.classList.add('disabled');
 
-        const begin = async () => {
+        const begin = async (streamUrl) => {
+            if (player.src !== streamUrl) {
+                player.src = streamUrl;
+                player.load();
+            }
             if (startAt > 0) {
                 try {
                     player.currentTime = startAt;
@@ -1057,10 +1090,24 @@
             try { await player.play(); } catch (_) {}
         };
 
-        if (player.readyState >= 1) {
-            begin();
-        } else {
-            player.addEventListener('loadedmetadata', begin, { once: true });
+        try {
+            const tokenData = await requestTokenizedUrl(streamTokenPath);
+            const streamUrl = tokenData.stream_url;
+            if (player.readyState >= 1 && player.src === streamUrl) {
+                await begin(streamUrl);
+            } else {
+                player.addEventListener('loadedmetadata', () => begin(streamUrl), { once: true });
+                player.src = streamUrl;
+                player.load();
+            }
+        } catch (error) {
+            console.error('Error getting stream token:', error);
+            alert('Failed to start playback. Please reload the page and try again.');
+            showManagerView();
+        } finally {
+            playRequestInFlight = false;
+            playBtn.disabled = false;
+            playBtn.classList.remove('disabled');
         }
     }
 
@@ -1100,7 +1147,7 @@
     playBtn.addEventListener('click', () => {
         if (!selected) return;
         openSmartlink();
-        openPlayerAt(0);
+        void openPlayerAt(0);
     });
 
     backBtn.addEventListener('click', showManagerView);
@@ -1161,15 +1208,13 @@
         }, 1000);
         
         try {
-            const response = await fetch(downloadTokenPath);
-            const data = await response.json();
+            const data = await requestTokenizedUrl(downloadTokenPath);
             
             clearInterval(countdownInterval);
             
             if (data.success && data.download_url) {
                 downloadBtn.innerHTML = `<span class="download-spinner"></span> Downloading...`;
-                // Redirect to the one-time download URL
-                window.location.href = data.download_url;
+                startDownload(data.download_url);
                 
                 // Reset button after a delay (in case download didn't start)
                 setTimeout(() => {

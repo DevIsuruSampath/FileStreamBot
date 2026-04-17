@@ -387,11 +387,17 @@ async def admin_panel_callback(c: Client, query: CallbackQuery):
             await query.answer(f"URL Shortener: {state}", show_alert=True)
             return
         if action == "on":
+            if await db.get_urlshortener_status():
+                await query.answer("URL Shortener is already ON.", show_alert=True)
+                return
             await db.update_urlshortener_status(True)
             await query.answer("URL Shortener enabled.")
             await _refresh_admin_panel(query, user_id, "URL Shortener is now ON.")
             return
         if action == "off":
+            if not await db.get_urlshortener_status():
+                await query.answer("URL Shortener is already OFF.", show_alert=True)
+                return
             await db.update_urlshortener_status(False)
             await query.answer("URL Shortener disabled.")
             await _refresh_admin_panel(query, user_id, "URL Shortener is now OFF.")
@@ -409,11 +415,17 @@ async def admin_panel_callback(c: Client, query: CallbackQuery):
             await query.answer(f"Web Ads: {state}", show_alert=True)
             return
         if action == "on":
+            if await db.get_web_ads_status():
+                await query.answer("Web Ads are already ON.", show_alert=True)
+                return
             await db.update_web_ads_status(True)
             await query.answer("Web Ads enabled.")
             await _refresh_admin_panel(query, user_id, "Web Ads are now ON.")
             return
         if action == "off":
+            if not await db.get_web_ads_status():
+                await query.answer("Web Ads are already OFF.", show_alert=True)
+                return
             await db.update_web_ads_status(False)
             await query.answer("Web Ads disabled.")
             await _refresh_admin_panel(query, user_id, "Web Ads are now OFF.")
@@ -557,6 +569,13 @@ async def webads_toggle(c: Client, m: Message):
         return
 
     if action == "on":
+        if await db.get_web_ads_status():
+            await m.reply_text(
+                text="**ℹ️ Web Ads are already enabled.**",
+                parse_mode=ParseMode.MARKDOWN,
+                quote=True
+            )
+            return
         await db.update_web_ads_status(True)
         await m.reply_text(
             text="**✅ Web Ads have been enabled.**",
@@ -564,6 +583,13 @@ async def webads_toggle(c: Client, m: Message):
             quote=True
         )
     elif action == "off":
+        if not await db.get_web_ads_status():
+            await m.reply_text(
+                text="**ℹ️ Web Ads are already disabled.**",
+                parse_mode=ParseMode.MARKDOWN,
+                quote=True
+            )
+            return
         await db.update_web_ads_status(False)
         await m.reply_text(
             text="**❌ Web Ads have been disabled.**",
