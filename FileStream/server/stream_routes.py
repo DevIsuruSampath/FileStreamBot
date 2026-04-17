@@ -365,7 +365,7 @@ async def media_streamer(request: web.Request, db_id: str, *, force_download: bo
             headers={"Content-Range": f"bytes */{file_size}"},
         )
 
-    chunk_size = 1024 * 1024
+    chunk_size = max(int(Server.STREAM_CHUNK_SIZE_MB), 1) * 1024 * 1024
     until_bytes = min(until_bytes, file_size - 1)
 
     offset = from_bytes - (from_bytes % chunk_size)
@@ -377,7 +377,7 @@ async def media_streamer(request: web.Request, db_id: str, *, force_download: bo
     body = None
     if request.method != "HEAD":
         body = tg_connect.yield_file(
-            file_id, index, offset, first_part_cut, last_part_cut, part_count, chunk_size
+            internal_db_id, file_id, index, offset, first_part_cut, last_part_cut, part_count, chunk_size
         )
 
     mime_type = (file_id.mime_type or "").strip()

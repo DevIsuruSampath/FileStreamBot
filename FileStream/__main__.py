@@ -15,6 +15,7 @@ from FileStream.utils.bot_commands import register_bot_commands
 from FileStream.utils.database import Database
 from FileStream.utils.flog_sync import reconcile_flog_storage, start_flog_sync_task, stop_flog_sync_task
 from FileStream.utils.optional_channels import warm_optional_channel_peer
+from FileStream.utils.stream_cache import warm_stream_cache
 
 logging.basicConfig(
     level=logging.INFO,
@@ -52,6 +53,7 @@ async def start_services():
     print()
     print("--------------------- Initializing Web Server ---------------------")
     await db.ensure_indexes()
+    await warm_stream_cache()
     await server.setup()
     await web.TCPSite(server, Server.BIND_ADDRESS, Server.PORT).start()
     print("------------------------------ DONE ------------------------------")

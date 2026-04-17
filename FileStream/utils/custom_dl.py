@@ -7,6 +7,7 @@ from FileStream.config import Server
 from pyrogram import Client, utils, raw
 from .file_properties import get_file_ids
 from .client_balance import ensure_client_stat, record_stream_completed, record_stream_failed
+from .stream_cache import stream_cache
 from pyrogram.session import Session, Auth
 from pyrogram.errors import AuthBytesInvalid
 from pyrogram.file_id import FileId, FileType, ThumbnailSource
@@ -147,6 +148,7 @@ class ByteStreamer:
 
     async def yield_file(
         self,
+        file_key: str,
         file_id: FileId,
         index: int,
         offset: int,
@@ -161,29 +163,64 @@ class ByteStreamer:
         Thanks to Eyaadh <https://github.com/eyaadh>
         """
         client = self.client
-        ensure_client_stat(index)
-        work_loads[index] = work_loads.get(index, 0) + 1
         logging.debug(f"Starting to yielding file with client {index}.")
 
         loop = asyncio.get_running_loop()
         start_time = loop.time()
-        first_byte_delay = None
         bytes_sent = 0
+        telegram_bytes = 0
+        telegram_started_at = None
+        telegram_first_byte_delay = None
+        client_load_acquired = False
         pending_fetch = None
         stream_failed = False
 
         try:
-            media_session = await self.generate_media_session(client, file_id)
             current_part = 1
-            location = await self.get_location(file_id)
+            media_session = None
+            location = None
             prefetch_depth = max(1, min(int(Server.STREAM_PREFETCH_CHUNKS), int(part_count), 8))
             pending_fetches: dict[int, asyncio.Task] = {}
             next_part_to_schedule = 1
 
+            async def fetch_chunk_from_telegram(part_offset: int) -> bytes:
+                nonlocal media_session, location, telegram_started_at, telegram_first_byte_delay, client_load_acquired
+
+                if not client_load_acquired:
+                    ensure_client_stat(index)
+                    work_loads[index] = work_loads.get(index, 0) + 1
+                    client_load_acquired = True
+
+                if telegram_started_at is None:
+                    telegram_started_at = loop.time()
+
+                if media_session is None:
+                    media_session = await self.generate_media_session(client, file_id)
+                    location = await self.get_location(file_id)
+
+                r = await self._fetch_chunk(media_session, location, part_offset, chunk_size)
+                if not isinstance(r, raw.types.upload.File):
+                    return b""
+
+                chunk = bytes(r.bytes or b"")
+                if chunk and telegram_first_byte_delay is None and telegram_started_at is not None:
+                    telegram_first_byte_delay = loop.time() - telegram_started_at
+                return chunk
+
+            async def get_part(part_number: int):
+                part_offset = offset + ((part_number - 1) * chunk_size)
+                remaining_bytes = max(int(file_id.file_size or 0) - part_offset, 0)
+                expected_size = min(chunk_size, remaining_bytes) if remaining_bytes else chunk_size
+                return await stream_cache.get_or_fetch_chunk(
+                    file_key=file_key,
+                    offset=part_offset,
+                    expected_size=expected_size,
+                    fetcher=lambda: fetch_chunk_from_telegram(part_offset),
+                )
+
             while next_part_to_schedule <= prefetch_depth:
-                part_offset = offset + ((next_part_to_schedule - 1) * chunk_size)
                 pending_fetches[next_part_to_schedule] = asyncio.create_task(
-                    self._fetch_chunk(media_session, location, part_offset, chunk_size)
+                    get_part(next_part_to_schedule)
                 )
                 next_part_to_schedule += 1
 
@@ -192,24 +229,18 @@ class ByteStreamer:
                     pending_fetch = pending_fetches.pop(current_part, None)
                     if pending_fetch is None:
                         break
-                    r = await pending_fetch
+                    chunk, cache_hit = await pending_fetch
 
                     if next_part_to_schedule <= part_count:
-                        part_offset = offset + ((next_part_to_schedule - 1) * chunk_size)
                         pending_fetches[next_part_to_schedule] = asyncio.create_task(
-                            self._fetch_chunk(media_session, location, part_offset, chunk_size)
+                            get_part(next_part_to_schedule)
                         )
                         next_part_to_schedule += 1
 
-                    if not isinstance(r, raw.types.upload.File):
-                        break
-
-                    chunk = r.bytes
                     if not chunk:
                         break
-
-                    if first_byte_delay is None:
-                        first_byte_delay = loop.time() - start_time
+                    if not cache_hit:
+                        telegram_bytes += len(chunk)
 
                     if part_count == 1:
                         payload = chunk[first_part_cut:last_part_cut]
@@ -227,10 +258,12 @@ class ByteStreamer:
                     current_part += 1
             except (TimeoutError, AttributeError):
                 stream_failed = True
-                record_stream_failed(index)
+                if client_load_acquired:
+                    record_stream_failed(index)
             except Exception:
                 stream_failed = True
-                record_stream_failed(index)
+                if client_load_acquired:
+                    record_stream_failed(index)
                 raise
         finally:
             pending_tasks = []
@@ -244,16 +277,25 @@ class ByteStreamer:
                     await task
 
             duration = max(loop.time() - start_time, 0.001)
-            if bytes_sent > 0 and not stream_failed:
+            if client_load_acquired:
+                work_loads[index] = max(work_loads.get(index, 1) - 1, 0)
+
+            if telegram_bytes > 0 and not stream_failed:
+                telegram_duration = max(loop.time() - (telegram_started_at or start_time), 0.001)
                 record_stream_completed(
                     index,
-                    bytes_sent=bytes_sent,
-                    duration_s=duration,
-                    first_byte_s=first_byte_delay,
+                    bytes_sent=telegram_bytes,
+                    duration_s=telegram_duration,
+                    first_byte_s=telegram_first_byte_delay,
                 )
 
             logging.debug(f"Finished yielding file with {locals().get('current_part', 0)} parts.")
-            work_loads[index] = max(work_loads.get(index, 1) - 1, 0)
+            logging.debug(
+                "Stream duration %.3fs, yielded %s bytes, telegram fetched %s bytes",
+                duration,
+                bytes_sent,
+                telegram_bytes,
+            )
 
     @staticmethod
     async def _fetch_chunk(
