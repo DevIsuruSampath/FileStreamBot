@@ -246,7 +246,7 @@ async def file_handler(request: web.Request):
             raise web.HTTPForbidden(text="Download link expired or already used. Please go back and click Download again.")
         
         # Serve the file
-        return await media_streamer(request, path)
+        return await media_streamer(request, path, force_download=True)
     except web.HTTPForbidden:
         raise
     except InvalidHash as e:
@@ -305,7 +305,7 @@ def _parse_range(range_header: str, file_size: int):
     return start, end
 
 
-async def media_streamer(request: web.Request, db_id: str):
+async def media_streamer(request: web.Request, db_id: str, *, force_download: bool = False):
     range_header = request.headers.get("Range")
 
     # MongoDB remains the source of truth for whether a file is still active.
@@ -392,12 +392,19 @@ async def media_streamer(request: web.Request, db_id: str):
 
     mime_type = (mime_type or "application/octet-stream").lower()
 
-    # Use "inline" for media to allow in-browser playback
-    # Use "attachment" for everything else to force download
+    # Keep media inline for the player, but force attachment for tokenized
+    # download links so browsers/download managers preserve the real filename
+    # instead of deriving one from /file/{token}.
     ext = os.path.splitext(file_name)[1].lower()
     video_ext = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpeg", ".mpg"}
     audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
-    if "video" in mime_type or "audio" in mime_type or "image" in mime_type or ext in video_ext or ext in audio_ext:
+    explicit_download = force_download or request.query.get("download", "").lower() in {"1", "true", "yes"}
+    fetch_dest = request.headers.get("Sec-Fetch-Dest", "").lower()
+    embedded_media_request = fetch_dest in {"video", "audio", "image"}
+    direct_dl_download = request.path.startswith("/dl/") and not embedded_media_request
+    if explicit_download or direct_dl_download:
+        disposition = "attachment"
+    elif "video" in mime_type or "audio" in mime_type or "image" in mime_type or ext in video_ext or ext in audio_ext:
         disposition = "inline"
     else:
         disposition = "attachment"
