@@ -21,6 +21,12 @@ from FileStream.utils.optional_channels import (
     optional_channel_available,
     warm_optional_channel_peer,
 )
+from FileStream.utils.flog_channels import (
+    has_configured_flog_channels,
+    optional_channel_name_for_id,
+    resolve_active_flog_target,
+    resolve_file_flog_channel_id,
+)
 from FileStream.utils.runtime_cache import cache_flog_validation, is_flog_validation_fresh
 from FileStream.config import Telegram, Server
 from FileStream.server.exceptions import FileNotFound
@@ -36,26 +42,40 @@ _FLOG_MISSING_MARKERS = (
 )
 
 
-def _flog_enabled() -> bool:
-    return optional_channel_available("FLOG_CHANNEL", Telegram.FLOG_CHANNEL)
+def _flog_enabled(channel_name: str, channel_id: int | None) -> bool:
+    return optional_channel_available(channel_name, channel_id)
 
 
-def _handle_invalid_flog(exc: Exception) -> bool:
+def _handle_invalid_flog(exc: Exception, channel_name: str, channel_id: int | None) -> bool:
     if not is_invalid_optional_channel_error(exc):
         return False
-    disable_optional_channel("FLOG_CHANNEL", Telegram.FLOG_CHANNEL, exc)
+    disable_optional_channel(channel_name, channel_id, exc)
     return True
 
 
-async def _call_with_flog_retry(client: Client, operation):
+async def _call_with_flog_retry(client: Client, operation, channel_name: str, channel_id: int | None):
     try:
         return await operation()
     except Exception as exc:
         if not is_invalid_optional_channel_error(exc):
             raise
-        if await warm_optional_channel_peer(client, "FLOG_CHANNEL", Telegram.FLOG_CHANNEL):
+        if await warm_optional_channel_peer(client, channel_name, channel_id):
             return await operation()
         raise
+
+
+def _resolve_file_channel_binding(file_info: dict | None) -> tuple[str, int | None]:
+    channel_id = resolve_file_flog_channel_id(file_info)
+    return optional_channel_name_for_id(channel_id), channel_id
+
+
+async def _resolve_storage_write_target(file_info: dict | None) -> tuple[str, int | None]:
+    existing_channel_id = resolve_file_flog_channel_id(file_info)
+    if file_info and file_info.get("flog_msg_id") and existing_channel_id:
+        return optional_channel_name_for_id(existing_channel_id), existing_channel_id
+
+    _, channel_name, channel_id = await resolve_active_flog_target(db)
+    return channel_name, channel_id
 
 
 async def get_file_ids(client: Client | bool, db_id: str, multi_clients, message=None) -> Optional[FileId]:
@@ -64,7 +84,7 @@ async def get_file_ids(client: Client | bool, db_id: str, multi_clients, message
     if not file_info or not file_info.get("file_id"):
         raise FileNotFound
     if ("file_ids" not in file_info) or not client:
-        if not _flog_enabled():
+        if not has_configured_flog_channels():
             if not client:
                 return
             file_id_info = file_info.setdefault("file_ids", {})
@@ -74,13 +94,22 @@ async def get_file_ids(client: Client | bool, db_id: str, multi_clients, message
             try:
                 logging.debug("Storing file_id of all clients in DB")
                 log_msg = await send_file(FileStream, db_id, file_info['file_id'], message, file_name=file_info.get('file_name'))
-                await db.update_file_ids(db_id, await update_file_id(log_msg.id, multi_clients))
+                file_info = await db.get_file(db_id)
+                _, flog_channel_id = _resolve_file_channel_binding(file_info)
+                await db.update_file_ids(db_id, await update_file_id(log_msg.id, multi_clients, channel_id=flog_channel_id))
                 logging.debug("Stored file_id of all clients in DB")
                 if not client:
                     return
                 file_info = await db.get_file(db_id)
+            except FileNotFound:
+                if not client:
+                    return
+                file_id_info = file_info.setdefault("file_ids", {})
+                file_id_info[str(client.id)] = file_info.get("file_id", "")
+                await db.update_file_ids(db_id, file_id_info)
             except Exception as exc:
-                if not _handle_invalid_flog(exc):
+                flog_channel_name, flog_channel_id = await _resolve_storage_write_target(file_info)
+                if not _handle_invalid_flog(exc, flog_channel_name, flog_channel_id):
                     raise
                 if not client:
                     return
@@ -90,23 +119,29 @@ async def get_file_ids(client: Client | bool, db_id: str, multi_clients, message
 
     file_id_info = file_info.setdefault("file_ids", {})
     if str(client.id) not in file_id_info:
-        if not _flog_enabled():
+        if not has_configured_flog_channels():
             file_id_info[str(client.id)] = file_info.get("file_id", "")
             await db.update_file_ids(db_id, file_id_info)
         else:
             try:
                 logging.debug("Storing file_id in DB")
                 log_msg = await send_file(FileStream, db_id, file_info['file_id'], message, file_name=file_info.get('file_name'))
+                file_info = await db.get_file(db_id)
+                flog_channel_name, flog_channel_id = _resolve_file_channel_binding(file_info)
                 async def _get_flog_message():
-                    return await client.get_messages(Telegram.FLOG_CHANNEL, log_msg.id)
+                    return await client.get_messages(flog_channel_id, log_msg.id)
 
-                msg = await _call_with_flog_retry(client, _get_flog_message)
+                msg = await _call_with_flog_retry(client, _get_flog_message, flog_channel_name, flog_channel_id)
                 media = get_media_from_message(msg)
                 file_id_info[str(client.id)] = getattr(media, "file_id", "")
                 await db.update_file_ids(db_id, file_id_info)
                 logging.debug("Stored file_id in DB")
+            except FileNotFound:
+                file_id_info[str(client.id)] = file_info.get("file_id", "")
+                await db.update_file_ids(db_id, file_id_info)
             except Exception as exc:
-                if not _handle_invalid_flog(exc):
+                flog_channel_name, flog_channel_id = _resolve_file_channel_binding(file_info)
+                if not _handle_invalid_flog(exc, flog_channel_name, flog_channel_id):
                     raise
                 file_id_info[str(client.id)] = file_info.get("file_id", "")
                 await db.update_file_ids(db_id, file_id_info)
@@ -114,18 +149,24 @@ async def get_file_ids(client: Client | bool, db_id: str, multi_clients, message
     logging.debug("Middle of get_file_ids")
     if not file_id_info.get(str(client.id)):
         # Try to refresh missing/empty file_id for this client
-        if _flog_enabled():
+        flog_channel_name, flog_channel_id = _resolve_file_channel_binding(file_info)
+        if _flog_enabled(flog_channel_name, flog_channel_id):
             try:
                 log_msg = await send_file(FileStream, db_id, file_info['file_id'], message, file_name=file_info.get('file_name'))
+                file_info = await db.get_file(db_id)
+                flog_channel_name, flog_channel_id = _resolve_file_channel_binding(file_info)
                 async def _get_flog_message():
-                    return await client.get_messages(Telegram.FLOG_CHANNEL, log_msg.id)
+                    return await client.get_messages(flog_channel_id, log_msg.id)
 
-                msg = await _call_with_flog_retry(client, _get_flog_message)
+                msg = await _call_with_flog_retry(client, _get_flog_message, flog_channel_name, flog_channel_id)
                 media = get_media_from_message(msg)
                 file_id_info[str(client.id)] = getattr(media, "file_id", "")
                 await db.update_file_ids(db_id, file_id_info)
+            except FileNotFound:
+                file_id_info[str(client.id)] = file_info.get("file_id", "")
+                await db.update_file_ids(db_id, file_id_info)
             except Exception as exc:
-                if not _handle_invalid_flog(exc):
+                if not _handle_invalid_flog(exc, flog_channel_name, flog_channel_id):
                     raise
                 file_id_info[str(client.id)] = file_info.get("file_id", "")
                 await db.update_file_ids(db_id, file_id_info)
@@ -154,7 +195,8 @@ async def ensure_flog_media_exists(
     if not file_info:
         raise FileNotFound
 
-    if not _flog_enabled():
+    flog_channel_name, flog_channel_id = _resolve_file_channel_binding(file_info)
+    if not _flog_enabled(flog_channel_name, flog_channel_id):
         return file_info
 
     flog_msg_id = file_info.get("flog_msg_id")
@@ -169,11 +211,11 @@ async def ensure_flog_media_exists(
 
     try:
         async def _get_flog_message():
-            return await client.get_messages(Telegram.FLOG_CHANNEL, int(flog_msg_id))
+            return await client.get_messages(flog_channel_id, int(flog_msg_id))
 
-        log_msg = await _call_with_flog_retry(client, _get_flog_message)
+        log_msg = await _call_with_flog_retry(client, _get_flog_message, flog_channel_name, flog_channel_id)
     except Exception as exc:
-        if _handle_invalid_flog(exc):
+        if _handle_invalid_flog(exc, flog_channel_name, flog_channel_id):
             return file_info
         error_text = str(exc or "").lower()
         if not any(marker in error_text for marker in _FLOG_MISSING_MARKERS):
@@ -323,21 +365,22 @@ def get_file_info(message):
     }
 
 
-async def update_file_id(msg_id, multi_clients):
+async def update_file_id(msg_id, multi_clients, channel_id: int | None = None):
     file_ids = {}
-    if not _flog_enabled():
+    channel_name = optional_channel_name_for_id(channel_id)
+    if not _flog_enabled(channel_name, channel_id):
         return file_ids
     
     async def get_id(client):
         try:
             async def _get_flog_message():
-                return await client.get_messages(Telegram.FLOG_CHANNEL, msg_id)
+                return await client.get_messages(channel_id, msg_id)
 
-            log_msg = await _call_with_flog_retry(client, _get_flog_message)
+            log_msg = await _call_with_flog_retry(client, _get_flog_message, channel_name, channel_id)
             media = get_media_from_message(log_msg)
             return str(client.id), getattr(media, "file_id", "")
         except Exception as exc:
-            if _handle_invalid_flog(exc):
+            if _handle_invalid_flog(exc, channel_name, channel_id):
                 return str(client.id), ""
             return str(client.id), ""
 
@@ -355,7 +398,9 @@ async def update_file_id(msg_id, multi_clients):
 
 
 async def send_file(client: Client, db_id, file_id: str, message=None, file_name: str | None = None):
-    if not _flog_enabled():
+    file_info = await db.get_file(db_id)
+    flog_channel_name, flog_channel_id = await _resolve_storage_write_target(file_info)
+    if not _flog_enabled(flog_channel_name, flog_channel_id):
         raise FileNotFound
 
     if message:
@@ -374,19 +419,19 @@ async def send_file(client: Client, db_id, file_id: str, message=None, file_name
     try:
         async def _send_cached():
             return await client.send_cached_media(
-                chat_id=Telegram.FLOG_CHANNEL,
+                chat_id=flog_channel_id,
                 file_id=file_id,
                 caption=f"<b>{safe_caption}</b>",
                 parse_mode=ParseMode.HTML,
             )
 
-        log_msg = await _call_with_flog_retry(client, _send_cached)
+        log_msg = await _call_with_flog_retry(client, _send_cached, flog_channel_name, flog_channel_id)
     except Exception as exc:
-        if _handle_invalid_flog(exc):
+        if _handle_invalid_flog(exc, flog_channel_name, flog_channel_id):
             raise FileNotFound from exc
         raise
     try:
-        await db.update_file_flog_msg(db_id, log_msg.id)
+        await db.update_file_flog_msg(db_id, log_msg.id, flog_channel_id)
     except Exception:
         pass
 

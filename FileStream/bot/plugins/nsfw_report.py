@@ -14,6 +14,7 @@ from FileStream.utils.nsfw import scan_message
 from FileStream.server.exceptions import FileNotFound
 from FileStream.utils.bot_utils import verify_user
 from FileStream.utils.file_cleanup import delete_file_entry
+from FileStream.utils.flog_channels import resolve_file_flog_channel_id
 
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
@@ -52,11 +53,12 @@ async def _scan_file_by_id(bot: Client, file_id: str) -> tuple[bool, str]:
     except Exception:
         raise FileNotFound
 
-    if not Telegram.FLOG_CHANNEL or not file_info.get("flog_msg_id"):
+    flog_channel_id = resolve_file_flog_channel_id(file_info)
+    if not flog_channel_id or not file_info.get("flog_msg_id"):
         return False, "no_flog"
 
     try:
-        log_msg = await bot.get_messages(Telegram.FLOG_CHANNEL, int(file_info["flog_msg_id"]))
+        log_msg = await bot.get_messages(flog_channel_id, int(file_info["flog_msg_id"]))
         blocked, reason = await scan_message(log_msg)
         return blocked, reason
     except Exception:

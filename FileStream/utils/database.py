@@ -92,6 +92,7 @@ class Database:
                 (self.file, [("user_id", pymongo.ASCENDING), ("_id", pymongo.DESCENDING)]),
                 (self.file, [("user_id", pymongo.ASCENDING), ("file_unique_id", pymongo.ASCENDING)]),
                 (self.file, [("flog_msg_id", pymongo.ASCENDING)]),
+                (self.file, [("flog_channel_id", pymongo.ASCENDING), ("flog_msg_id", pymongo.ASCENDING)]),
                 (self.folders, [("user_id", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)]),
                 (self.folders, [("files", pymongo.ASCENDING)]),
                 (self.public_links, [("type", pymongo.ASCENDING), ("target_id", pymongo.ASCENDING), ("revoked", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)]),
@@ -244,9 +245,12 @@ class Database:
         except InvalidId:
             return
 
-    async def update_file_flog_msg(self, _id, msg_id: int):
+    async def update_file_flog_msg(self, _id, msg_id: int, channel_id: int | None = None):
         try:
-            await self.file.update_one({"_id": ObjectId(_id)}, {"$set": {"flog_msg_id": int(msg_id)}})
+            updates = {"flog_msg_id": int(msg_id)}
+            if channel_id not in (None, ""):
+                updates["flog_channel_id"] = int(channel_id)
+            await self.file.update_one({"_id": ObjectId(_id)}, {"$set": updates})
             invalidate_file_runtime(str(_id))
         except Exception:
             return
@@ -295,6 +299,20 @@ class Database:
         if not settings:
             return bool(WebAds.ENABLED)
         return bool(settings.get("status", False))
+
+    async def update_flog_storage_mode(self, mode: str):
+        normalized = "admin" if str(mode or "").strip().lower() == "admin" else "main"
+        await self.settings.update_one(
+            {"_id": "flog_storage"},
+            {"$set": {"mode": normalized}},
+            upsert=True,
+        )
+
+    async def get_flog_storage_mode(self) -> str:
+        settings = await self.settings.find_one({"_id": "flog_storage"})
+        if not settings:
+            return "main"
+        return "admin" if str(settings.get("mode", "main")).strip().lower() == "admin" else "main"
 
     # ---- Backward compatibility helpers (legacy /ads command code paths) ----
     async def update_ads_status(self, status: bool):

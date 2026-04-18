@@ -68,6 +68,9 @@ class Telegram:
     # Optional channels
     BIN_CHANNEL = _int_or_none("BIN_CHANNEL")
     FLOG_CHANNEL = _int_or_none("FLOG_CHANNEL")
+    ADMIN_FLOG_CHANNEL = _int_or_none("ADMIN_FLOG_CHANNEL")
+    if ADMIN_FLOG_CHANNEL is None:
+        ADMIN_FLOG_CHANNEL = _int_or_none("FLOG_CHANNEL_ADMIN")
     ULOG_CHANNEL = _int_or_none("ULOG_CHANNEL")
     NUDENET_CHANNEL = _int_or_none("NUDENET_CHANNEL")
 

@@ -22,6 +22,7 @@ from FileStream.config import Telegram
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.speedtest import run_speedtest, format_speedtest, MSG_SPEEDTEST_START, MSG_SPEEDTEST_ERROR
 from FileStream.utils.file_cleanup import delete_file_entry
+from FileStream.utils.flog_channels import configured_flog_channels
 from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
 
 speedtest_lock = asyncio.Lock()
@@ -64,6 +65,7 @@ OWNER_ONLY_ADMIN_ACTIONS = {
 }
 
 ADMIN_USAGE = {
+    "flogstorage": "Usage: `/flogstorage <main|admin|status>`",
     "rm_adult": "Usage: `/rm_adult <file_id|folder_id>`",
     "ban": "Usage: `/ban <user_id>`",
     "unban": "Usage: `/unban <user_id>`",
@@ -141,6 +143,8 @@ async def _resolve_link_reference(raw: str) -> tuple[str, str, dict]:
 async def _build_admin_panel_text(user_id: int) -> str:
     shortener_state = "ON" if await db.get_urlshortener_status() else "OFF"
     webads_state = "ON" if await db.get_web_ads_status() else "OFF"
+    flog_storage_mode = await db.get_flog_storage_mode()
+    configured_storage = configured_flog_channels()
     owner_mode = int(user_id) == OWNER_ID
 
     lines = [
@@ -148,6 +152,8 @@ async def _build_admin_panel_text(user_id: int) -> str:
         "",
         f"<b>URL Shortener:</b> <code>{shortener_state}</code>",
         f"<b>Web Ads:</b> <code>{webads_state}</code>",
+        f"<b>FLOG Storage:</b> <code>{flog_storage_mode.upper()}</code>",
+        f"<b>Storage Channels:</b> <code>main={configured_storage.get('main') or 'not set'}</code> | <code>admin={configured_storage.get('admin') or 'not set'}</code>",
         "",
         "<i>Use the buttons below for quick actions or command usage.</i>",
     ]
@@ -169,6 +175,7 @@ async def _build_admin_panel_text(user_id: int) -> str:
 async def _build_admin_panel_markup(user_id: int) -> InlineKeyboardMarkup:
     shortener_state = "ON" if await db.get_urlshortener_status() else "OFF"
     webads_state = "ON" if await db.get_web_ads_status() else "OFF"
+    flog_storage_mode = await db.get_flog_storage_mode()
     owner_mode = int(user_id) == OWNER_ID
 
     rows = [
@@ -181,6 +188,11 @@ async def _build_admin_panel_markup(user_id: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton(f"Web Ads: {webads_state}", callback_data="admin:webads:status"),
             InlineKeyboardButton("ON", callback_data="admin:webads:on"),
             InlineKeyboardButton("OFF", callback_data="admin:webads:off"),
+        ],
+        [
+            InlineKeyboardButton(f"Storage: {flog_storage_mode.upper()}", callback_data="admin:flogstorage:status"),
+            InlineKeyboardButton("MAIN", callback_data="admin:flogstorage:main"),
+            InlineKeyboardButton("ADMIN", callback_data="admin:flogstorage:admin"),
         ],
         [
             InlineKeyboardButton("Speedtest", callback_data="admin:run:speedtest"),
@@ -433,6 +445,44 @@ async def admin_panel_callback(c: Client, query: CallbackQuery):
         await query.answer("Unknown action.", show_alert=True)
         return
 
+    if section == "flogstorage":
+        if len(parts) < 3:
+            await query.answer("Invalid action.", show_alert=True)
+            return
+        action = parts[2].strip().lower()
+        configured_storage = configured_flog_channels()
+        current_mode = await db.get_flog_storage_mode()
+        if action == "status":
+            await query.answer(
+                f"FLOG Storage: {current_mode.upper()} | main={configured_storage.get('main') or 'not set'} | admin={configured_storage.get('admin') or 'not set'}",
+                show_alert=True,
+            )
+            return
+        if action == "main":
+            if current_mode == "main":
+                await query.answer("FLOG storage is already MAIN.", show_alert=True)
+                return
+            if not configured_storage.get("main"):
+                await query.answer("FLOG_CHANNEL is not configured.", show_alert=True)
+                return
+            await db.update_flog_storage_mode("main")
+            await query.answer("FLOG storage switched to MAIN.")
+            await _refresh_admin_panel(query, user_id, "FLOG storage is now MAIN.")
+            return
+        if action == "admin":
+            if not configured_storage.get("admin"):
+                await query.answer("ADMIN_FLOG_CHANNEL is not configured.", show_alert=True)
+                return
+            if current_mode == "admin":
+                await query.answer("FLOG storage is already ADMIN.", show_alert=True)
+                return
+            await db.update_flog_storage_mode("admin")
+            await query.answer("FLOG storage switched to ADMIN.")
+            await _refresh_admin_panel(query, user_id, "FLOG storage is now ADMIN.")
+            return
+        await query.answer("Unknown action.", show_alert=True)
+        return
+
     if section == "run":
         if len(parts) < 3:
             await query.answer("Invalid action.", show_alert=True)
@@ -534,6 +584,72 @@ async def urlshortener_toggle(c: Client, m: Message):
             parse_mode=ParseMode.MARKDOWN,
             quote=True
         )
+
+
+@FileStream.on_message(filters.command("flogstorage") & filters.private)
+async def flogstorage_toggle(c: Client, m: Message):
+    if m.from_user.id not in ADMIN_IDS:
+        await m.reply_text(f"⚠️ **Access Denied.**\nYour ID `{m.from_user.id}` is not in `OWNER_ID` or `AUTH_USERS`.", quote=True)
+        return
+
+    configured_storage = configured_flog_channels()
+
+    if len(m.command) < 2:
+        current_mode = await db.get_flog_storage_mode()
+        await m.reply_text(
+            text=(
+                f"**FLOG Storage is currently:** `{current_mode.upper()}`\n"
+                f"Main: `{configured_storage.get('main') or 'not set'}`\n"
+                f"Admin: `{configured_storage.get('admin') or 'not set'}`\n"
+                "Usage: `/flogstorage main` or `/flogstorage admin`"
+            ),
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True,
+        )
+        return
+
+    action = m.command[1].strip().lower()
+
+    if action in {"status", "state"}:
+        current_mode = await db.get_flog_storage_mode()
+        await m.reply_text(
+            text=(
+                f"**FLOG Storage:** `{current_mode.upper()}`\n"
+                f"Main: `{configured_storage.get('main') or 'not set'}`\n"
+                f"Admin: `{configured_storage.get('admin') or 'not set'}`"
+            ),
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True,
+        )
+        return
+
+    if action == "main":
+        if not configured_storage.get("main"):
+            await m.reply_text("**FLOG_CHANNEL is not configured.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+            return
+        if await db.get_flog_storage_mode() == "main":
+            await m.reply_text("**ℹ️ FLOG storage is already MAIN.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+            return
+        await db.update_flog_storage_mode("main")
+        await m.reply_text("**✅ FLOG storage switched to MAIN.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+        return
+
+    if action == "admin":
+        if not configured_storage.get("admin"):
+            await m.reply_text("**ADMIN_FLOG_CHANNEL is not configured.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+            return
+        if await db.get_flog_storage_mode() == "admin":
+            await m.reply_text("**ℹ️ FLOG storage is already ADMIN.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+            return
+        await db.update_flog_storage_mode("admin")
+        await m.reply_text("**✅ FLOG storage switched to ADMIN.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+        return
+
+    await m.reply_text(
+        text="Usage: `/flogstorage main` or `/flogstorage admin`",
+        parse_mode=ParseMode.MARKDOWN,
+        quote=True,
+    )
 
 
 # ---------------------[ WEB ADS TOGGLE COMMAND ]---------------------#

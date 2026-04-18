@@ -90,7 +90,8 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `FQDN`: Your public domain or IP (e.g., `files.example.com`).
 
 ### Recommended Channels
-- `FLOG_CHANNEL`: Strongly recommended cache channel used to keep per-client file IDs in sync for stable streaming and multi-client mode.
+- `FLOG_CHANNEL`: Strongly recommended primary cache channel used to keep per-client file IDs in sync for stable streaming and multi-client mode.
+- `ADMIN_FLOG_CHANNEL`: Optional second cache/storage channel. Admins can switch new uploads between `FLOG_CHANNEL` and `ADMIN_FLOG_CHANNEL` with `/flogstorage`.
 - `ULOG_CHANNEL`: Optional channel ID for new user logs and error logs.
 - `BIN_CHANNEL`: Optional legacy storage channel. Current code primarily uses `FLOG_CHANNEL`.
 - `NUDENET_CHANNEL`: Optional review/moderation channel for NSFW reports.

@@ -126,3 +126,4 @@ streambot.log.*
 *.xml
 *.xml
 .idea/workspace.xml
+.codex

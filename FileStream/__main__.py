@@ -14,6 +14,7 @@ from FileStream.bot.clients import initialize_clients
 from FileStream.utils.bot_commands import register_bot_commands
 from FileStream.utils.database import Database
 from FileStream.utils.flog_sync import reconcile_flog_storage, start_flog_sync_task, stop_flog_sync_task
+from FileStream.utils.flog_channels import configured_flog_channels, optional_channel_name_for_mode
 from FileStream.utils.optional_channels import warm_optional_channel_peer
 from FileStream.utils.stream_cache import warm_stream_cache
 
@@ -75,7 +76,8 @@ async def start_services():
     FileStream.id = bot_info.id
     FileStream.username = bot_info.username
     FileStream.fname = bot_info.first_name
-    await warm_optional_channel_peer(FileStream, "FLOG_CHANNEL", Telegram.FLOG_CHANNEL)
+    for mode, channel_id in configured_flog_channels().items():
+        await warm_optional_channel_peer(FileStream, optional_channel_name_for_mode(mode), channel_id)
     await warm_optional_channel_peer(FileStream, "ULOG_CHANNEL", Telegram.ULOG_CHANNEL)
     await register_bot_commands(FileStream)
     print("------------------------------ DONE ------------------------------")
@@ -84,7 +86,8 @@ async def start_services():
     print("---------------------- Initializing Clients ----------------------")
     await initialize_clients()
     for client in multi_clients.values():
-        await warm_optional_channel_peer(client, "FLOG_CHANNEL", Telegram.FLOG_CHANNEL)
+        for mode, channel_id in configured_flog_channels().items():
+            await warm_optional_channel_peer(client, optional_channel_name_for_mode(mode), channel_id)
     await reconcile_flog_storage(FileStream, force=True)
     start_flog_sync_task(FileStream)
     print("------------------------------ DONE ------------------------------")

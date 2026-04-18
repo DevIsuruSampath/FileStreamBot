@@ -12,7 +12,7 @@ FLOG_VALIDATION_TTL = 5
 _FILE_INFO_CACHE: dict[str, tuple[float, dict]] = {}
 _FILE_REFERENCE_CACHE: dict[str, tuple[float, dict, dict | None]] = {}
 _FILE_REFERENCE_ALIASES: dict[str, set[str]] = defaultdict(set)
-_FLOG_VALIDATION_CACHE: dict[str, tuple[float, int]] = {}
+_FLOG_VALIDATION_CACHE: dict[str, tuple[float, int, int | None]] = {}
 
 
 def _now() -> float:
@@ -107,6 +107,7 @@ def cache_file_reference(
 def is_flog_validation_fresh(file_info: dict) -> bool:
     file_id = str((file_info or {}).get("_id") or "")
     flog_msg_id = (file_info or {}).get("flog_msg_id")
+    flog_channel_id = (file_info or {}).get("flog_channel_id")
     if not file_id or not flog_msg_id:
         return False
 
@@ -114,15 +115,24 @@ def is_flog_validation_fresh(file_info: dict) -> bool:
     entry = _FLOG_VALIDATION_CACHE.get(file_id)
     if not entry:
         return False
-    return int(entry[1]) == int(flog_msg_id)
+    try:
+        current_channel_id = int(flog_channel_id) if flog_channel_id not in (None, "") else None
+    except Exception:
+        current_channel_id = None
+    return int(entry[1]) == int(flog_msg_id) and entry[2] == current_channel_id
 
 
 def cache_flog_validation(file_info: dict, ttl: int = FLOG_VALIDATION_TTL) -> None:
     file_id = str((file_info or {}).get("_id") or "")
     flog_msg_id = (file_info or {}).get("flog_msg_id")
+    flog_channel_id = (file_info or {}).get("flog_channel_id")
     if not file_id or not flog_msg_id:
         return
-    _FLOG_VALIDATION_CACHE[file_id] = (_now() + max(int(ttl), 1), int(flog_msg_id))
+    try:
+        normalized_channel_id = int(flog_channel_id) if flog_channel_id not in (None, "") else None
+    except Exception:
+        normalized_channel_id = None
+    _FLOG_VALIDATION_CACHE[file_id] = (_now() + max(int(ttl), 1), int(flog_msg_id), normalized_channel_id)
 
 
 def invalidate_file_runtime(file_id: str, *aliases: str) -> None:
