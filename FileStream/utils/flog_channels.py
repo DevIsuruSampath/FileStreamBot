@@ -70,9 +70,15 @@ def resolve_file_flog_mode(file_info: dict | None) -> str:
     return resolve_flog_mode_for_channel_id(resolve_file_flog_channel_id(file_info))
 
 
-async def resolve_active_flog_target(db) -> tuple[str, str, int | None]:
+async def resolve_active_flog_target(db, user_id: int | None = None) -> tuple[str, str, int | None]:
     channels = configured_flog_channels()
-    mode = normalize_flog_storage_mode(await db.get_flog_storage_mode())
+    mode = "main"
+    if user_id is not None and channels.get("admin"):
+        try:
+            if await db.is_admin_flog_user(user_id):
+                mode = "admin"
+        except Exception:
+            mode = "main"
 
     if mode == "admin" and channels.get("admin"):
         return "admin", "ADMIN_FLOG_CHANNEL", int(channels["admin"])
@@ -84,4 +90,3 @@ async def resolve_active_flog_target(db) -> tuple[str, str, int | None]:
         return "admin", "ADMIN_FLOG_CHANNEL", int(channels["admin"])
 
     return mode, optional_channel_name_for_mode(mode), None
-

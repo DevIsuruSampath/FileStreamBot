@@ -314,6 +314,50 @@ class Database:
             return "main"
         return "admin" if str(settings.get("mode", "main")).strip().lower() == "admin" else "main"
 
+    async def get_admin_flog_user_ids(self) -> list[int]:
+        settings = await self.settings.find_one({"_id": "admin_flog_users"})
+        raw_users = settings.get("users", []) if settings else []
+        user_ids: list[int] = []
+        seen: set[int] = set()
+        for raw in raw_users:
+            try:
+                user_id = int(raw)
+            except Exception:
+                continue
+            if user_id in seen:
+                continue
+            seen.add(user_id)
+            user_ids.append(user_id)
+        return user_ids
+
+    async def is_admin_flog_user(self, user_id: int) -> bool:
+        try:
+            normalized_user_id = int(user_id)
+        except Exception:
+            return False
+        return bool(
+            await self.settings.find_one(
+                {"_id": "admin_flog_users", "users": normalized_user_id},
+                {"_id": 1},
+            )
+        )
+
+    async def set_admin_flog_user(self, user_id: int, enabled: bool) -> None:
+        normalized_user_id = int(user_id)
+        if enabled:
+            await self.settings.update_one(
+                {"_id": "admin_flog_users"},
+                {"$addToSet": {"users": normalized_user_id}},
+                upsert=True,
+            )
+            return
+
+        await self.settings.update_one(
+            {"_id": "admin_flog_users"},
+            {"$pull": {"users": normalized_user_id}},
+            upsert=True,
+        )
+
     # ---- Backward compatibility helpers (legacy /ads command code paths) ----
     async def update_ads_status(self, status: bool):
         await self.update_urlshortener_status(status)

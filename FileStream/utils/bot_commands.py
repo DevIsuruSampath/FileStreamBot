@@ -23,7 +23,7 @@ PUBLIC_COMMANDS = [
 
 ADMIN_COMMANDS = PUBLIC_COMMANDS + [
     BotCommand("admin", "Show admin commands"),
-    BotCommand("flogstorage", "Switch FLOG storage"),
+    BotCommand("flogstorage", "Manage FLOG storage routing"),
     BotCommand("urlshortener", "Toggle the shortener"),
     BotCommand("webads", "Toggle web ads"),
     BotCommand("speedtest", "Run a speed test"),
@@ -77,7 +77,7 @@ async def register_bot_commands(bot: Client):
 def build_admin_help_text() -> str:
     shared_admin = [
         ("/admin", "Show this admin command list"),
-        ("/flogstorage <main|admin|status>", "Switch or inspect FLOG storage"),
+        ("/flogstorage <main|admin|status|list> [user_id]", "Route uploads between MAIN and ADMIN storage"),
         ("/urlshortener <on|off>", "Enable or disable the shortener"),
         ("/webads <on|off>", "Enable or disable web ads"),
         ("/speedtest", "Run a server speed test"),

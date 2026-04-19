@@ -74,7 +74,16 @@ async def _resolve_storage_write_target(file_info: dict | None) -> tuple[str, in
     if file_info and file_info.get("flog_msg_id") and existing_channel_id:
         return optional_channel_name_for_id(existing_channel_id), existing_channel_id
 
-    _, channel_name, channel_id = await resolve_active_flog_target(db)
+    user_id = None
+    if file_info:
+        try:
+            raw_user_id = file_info.get("user_id")
+            if raw_user_id not in (None, ""):
+                user_id = int(raw_user_id)
+        except Exception:
+            user_id = None
+
+    _, channel_name, channel_id = await resolve_active_flog_target(db, user_id=user_id)
     return channel_name, channel_id
 
 

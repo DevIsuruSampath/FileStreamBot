@@ -22,7 +22,7 @@ from FileStream.config import Telegram
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.speedtest import run_speedtest, format_speedtest, MSG_SPEEDTEST_START, MSG_SPEEDTEST_ERROR
 from FileStream.utils.file_cleanup import delete_file_entry
-from FileStream.utils.flog_channels import configured_flog_channels
+from FileStream.utils.flog_channels import configured_flog_channels, resolve_active_flog_target
 from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
 
 speedtest_lock = asyncio.Lock()
@@ -65,7 +65,7 @@ OWNER_ONLY_ADMIN_ACTIONS = {
 }
 
 ADMIN_USAGE = {
-    "flogstorage": "Usage: `/flogstorage <main|admin|status>`",
+    "flogstorage": "Usage: `/flogstorage <main|admin|status|list> [user_id]`",
     "rm_adult": "Usage: `/rm_adult <file_id|folder_id>`",
     "ban": "Usage: `/ban <user_id>`",
     "unban": "Usage: `/unban <user_id>`",
@@ -101,6 +101,29 @@ def _public_link_status(link: dict) -> str:
     if expires_at is not None and float(expires_at) <= time.time():
         return "expired"
     return "active"
+
+
+def _default_storage_label(configured_storage: dict[str, int]) -> str:
+    if configured_storage.get("main"):
+        return "MAIN"
+    if configured_storage.get("admin"):
+        return "ADMIN (fallback)"
+    return "NOT SET"
+
+
+def _format_admin_storage_users(user_ids: list[int], limit: int = 10) -> str:
+    if not user_ids:
+        return "none"
+    visible = ", ".join(str(user_id) for user_id in user_ids[:limit])
+    if len(user_ids) > limit:
+        return f"{visible}, +{len(user_ids) - limit} more"
+    return visible
+
+
+def _parse_storage_target(raw_value: str | None, fallback_user_id: int) -> int:
+    if raw_value in (None, ""):
+        return int(fallback_user_id)
+    return int(str(raw_value).strip())
 
 
 async def _resolve_link_reference(raw: str) -> tuple[str, str, dict]:
@@ -143,8 +166,9 @@ async def _resolve_link_reference(raw: str) -> tuple[str, str, dict]:
 async def _build_admin_panel_text(user_id: int) -> str:
     shortener_state = "ON" if await db.get_urlshortener_status() else "OFF"
     webads_state = "ON" if await db.get_web_ads_status() else "OFF"
-    flog_storage_mode = await db.get_flog_storage_mode()
     configured_storage = configured_flog_channels()
+    admin_flog_users = await db.get_admin_flog_user_ids()
+    effective_storage_mode, _, _ = await resolve_active_flog_target(db, user_id=user_id)
     owner_mode = int(user_id) == OWNER_ID
 
     lines = [
@@ -152,10 +176,13 @@ async def _build_admin_panel_text(user_id: int) -> str:
         "",
         f"<b>URL Shortener:</b> <code>{shortener_state}</code>",
         f"<b>Web Ads:</b> <code>{webads_state}</code>",
-        f"<b>FLOG Storage:</b> <code>{flog_storage_mode.upper()}</code>",
+        f"<b>Default Upload Storage:</b> <code>{_default_storage_label(configured_storage)}</code>",
+        f"<b>Your Upload Storage:</b> <code>{effective_storage_mode.upper()}</code>",
+        f"<b>Admin Storage Users:</b> <code>{len(admin_flog_users)}</code>",
         f"<b>Storage Channels:</b> <code>main={configured_storage.get('main') or 'not set'}</code> | <code>admin={configured_storage.get('admin') or 'not set'}</code>",
+        f"<b>Assigned Users:</b> <code>{html.escape(_format_admin_storage_users(admin_flog_users))}</code>",
         "",
-        "<i>Use the buttons below for quick actions or command usage.</i>",
+        "<i>Buttons below change your own upload storage. Use /flogstorage admin &lt;user_id&gt; to assign another user.</i>",
     ]
 
     if owner_mode:
@@ -175,7 +202,7 @@ async def _build_admin_panel_text(user_id: int) -> str:
 async def _build_admin_panel_markup(user_id: int) -> InlineKeyboardMarkup:
     shortener_state = "ON" if await db.get_urlshortener_status() else "OFF"
     webads_state = "ON" if await db.get_web_ads_status() else "OFF"
-    flog_storage_mode = await db.get_flog_storage_mode()
+    flog_storage_mode, _, _ = await resolve_active_flog_target(db, user_id=user_id)
     owner_mode = int(user_id) == OWNER_ID
 
     rows = [
@@ -451,34 +478,42 @@ async def admin_panel_callback(c: Client, query: CallbackQuery):
             return
         action = parts[2].strip().lower()
         configured_storage = configured_flog_channels()
-        current_mode = await db.get_flog_storage_mode()
+        selected_users = await db.get_admin_flog_user_ids()
+        using_admin_storage = await db.is_admin_flog_user(user_id)
+        current_mode, _, _ = await resolve_active_flog_target(db, user_id=user_id)
         if action == "status":
             await query.answer(
-                f"FLOG Storage: {current_mode.upper()} | main={configured_storage.get('main') or 'not set'} | admin={configured_storage.get('admin') or 'not set'}",
+                (
+                    f"Your Upload Storage: {current_mode.upper()}\n"
+                    f"Default: {_default_storage_label(configured_storage)}\n"
+                    f"Selected Users: {len(selected_users)}\n"
+                    f"Main: {configured_storage.get('main') or 'not set'}\n"
+                    f"Admin: {configured_storage.get('admin') or 'not set'}"
+                ),
                 show_alert=True,
             )
             return
         if action == "main":
-            if current_mode == "main":
-                await query.answer("FLOG storage is already MAIN.", show_alert=True)
-                return
             if not configured_storage.get("main"):
                 await query.answer("FLOG_CHANNEL is not configured.", show_alert=True)
                 return
-            await db.update_flog_storage_mode("main")
-            await query.answer("FLOG storage switched to MAIN.")
-            await _refresh_admin_panel(query, user_id, "FLOG storage is now MAIN.")
+            if not using_admin_storage:
+                await query.answer("Your uploads already use MAIN.", show_alert=True)
+                return
+            await db.set_admin_flog_user(user_id, False)
+            await query.answer("Your uploads now use MAIN.")
+            await _refresh_admin_panel(query, user_id, "Your uploads now route to MAIN storage.")
             return
         if action == "admin":
             if not configured_storage.get("admin"):
                 await query.answer("ADMIN_FLOG_CHANNEL is not configured.", show_alert=True)
                 return
-            if current_mode == "admin":
-                await query.answer("FLOG storage is already ADMIN.", show_alert=True)
+            if using_admin_storage:
+                await query.answer("Your uploads already use ADMIN.", show_alert=True)
                 return
-            await db.update_flog_storage_mode("admin")
-            await query.answer("FLOG storage switched to ADMIN.")
-            await _refresh_admin_panel(query, user_id, "FLOG storage is now ADMIN.")
+            await db.set_admin_flog_user(user_id, True)
+            await query.answer("Your uploads now use ADMIN.")
+            await _refresh_admin_panel(query, user_id, "Your uploads now route to ADMIN storage.")
             return
         await query.answer("Unknown action.", show_alert=True)
         return
@@ -593,15 +628,22 @@ async def flogstorage_toggle(c: Client, m: Message):
         return
 
     configured_storage = configured_flog_channels()
+    admin_storage_users = await db.get_admin_flog_user_ids()
 
     if len(m.command) < 2:
-        current_mode = await db.get_flog_storage_mode()
+        current_mode, _, _ = await resolve_active_flog_target(db, user_id=m.from_user.id)
         await m.reply_text(
             text=(
-                f"**FLOG Storage is currently:** `{current_mode.upper()}`\n"
-                f"Main: `{configured_storage.get('main') or 'not set'}`\n"
-                f"Admin: `{configured_storage.get('admin') or 'not set'}`\n"
-                "Usage: `/flogstorage main` or `/flogstorage admin`"
+                f"**Your Upload Storage:** `{current_mode.upper()}`\n"
+                f"**Default Storage:** `{_default_storage_label(configured_storage)}`\n"
+                f"**Admin Storage Users:** `{len(admin_storage_users)}`\n"
+                f"**Main:** `{configured_storage.get('main') or 'not set'}`\n"
+                f"**Admin:** `{configured_storage.get('admin') or 'not set'}`\n"
+                "Usage:\n"
+                "`/flogstorage status [user_id]`\n"
+                "`/flogstorage list`\n"
+                "`/flogstorage main [user_id]`\n"
+                "`/flogstorage admin [user_id]`"
             ),
             parse_mode=ParseMode.MARKDOWN,
             quote=True,
@@ -611,12 +653,32 @@ async def flogstorage_toggle(c: Client, m: Message):
     action = m.command[1].strip().lower()
 
     if action in {"status", "state"}:
-        current_mode = await db.get_flog_storage_mode()
+        try:
+            target_user_id = _parse_storage_target(m.command[2] if len(m.command) > 2 else None, m.from_user.id)
+        except ValueError:
+            await m.reply_text("**User ID must be a number.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+            return
+        target_mode, _, _ = await resolve_active_flog_target(db, user_id=target_user_id)
+        selected = await db.is_admin_flog_user(target_user_id)
         await m.reply_text(
             text=(
-                f"**FLOG Storage:** `{current_mode.upper()}`\n"
-                f"Main: `{configured_storage.get('main') or 'not set'}`\n"
-                f"Admin: `{configured_storage.get('admin') or 'not set'}`"
+                f"**User:** `{target_user_id}`\n"
+                f"**Upload Storage:** `{target_mode.upper()}`\n"
+                f"**Selected For Admin Storage:** `{'YES' if selected else 'NO'}`\n"
+                f"**Default Storage:** `{_default_storage_label(configured_storage)}`\n"
+                f"**Main:** `{configured_storage.get('main') or 'not set'}`\n"
+                f"**Admin:** `{configured_storage.get('admin') or 'not set'}`"
+            ),
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True,
+        )
+        return
+
+    if action == "list":
+        await m.reply_text(
+            text=(
+                f"**Admin Storage Users:** `{len(admin_storage_users)}`\n"
+                f"`{_format_admin_storage_users(admin_storage_users, limit=50)}`"
             ),
             parse_mode=ParseMode.MARKDOWN,
             quote=True,
@@ -624,29 +686,55 @@ async def flogstorage_toggle(c: Client, m: Message):
         return
 
     if action == "main":
+        try:
+            target_user_id = _parse_storage_target(m.command[2] if len(m.command) > 2 else None, m.from_user.id)
+        except ValueError:
+            await m.reply_text("**User ID must be a number.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+            return
         if not configured_storage.get("main"):
             await m.reply_text("**FLOG_CHANNEL is not configured.**", parse_mode=ParseMode.MARKDOWN, quote=True)
             return
-        if await db.get_flog_storage_mode() == "main":
-            await m.reply_text("**ℹ️ FLOG storage is already MAIN.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+        if not await db.is_admin_flog_user(target_user_id):
+            await m.reply_text(
+                f"**ℹ️ User `{target_user_id}` already uses MAIN storage.**",
+                parse_mode=ParseMode.MARKDOWN,
+                quote=True,
+            )
             return
-        await db.update_flog_storage_mode("main")
-        await m.reply_text("**✅ FLOG storage switched to MAIN.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+        await db.set_admin_flog_user(target_user_id, False)
+        await m.reply_text(
+            f"**✅ User `{target_user_id}` now uses MAIN storage.**",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True,
+        )
         return
 
     if action == "admin":
+        try:
+            target_user_id = _parse_storage_target(m.command[2] if len(m.command) > 2 else None, m.from_user.id)
+        except ValueError:
+            await m.reply_text("**User ID must be a number.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+            return
         if not configured_storage.get("admin"):
             await m.reply_text("**ADMIN_FLOG_CHANNEL is not configured.**", parse_mode=ParseMode.MARKDOWN, quote=True)
             return
-        if await db.get_flog_storage_mode() == "admin":
-            await m.reply_text("**ℹ️ FLOG storage is already ADMIN.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+        if await db.is_admin_flog_user(target_user_id):
+            await m.reply_text(
+                f"**ℹ️ User `{target_user_id}` already uses ADMIN storage.**",
+                parse_mode=ParseMode.MARKDOWN,
+                quote=True,
+            )
             return
-        await db.update_flog_storage_mode("admin")
-        await m.reply_text("**✅ FLOG storage switched to ADMIN.**", parse_mode=ParseMode.MARKDOWN, quote=True)
+        await db.set_admin_flog_user(target_user_id, True)
+        await m.reply_text(
+            f"**✅ User `{target_user_id}` now uses ADMIN storage.**",
+            parse_mode=ParseMode.MARKDOWN,
+            quote=True,
+        )
         return
 
     await m.reply_text(
-        text="Usage: `/flogstorage main` or `/flogstorage admin`",
+        text="Usage: `/flogstorage <main|admin|status|list> [user_id]`",
         parse_mode=ParseMode.MARKDOWN,
         quote=True,
     )
