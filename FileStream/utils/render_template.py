@@ -1,10 +1,12 @@
 import os
 import re
 import json
+import time
 import mimetypes
 import jinja2
 import urllib.parse
 
+from FileStream import __version__
 from FileStream.config import Telegram, Server, WebAds
 from FileStream.bot import FileStream
 from FileStream.utils.database import Database
@@ -19,7 +21,7 @@ from FileStream.utils.public_links import (
     build_public_folder_url,
     build_public_stream_token_path,
 )
-from FileStream.utils.client_identity import build_start_link, get_bot_username
+from FileStream.utils.client_identity import build_add_to_group_link, build_start_link, get_bot_name, get_bot_username
 from FileStream.utils.legal import (
     build_policy_page_context,
     build_policy_url,
@@ -94,6 +96,13 @@ def _bot_join_url() -> str | None:
     if not username:
         return None
     return f"https://t.me/{username}"
+
+
+def _http_media_url(value: str | None) -> str | None:
+    raw = str(value or "").strip()
+    if raw.lower().startswith(("http://", "https://")):
+        return raw
+    return None
 
 
 async def _template_context(**kwargs):
@@ -324,6 +333,187 @@ async def render_policy_page(page: str) -> str:
 
     context = build_policy_page_context(page, bot_username=get_bot_username(FileStream))
     return template.render(**await _template_context(**context))
+
+
+async def render_landing_page() -> str:
+    template_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "template", "landing.html")
+    with open(template_file, "r", encoding="utf-8") as f:
+        template = env.from_string(f.read())
+
+    bot_username = get_bot_username(FileStream)
+    bot_name = get_bot_name(FileStream)
+    brand_name = bot_username or bot_name.replace(" ", "") or "QuickFileToLinkBot"
+    canonical_url = Server.URL
+    legal_url = build_policy_url("legal")
+    privacy_url = build_policy_url("privacy")
+    updates_channel_url = build_updates_channel_url()
+    bot_join_url = _bot_join_url()
+    add_to_group_url = build_add_to_group_link(FileStream)
+    preview_image_url = _http_media_url(Telegram.START_PIC)
+    lastmod = time.strftime("%Y-%m-%d")
+
+    title = f"{brand_name} | FileToLink Telegram File Streaming Bot"
+    description = (
+        f"{brand_name} turns Telegram files into instant watch and download links. "
+        "Use QuickFileToLinkBot for FileToLink sharing, folder pages, and secure TG-FileStreamBot style delivery."
+    )
+    keywords = [
+        brand_name,
+        "QuickFileToLinkBot",
+        "FileToLink",
+        "TG-FileStreamBot",
+        "FilestreamBot",
+        "Telegram file to link",
+        "Telegram file streaming bot",
+        "Telegram direct download link",
+        "Telegram folder share bot",
+    ]
+
+    faq_items = [
+        {
+            "question": "What is QuickFileToLinkBot?",
+            "answer": (
+                f"{brand_name} is a Telegram bot that turns uploaded files into public watch, download, and folder links."
+            ),
+        },
+        {
+            "question": "How does FileToLink work?",
+            "answer": (
+                "Send a file to the bot, let it create a public share page, then open the generated link to watch, download, or reopen the file in Telegram."
+            ),
+        },
+        {
+            "question": "Is this a TG-FileStreamBot or FilestreamBot style service?",
+            "answer": (
+                "Yes. The bot focuses on fast Telegram-powered streaming, secure public share pages, and folder-based sharing for multiple files."
+            ),
+        },
+        {
+            "question": "Can I share one clean link?",
+            "answer": (
+                "Yes. The bot is built around generated public share routes so users can share one clean page instead of raw internal stream URLs."
+            ),
+        },
+    ]
+
+    schema = {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "WebSite",
+                "name": title,
+                "url": canonical_url,
+                "description": description,
+            },
+            {
+                "@type": "SoftwareApplication",
+                "name": brand_name,
+                "alternateName": ["QuickFileToLinkBot", "FileToLink", "TG-FileStreamBot", "FilestreamBot"],
+                "applicationCategory": "ProductivityApplication",
+                "operatingSystem": "Telegram Web, Android, iOS, Desktop",
+                "description": description,
+                "url": canonical_url,
+                "softwareVersion": __version__,
+                "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+            },
+            {
+                "@type": "FAQPage",
+                "mainEntity": [
+                    {
+                        "@type": "Question",
+                        "name": item["question"],
+                        "acceptedAnswer": {"@type": "Answer", "text": item["answer"]},
+                    }
+                    for item in faq_items
+                ],
+            },
+        ],
+    }
+
+    features = [
+        {
+            "title": "One Clean Share Link",
+            "text": "Generate a single public page for each file instead of exposing raw stream endpoints.",
+        },
+        {
+            "title": "Watch, Download, Reopen",
+            "text": "Users can watch media in the browser, start downloads, or reopen the file inside Telegram.",
+        },
+        {
+            "title": "Folder Sharing",
+            "text": "Bundle multiple files into one folder page and share the whole set with one URL.",
+        },
+        {
+            "title": "Telegram-Powered Delivery",
+            "text": "The platform uses Telegram and optional FLOG storage, with secure page-bound access tokens on the web side.",
+        },
+    ]
+
+    steps = [
+        "Send or forward a file to the bot.",
+        "Receive a generated public share page instantly.",
+        "Share the link anywhere or open it again in Telegram.",
+    ]
+
+    return template.render(
+        **await _template_context(
+            page_title=title,
+            meta_description=description,
+            meta_keywords=", ".join(dict.fromkeys(keywords)),
+            canonical_url=canonical_url,
+            preview_image_url=preview_image_url,
+            schema_json=json.dumps(schema, ensure_ascii=False, separators=(",", ":")),
+            brand_name=brand_name,
+            bot_name=bot_name,
+            bot_username=bot_username,
+            bot_join_url=bot_join_url,
+            add_to_group_url=add_to_group_url,
+            updates_channel_url=updates_channel_url,
+            legal_url=legal_url,
+            privacy_url=privacy_url,
+            features=features,
+            steps=steps,
+            faq_items=faq_items,
+            search_aliases=["QuickFileToLinkBot", "FileToLink", "TG-FileStreamBot", "FilestreamBot"],
+            lastmod=lastmod,
+        )
+    )
+
+
+def render_robots_txt() -> str:
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /dl/",
+        "Disallow: /file/",
+        "Disallow: /stream/",
+        "Disallow: /get-download-token/",
+        "Disallow: /get-stream-token/",
+        "Disallow: /gen/",
+        "Disallow: /gfolder/",
+        "Disallow: /status",
+        f"Sitemap: {Server.URL}sitemap.xml",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def render_sitemap_xml() -> str:
+    today = time.strftime("%Y-%m-%d")
+    urls = (
+        Server.URL,
+        build_policy_url("legal"),
+        build_policy_url("privacy"),
+    )
+    items = "\n".join(
+        f"  <url><loc>{url}</loc><lastmod>{today}</lastmod><changefreq>weekly</changefreq><priority>{priority}</priority></url>"
+        for url, priority in zip(urls, ("1.0", "0.5", "0.5"))
+    )
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{items}\n"
+        "</urlset>\n"
+    )
 
 
 async def render_public_error_page(title: str, message: str) -> str:

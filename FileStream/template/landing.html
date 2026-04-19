@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>{{ page_title }}</title>
+    <meta name="description" content="{{ meta_description }}">
+    <meta name="keywords" content="{{ meta_keywords }}">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="{{ canonical_url }}">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ page_title }}">
+    <meta property="og:description" content="{{ meta_description }}">
+    <meta property="og:url" content="{{ canonical_url }}">
+    {% if preview_image_url %}
+    <meta property="og:image" content="{{ preview_image_url }}">
+    {% endif %}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ page_title }}">
+    <meta name="twitter:description" content="{{ meta_description }}">
+    {% if preview_image_url %}
+    <meta name="twitter:image" content="{{ preview_image_url }}">
+    {% endif %}
+    <script type="application/ld+json">{{ schema_json | safe }}</script>
+    <style>
+        :root {
+            --bg: #08111d;
+            --bg-2: #10213a;
+            --surface: rgba(14, 24, 40, 0.84);
+            --surface-strong: rgba(18, 30, 49, 0.96);
+            --text: #eff6ff;
+            --muted: #9bb0cb;
+            --border: rgba(255, 255, 255, 0.08);
+            --accent: #47d8ff;
+            --accent-2: #7affb0;
+            --accent-3: #ffd166;
+            --shadow: 0 28px 90px rgba(0, 0, 0, 0.34);
+            --radius-xl: 32px;
+            --radius-lg: 22px;
+            --radius-md: 16px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            color: var(--text);
+            font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+            background:
+                radial-gradient(90rem 55rem at 8% -10%, rgba(71, 216, 255, 0.18), transparent 45%),
+                radial-gradient(75rem 50rem at 100% 0%, rgba(122, 255, 176, 0.14), transparent 42%),
+                linear-gradient(180deg, var(--bg) 0%, #091421 45%, #060d16 100%);
+            min-height: 100vh;
+        }
+
+        a { color: inherit; text-decoration: none; }
+
+        .shell {
+            width: min(1180px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 22px 0 48px;
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 12px 0 18px;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .brand-mark {
+            width: 14px;
+            height: 14px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            box-shadow: 0 0 26px rgba(71, 216, 255, 0.58);
+        }
+
+        .nav-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .pill, .ghost-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 0 16px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .hero-card,
+        .panel {
+            border: 1px solid var(--border);
+            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .hero-card {
+            position: relative;
+            padding: 34px;
+        }
+
+        .hero-card::before {
+            content: "";
+            position: absolute;
+            inset: auto -10% 0 auto;
+            width: 280px;
+            height: 280px;
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(71,216,255,0.16), transparent 62%);
+            pointer-events: none;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(71, 216, 255, 0.08);
+            border: 1px solid rgba(71, 216, 255, 0.18);
+            color: #d8f8ff;
+            font-size: 0.92rem;
+            font-weight: 700;
+        }
+
+        .hero h1 {
+            margin: 18px 0 14px;
+            font-size: clamp(2.1rem, 5vw, 4.4rem);
+            line-height: 0.96;
+            letter-spacing: -0.04em;
+            max-width: 11ch;
+        }
+
+        .hero-copy {
+            color: var(--muted);
+            font-size: 1.03rem;
+            line-height: 1.75;
+            max-width: 60ch;
+        }
+
+        .hero-copy strong {
+            color: var(--text);
+        }
+
+        .search-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .search-tags span {
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .cta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 48px;
+            padding: 0 18px;
+            border-radius: 16px;
+            font-weight: 700;
+            border: 1px solid transparent;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, rgba(71,216,255,0.95), rgba(122,255,176,0.88));
+            color: #05111d;
+            box-shadow: 0 12px 38px rgba(71, 216, 255, 0.28);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.05);
+            border-color: var(--border);
+            color: var(--text);
+        }
+
+        .hero-side {
+            display: grid;
+            gap: 14px;
+            padding: 18px;
+        }
+
+        .signal {
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.04);
+            border-radius: var(--radius-lg);
+            padding: 18px;
+        }
+
+        .signal-label {
+            display: block;
+            color: var(--muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+        }
+
+        .signal strong {
+            display: block;
+            font-size: 1.05rem;
+            line-height: 1.45;
+        }
+
+        .signal p {
+            margin: 10px 0 0;
+            color: var(--muted);
+            line-height: 1.65;
+        }
+
+        .section-grid {
+            display: grid;
+            gap: 18px;
+            margin-top: 22px;
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .panel {
+            padding: 24px;
+        }
+
+        .panel h2 {
+            margin: 0 0 10px;
+            font-size: 1.5rem;
+            letter-spacing: -0.03em;
+        }
+
+        .panel-head p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.7;
+        }
+
+        .feature-card,
+        .step-card,
+        .faq-card {
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.04);
+            border-radius: var(--radius-lg);
+            padding: 18px;
+        }
+
+        .feature-card h3,
+        .faq-card h3 {
+            margin: 0 0 10px;
+            font-size: 1.02rem;
+        }
+
+        .feature-card p,
+        .faq-card p,
+        .step-card p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.65;
+        }
+
+        .step-index {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(255,209,102,0.24), rgba(71,216,255,0.2));
+            color: var(--text);
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+
+        .spotlight {
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+            gap: 18px;
+            margin-top: 22px;
+        }
+
+        .bullet-list {
+            display: grid;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .bullet {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            color: var(--muted);
+            line-height: 1.65;
+        }
+
+        .bullet-mark {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            margin-top: 9px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            box-shadow: 0 0 16px rgba(71, 216, 255, 0.36);
+            flex: 0 0 auto;
+        }
+
+        .cta-banner {
+            margin-top: 22px;
+            padding: 24px;
+            border-radius: var(--radius-xl);
+            border: 1px solid rgba(71,216,255,0.16);
+            background:
+                linear-gradient(135deg, rgba(71,216,255,0.12), transparent 55%),
+                linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+            box-shadow: var(--shadow);
+        }
+
+        .cta-banner p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.7;
+        }
+
+        .footer {
+            margin-top: 26px;
+            padding: 16px 0 6px;
+            color: var(--muted);
+            font-size: 0.94rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: space-between;
+        }
+
+        @media (max-width: 1024px) {
+            .hero,
+            .spotlight,
+            .grid-4,
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .shell {
+                width: min(100% - 20px, 100%);
+            }
+
+            .hero-card,
+            .panel,
+            .cta-banner {
+                padding: 20px;
+            }
+
+            .hero h1 {
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <header class="nav">
+        <div class="brand">
+            <span class="brand-mark"></span>
+            <span>{{ brand_name }}</span>
+        </div>
+        <div class="nav-actions">
+            <a class="pill" href="{{ legal_url }}">Legal</a>
+            <a class="pill" href="{{ privacy_url }}">Privacy</a>
+            {% if updates_channel_url %}
+            <a class="pill" href="{{ updates_channel_url }}">Updates</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <section class="hero">
+        <article class="hero-card">
+            <span class="eyebrow">Telegram File Sharing, Streamed Cleanly</span>
+            <h1>{{ brand_name }} turns files into share links.</h1>
+            <p class="hero-copy">
+                <strong>{{ brand_name }}</strong> is a <strong>FileToLink</strong> style Telegram bot for instant file sharing,
+                streaming, direct downloads, and folder pages. If users search for
+                <strong>QuickFileToLinkBot</strong>, <strong>TG-FileStreamBot</strong>, or <strong>FilestreamBot</strong>,
+                this is the official product page for the live service.
+            </p>
+
+            <div class="search-tags">
+                {% for alias in search_aliases %}
+                <span>{{ alias }}</span>
+                {% endfor %}
+            </div>
+
+            <div class="cta-row">
+                {% if bot_join_url %}
+                <a class="btn btn-primary" href="{{ bot_join_url }}">Open @{{ bot_username or brand_name }}</a>
+                {% endif %}
+                <a class="btn btn-secondary" href="{{ add_to_group_url }}">Add to Group</a>
+                <a class="btn btn-secondary" href="{{ privacy_url }}">Privacy & Terms</a>
+            </div>
+        </article>
+
+        <aside class="hero-side hero-card">
+            <div class="signal">
+                <span class="signal-label">What it does</span>
+                <strong>Generate one clean page for each file, with watch, download, and Telegram reopen actions.</strong>
+                <p>No raw stream links in normal bot replies. Files, folders, and link controls stay organized around generated public routes.</p>
+            </div>
+            <div class="signal">
+                <span class="signal-label">Why users like it</span>
+                <strong>Fast Telegram-powered delivery with folder sharing, protected web actions, and performance tuning for repeat downloads.</strong>
+                <p>Designed for creators, channels, communities, and admins who want a clean public file page instead of messy raw URLs.</p>
+            </div>
+        </aside>
+    </section>
+
+    <section class="section-grid">
+        <div class="panel panel-head">
+            <h2>Built to be a better Telegram FileToLink experience</h2>
+            <p>The landing page is intentionally focused on product discovery, while file pages stay focused on watching and downloading. That keeps search engines on the brand page and keeps end users on a clean, high-intent path.</p>
+        </div>
+
+        <div class="section-grid grid-4">
+            {% for feature in features %}
+            <article class="feature-card">
+                <h3>{{ feature.title }}</h3>
+                <p>{{ feature.text }}</p>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="section-grid">
+        <div class="panel panel-head">
+            <h2>How {{ brand_name }} works</h2>
+            <p>From upload to public page in three simple actions.</p>
+        </div>
+        <div class="section-grid grid-2">
+            {% for step in steps %}
+            <article class="step-card">
+                <span class="step-index">0{{ loop.index }}</span>
+                <p>{{ step }}</p>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="spotlight">
+        <article class="panel">
+            <h2>Why this page helps ranking</h2>
+            <div class="bullet-list">
+                <div class="bullet"><span class="bullet-mark"></span><span>The root domain now has a real indexable product page instead of only utility routes.</span></div>
+                <div class="bullet"><span class="bullet-mark"></span><span>Search-focused copy clearly targets QuickFileToLinkBot, FileToLink, TG-FileStreamBot, and FilestreamBot without turning the page into keyword spam.</span></div>
+                <div class="bullet"><span class="bullet-mark"></span><span>Dynamic share pages can stay for users while search engines focus on the main landing page, legal page, and privacy page.</span></div>
+                <div class="bullet"><span class="bullet-mark"></span><span>Structured data, sitemap, robots, canonical, and social previews give crawlers and link previews stronger signals.</span></div>
+            </div>
+        </article>
+
+        <aside class="panel">
+            <h2>Useful links</h2>
+            <div class="bullet-list">
+                {% if bot_join_url %}
+                <div class="bullet"><span class="bullet-mark"></span><span><a href="{{ bot_join_url }}">Open the Telegram bot</a></span></div>
+                {% endif %}
+                <div class="bullet"><span class="bullet-mark"></span><span><a href="{{ add_to_group_url }}">Add the bot to a group</a></span></div>
+                <div class="bullet"><span class="bullet-mark"></span><span><a href="{{ legal_url }}">Read the legal page</a></span></div>
+                <div class="bullet"><span class="bullet-mark"></span><span><a href="{{ privacy_url }}">Read the privacy page</a></span></div>
+                {% if updates_channel_url %}
+                <div class="bullet"><span class="bullet-mark"></span><span><a href="{{ updates_channel_url }}">Join the updates channel</a></span></div>
+                {% endif %}
+            </div>
+        </aside>
+    </section>
+
+    <section class="section-grid">
+        <div class="panel panel-head">
+            <h2>Quick FAQ</h2>
+            <p>Answers for users searching for the product or comparing Telegram file bots.</p>
+        </div>
+        <div class="section-grid grid-2">
+            {% for item in faq_items %}
+            <article class="faq-card">
+                <h3>{{ item.question }}</h3>
+                <p>{{ item.answer }}</p>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="cta-banner">
+        <div class="cta-row" style="margin-top:0; margin-bottom:14px;">
+            {% if bot_join_url %}
+            <a class="btn btn-primary" href="{{ bot_join_url }}">Start Using {{ brand_name }}</a>
+            {% endif %}
+            <a class="btn btn-secondary" href="{{ add_to_group_url }}">Add to Group</a>
+        </div>
+        <p>
+            {{ brand_name }} is built for people who want Telegram files to become clean public pages with streaming, downloads, and folder sharing. If your users search for QuickFileToLinkBot, FileToLink, TG-FileStreamBot, or FilestreamBot, this is the page you want them to find first.
+        </p>
+    </section>
+
+    <footer class="footer">
+        <span>Updated {{ lastmod }}</span>
+        <span>Official product page for {{ brand_name }}</span>
+    </footer>
+</div>
+</body>
+</html>
