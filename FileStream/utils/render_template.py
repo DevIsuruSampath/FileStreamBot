@@ -21,7 +21,7 @@ from FileStream.utils.public_links import (
     build_public_folder_url,
     build_public_stream_token_path,
 )
-from FileStream.utils.client_identity import build_add_to_group_link, build_start_link, get_bot_name, get_bot_username
+from FileStream.utils.client_identity import build_start_link, get_bot_name, get_bot_username
 from FileStream.utils.legal import (
     build_policy_page_context,
     build_policy_url,
@@ -348,7 +348,6 @@ async def render_landing_page() -> str:
     privacy_url = build_policy_url("privacy")
     updates_channel_url = build_updates_channel_url()
     bot_join_url = _bot_join_url()
-    add_to_group_url = build_add_to_group_link(FileStream)
     preview_image_url = _http_media_url(Telegram.START_PIC)
     lastmod = time.strftime("%Y-%m-%d")
 
@@ -467,7 +466,6 @@ async def render_landing_page() -> str:
             bot_name=bot_name,
             bot_username=bot_username,
             bot_join_url=bot_join_url,
-            add_to_group_url=add_to_group_url,
             updates_channel_url=updates_channel_url,
             legal_url=legal_url,
             privacy_url=privacy_url,

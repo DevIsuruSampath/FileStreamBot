@@ -5,6 +5,13 @@ from FileStream.utils.client_identity import get_bot_username
 
 
 POLICY_LAST_UPDATED = "2026-04-19"
+_UPDATES_CHANNEL_PLACEHOLDERS = {
+    "",
+    "telegram",
+    "your_updates_channel_username",
+    "your updates channel username",
+    "updates_channel_username",
+}
 
 
 def build_policy_url(page: str = "legal") -> str:
@@ -14,6 +21,8 @@ def build_policy_url(page: str = "legal") -> str:
 
 def build_updates_channel_url() -> str | None:
     channel = str(Telegram.UPDATES_CHANNEL or "").lstrip("@").strip()
+    if channel.lower() in _UPDATES_CHANNEL_PLACEHOLDERS:
+        return None
     if channel and not channel.lstrip("-").isdigit():
         return f"https://t.me/{channel}"
     return None

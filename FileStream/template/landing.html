@@ -410,9 +410,6 @@
         <div class="nav-actions">
             <a class="pill" href="{{ legal_url }}">Legal</a>
             <a class="pill" href="{{ privacy_url }}">Privacy</a>
-            {% if updates_channel_url %}
-            <a class="pill" href="{{ updates_channel_url }}">Updates</a>
-            {% endif %}
         </div>
     </header>
 
@@ -437,8 +434,8 @@
                 {% if bot_join_url %}
                 <a class="btn btn-primary" href="{{ bot_join_url }}">Open @{{ bot_username or brand_name }}</a>
                 {% endif %}
-                <a class="btn btn-secondary" href="{{ add_to_group_url }}">Add to Group</a>
-                <a class="btn btn-secondary" href="{{ privacy_url }}">Privacy & Terms</a>
+                <a class="btn btn-secondary" href="{{ privacy_url }}">Privacy</a>
+                <a class="btn btn-secondary" href="{{ legal_url }}">Legal</a>
             </div>
         </article>
 
@@ -507,9 +504,6 @@
                 <div class="bullet"><span class="bullet-mark"></span><span><a href="{{ add_to_group_url }}">Add the bot to a group</a></span></div>
                 <div class="bullet"><span class="bullet-mark"></span><span><a href="{{ legal_url }}">Read the legal page</a></span></div>
                 <div class="bullet"><span class="bullet-mark"></span><span><a href="{{ privacy_url }}">Read the privacy page</a></span></div>
-                {% if updates_channel_url %}
-                <div class="bullet"><span class="bullet-mark"></span><span><a href="{{ updates_channel_url }}">Join the updates channel</a></span></div>
-                {% endif %}
             </div>
         </aside>
     </section>
@@ -534,7 +528,8 @@
             {% if bot_join_url %}
             <a class="btn btn-primary" href="{{ bot_join_url }}">Start Using {{ brand_name }}</a>
             {% endif %}
-            <a class="btn btn-secondary" href="{{ add_to_group_url }}">Add to Group</a>
+            <a class="btn btn-secondary" href="{{ legal_url }}">Legal</a>
+            <a class="btn btn-secondary" href="{{ privacy_url }}">Privacy</a>
         </div>
         <p>
             {{ brand_name }} is built for people who want Telegram files to become clean public pages with streaming, downloads, and folder sharing. If your users search for QuickFileToLinkBot, FileToLink, TG-FileStreamBot, or FilestreamBot, this is the page you want them to find first.
