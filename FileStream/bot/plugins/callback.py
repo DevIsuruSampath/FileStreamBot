@@ -15,6 +15,7 @@ from FileStream.server.exceptions import FileNotFound
 from FileStream.utils.client_identity import get_bot_name, get_bot_username
 from FileStream.bot.plugins.donation import open_donation_menu
 from FileStream.utils.legal import build_bot_legal_text
+from FileStream.utils.public_links import build_telegram_share_link
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.file_id import FileId, FileType, PHOTO_TYPES
@@ -243,11 +244,12 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     is_streamable = file_type in ("Video", "Audio") or ext in video_ext or ext in audio_ext
 
     _, _, public_url = await get_public_file_context(myfile_info)
+    share_link = build_telegram_share_link(public_url, text=myfile_info.get("file_name") or "file")
 
     MYFILES_BUTTONS = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("Open", url=public_url)],
-            [InlineKeyboardButton("📤 Forward", url=public_url), InlineKeyboardButton("Open in Bot", url=public_url)],
+            [InlineKeyboardButton("📤 Forward", url=share_link), InlineKeyboardButton("Open in Bot", url=public_url)],
             [InlineKeyboardButton("📥 Get File", callback_data=f"sendfile_{myfile_info['_id']}"),
              InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelete_{myfile_info['_id']}_{file_list_no}")],
             [InlineKeyboardButton("⬅️ Back", callback_data="userfiles_{}".format(file_list_no))]

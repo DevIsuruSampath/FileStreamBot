@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import urllib.parse
+
 from pyrogram import Client
 
 from FileStream.config import Server
@@ -28,3 +30,10 @@ def build_public_stream_token_path(public_id: str) -> str:
 
 def build_public_bot_open_link(public_id: str, bot: Client | None = None) -> str:
     return build_start_link(f"open_{str(public_id or '').strip()}", bot)
+
+
+def build_telegram_share_link(url: str, text: str = "") -> str:
+    params = {"url": str(url or "").strip()}
+    if str(text or "").strip():
+        params["text"] = str(text or "").strip()
+    return "https://t.me/share/url?" + urllib.parse.urlencode(params)

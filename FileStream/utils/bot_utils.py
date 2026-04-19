@@ -16,7 +16,7 @@ from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.category import detect_category
 from FileStream.config import Telegram, Server
 from FileStream.bot import FileStream
-from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
+from FileStream.utils.public_links import build_public_file_url, build_public_folder_url, build_telegram_share_link
 from FileStream.utils.flog_sync import reconcile_flog_storage
 from FileStream.utils.client_identity import get_bot_username
 
@@ -339,6 +339,7 @@ async def gen_link(_id, bot=None):
     safe_public_url = html.escape(public_url)
     bot_username = get_bot_username(bot)
     safe_bot_username = html.escape(bot_username or "FileStreamBot")
+    share_link = build_telegram_share_link(public_url, text=file_name)
     expires_at = link_doc.get("expires_at")
     if expires_at is not None:
         expires_text = datetime.datetime.utcfromtimestamp(float(expires_at)).strftime("%Y-%m-%d %H:%M UTC")
@@ -361,7 +362,7 @@ async def gen_link(_id, bot=None):
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("Open", url=public_url)],
-                [InlineKeyboardButton("📤 Forward", url=public_url), InlineKeyboardButton("Open in Bot", url=public_url)],
+                [InlineKeyboardButton("📤 Forward", url=share_link), InlineKeyboardButton("Open in Bot", url=public_url)],
                 [InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelpvt_{_id}")],
                 [InlineKeyboardButton("❌ Close", callback_data="close")]
             ]
@@ -378,7 +379,7 @@ async def gen_link(_id, bot=None):
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("Open", url=public_url)],
-                [InlineKeyboardButton("📤 Forward", url=public_url), InlineKeyboardButton("Open in Bot", url=public_url)],
+                [InlineKeyboardButton("📤 Forward", url=share_link), InlineKeyboardButton("Open in Bot", url=public_url)],
                 [InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelpvt_{_id}")],
                 [InlineKeyboardButton("❌ Close", callback_data="close")]
             ]
