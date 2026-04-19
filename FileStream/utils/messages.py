@@ -3,28 +3,33 @@ from FileStream.config import Telegram
 class LANG(object):
 
     START_TEXT = """
-<b>Hello {}!</b>
+<b>Hi {} 👋</b>
 
-Send me any file and I'll create a share link for it.
+Send me any file and I’ll turn it into a clean share link in seconds.
 
-<b>You can use me for:</b>
-• Streaming video and audio
-• Direct file downloads
-• Folder sharing
+<b>What you get 🚀</b>
+• ⚡ Fast direct download
+• 🔗 Clean public link
+• 📁 Folder sharing
 
-Type <code>/help</code> if you need the command list.
+<b>How to use me 📌</b>
+1️⃣ Send or forward a file
+2️⃣ I create the link
+3️⃣ Share it anywhere
 
-@{}
+Need help? Use <code>/help</code>
+
+🤖 @{}
 """
 
     HELP_TEXT = """
-<b>Help</b>
+<b>❓ Help</b>
 
-Send or forward a file to get a public link instantly.
+Send or forward a file and I’ll create a public link for it.
 
-<b>Commands</b>
-• <code>/start</code> — Start the bot
-• <code>/about</code> — About this bot
+<b>Commands 🧭</b>
+• <code>/start</code> — Start
+• <code>/about</code> — About
 • <code>/legal</code> — Privacy and terms
 • <code>/files</code> — Your files
 • <code>/folders</code> — Your folders
@@ -34,22 +39,24 @@ Send or forward a file to get a public link instantly.
 • <code>/donation</code> — Support the bot
 • <code>/id</code> — Show your Telegram ID
 
-<b>Note</b>
+<b>Tips ✨</b>
 • Forward channel files directly to me
+• Use the generated page for fast direct download
 • Adult/NSFW content is not allowed
 
-<a href='tg://user?id={}'>Contact admin</a>
+💬 <a href='tg://user?id={}'>Contact admin</a>
 """
 
     ABOUT_TEXT = """
-<b>{}</b>
+<b>ℹ️ {}</b>
 
-A simple Telegram bot for turning files into share links.
+A Telegram bot for turning files into clean public links.
 
-<b>Features</b>
-• Streaming
-• Direct downloads
-• Folder sharing
+<b>What I offer 🚀</b>
+• ⚡ Fast direct download
+• 🔗 Clean share links
+• 📁 Folder sharing
+• 🤖 Open again in Telegram
 
 <b>Version:</b> <code>{}</code>
 """
@@ -66,7 +73,7 @@ A simple Telegram bot for turning files into share links.
 <b>🔗 Public Link:</b>
 <code>{}</code>
 
-<i>Open this page to watch, download, or reopen the file in Telegram.</i>
+<i>Open this page for the player, fast direct download, or reopen the file in Telegram.</i>
 """
 
     STREAM_TEXT_X = """
@@ -81,7 +88,7 @@ A simple Telegram bot for turning files into share links.
 <b>🔗 Public Link:</b>
 <code>{}</code>
 
-<i>Open this page to download or reopen the file in Telegram.</i>
+<i>Open this page for fast direct download or reopen the file in Telegram.</i>
 """
 
     BAN_TEXT = "<b>🚫️ Access Restricted</b>\n\n<i>Your account has been restricted from using this bot.</i>\n\n<b>❓ Think this is a mistake?</b>\n<a href='tg://user?id={}'>Contact Admin 💬</a>"
