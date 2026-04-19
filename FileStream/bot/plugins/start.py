@@ -10,6 +10,7 @@ from FileStream.utils.database import Database
 from FileStream.utils.translation import LANG, BUTTON
 from FileStream.utils.client_identity import get_bot_name, get_bot_username
 from FileStream.utils.file_properties import ensure_flog_media_exists
+from FileStream.utils.legal import build_bot_legal_text
 from pyrogram import filters, Client
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from pyrogram.enums.parse_mode import ParseMode
@@ -143,6 +144,20 @@ async def help_handler(bot, message):
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
         reply_markup=BUTTON.help_buttons(bot),
+    )
+
+
+@FileStream.on_message(filters.command(["legal", "privacy"]) & filters.private)
+async def legal_handler(bot, message):
+    if not await verify_user(bot, message):
+        return
+    await reply_with_optional_photo(
+        message,
+        Telegram.START_PIC,
+        build_bot_legal_text(bot),
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+        reply_markup=BUTTON.legal_buttons(bot),
     )
 
 # ---------------------------------------------------------------------------------------------------

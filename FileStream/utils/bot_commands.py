@@ -11,6 +11,7 @@ PUBLIC_COMMANDS = [
     BotCommand("start", "Start the bot"),
     BotCommand("help", "Show help"),
     BotCommand("about", "About this bot"),
+    BotCommand("legal", "Privacy and terms"),
     BotCommand("files", "Browse your files"),
     BotCommand("folders", "Browse your folders"),
     BotCommand("donation", "Support the bot with Stars"),

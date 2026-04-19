@@ -27,6 +27,7 @@ from FileStream.utils.render_template import (
     render_public_page,
     render_public_folder,
     render_public_error_page,
+    render_policy_page,
 )
 from FileStream.utils.client_identity import get_bot_username
 
@@ -110,6 +111,16 @@ async def root_route_handler(_):
             "version": __version__,
         }
     )
+
+@routes.get("/legal", allow_head=True)
+async def legal_page_handler(_request: web.Request):
+    return web.Response(text=await render_policy_page("legal"), content_type="text/html")
+
+
+@routes.get("/privacy", allow_head=True)
+async def privacy_page_handler(_request: web.Request):
+    return web.Response(text=await render_policy_page("privacy"), content_type="text/html")
+
 
 @routes.get("/watch/{path}", allow_head=True)
 async def watch_handler(request: web.Request):

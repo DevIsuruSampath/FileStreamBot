@@ -20,6 +20,11 @@ from FileStream.utils.public_links import (
     build_public_stream_token_path,
 )
 from FileStream.utils.client_identity import build_start_link, get_bot_username
+from FileStream.utils.legal import (
+    build_policy_page_context,
+    build_policy_url,
+    build_updates_channel_url,
+)
 from FileStream.server.exceptions import FileNotFound
 
 
@@ -99,6 +104,9 @@ async def _template_context(**kwargs):
         "ad_config": WebAds.template_context(enabled_override=web_ads_enabled),
         "bot_username": bot_username,
         "bot_join_url": _bot_join_url(),
+        "legal_url": build_policy_url("legal"),
+        "privacy_url": build_policy_url("privacy"),
+        "updates_channel_url": build_updates_channel_url(),
     }
 
 
@@ -307,6 +315,15 @@ async def render_public_folder(public_id: str, title: str = "Folder", *, session
         public_link=public_link,
         session_id=session_id,
     )
+
+
+async def render_policy_page(page: str) -> str:
+    template_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "template", "legal.html")
+    with open(template_file, "r", encoding="utf-8") as f:
+        template = env.from_string(f.read())
+
+    context = build_policy_page_context(page, bot_username=get_bot_username(FileStream))
+    return template.render(**await _template_context(**context))
 
 
 async def render_public_error_page(title: str, message: str) -> str:

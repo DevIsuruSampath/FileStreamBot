@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>{{ page_title }} - FileStream</title>
+    <style>
+        :root {
+            --bg: #0d1624;
+            --card: #142133;
+            --card-soft: #19283d;
+            --text: #eef4ff;
+            --muted: #9db0cd;
+            --line: rgba(255, 255, 255, 0.08);
+            --accent: #5cc8ff;
+            --accent-2: #7bf1a8;
+            --shadow: 0 30px 80px rgba(0, 0, 0, 0.34);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(92, 200, 255, 0.16), transparent 35%),
+                radial-gradient(circle at top right, rgba(123, 241, 168, 0.12), transparent 28%),
+                linear-gradient(180deg, #0b1320 0%, var(--bg) 100%);
+            color: var(--text);
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover { text-decoration: underline; }
+
+        .shell {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 28px 18px 48px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 22px;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .brand-dot {
+            width: 11px;
+            height: 11px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            box-shadow: 0 0 20px rgba(92, 200, 255, 0.6);
+        }
+
+        .link-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--line);
+            color: var(--text);
+        }
+
+        .hero {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025));
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            box-shadow: var(--shadow);
+            padding: 26px;
+            margin-bottom: 20px;
+        }
+
+        .hero h1 {
+            margin: 0 0 10px;
+            font-size: clamp(1.8rem, 4vw, 3rem);
+            line-height: 1.05;
+        }
+
+        .hero p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 1rem;
+            max-width: 760px;
+        }
+
+        .meta {
+            margin-top: 18px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .meta-tag {
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 0.94rem;
+        }
+
+        .nav {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 18px 0 24px;
+        }
+
+        .nav a {
+            padding: 11px 15px;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.035);
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .nav a.active {
+            background: linear-gradient(135deg, rgba(92, 200, 255, 0.22), rgba(123, 241, 168, 0.16));
+            border-color: rgba(92, 200, 255, 0.4);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.9fr) minmax(260px, 0.9fr);
+            gap: 20px;
+        }
+
+        .panel {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            padding: 22px;
+        }
+
+        .section + .section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--line);
+        }
+
+        .section h2 {
+            margin: 0 0 10px;
+            font-size: 1.2rem;
+        }
+
+        .section p {
+            margin: 0 0 10px;
+            color: var(--muted);
+            line-height: 1.65;
+        }
+
+        .section ul {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--muted);
+        }
+
+        .section li + li {
+            margin-top: 7px;
+        }
+
+        .side-card + .side-card {
+            margin-top: 14px;
+        }
+
+        .side-title {
+            margin: 0 0 10px;
+            font-size: 0.94rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--accent);
+        }
+
+        .side-card p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .side-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .side-actions a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 11px 14px;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .side-actions a.primary {
+            background: linear-gradient(135deg, rgba(92, 200, 255, 0.28), rgba(123, 241, 168, 0.2));
+            border-color: rgba(92, 200, 255, 0.35);
+        }
+
+        .footnote {
+            margin-top: 22px;
+            color: var(--muted);
+            font-size: 0.92rem;
+            text-align: center;
+        }
+
+        @media (max-width: 860px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <div class="topbar">
+        <div class="brand">
+            <span class="brand-dot"></span>
+            <span>FileStream Policy Center</span>
+        </div>
+        <div class="link-row">
+            {% if bot_join_url %}
+            <a class="chip" href="{{ bot_join_url }}">🤖 Join @{{ bot_username }}</a>
+            {% endif %}
+            {% if updates_channel_url %}
+            <a class="chip" href="{{ updates_channel_url }}">📢 {{ updates_channel_name }}</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <section class="hero">
+        <h1>{{ page_title }}</h1>
+        <p>{{ page_subtitle }}</p>
+        <div class="meta">
+            <span class="meta-tag">Last updated: {{ last_updated }}</span>
+            <span class="meta-tag">Applies to the bot and public share pages</span>
+        </div>
+    </section>
+
+    <nav class="nav">
+        <a href="{{ legal_url }}" class="{% if selected_page == 'legal' %}active{% endif %}">⚖️ Legal & Terms</a>
+        <a href="{{ privacy_url }}" class="{% if selected_page == 'privacy' %}active{% endif %}">🔒 Privacy Policy</a>
+    </nav>
+
+    <div class="grid">
+        <section class="panel">
+            {% for section in sections %}
+            <article class="section" id="{{ section.id }}">
+                <h2>{{ section.title }}</h2>
+                {% for paragraph in section.paragraphs %}
+                <p>{{ paragraph }}</p>
+                {% endfor %}
+                {% if section.bullets %}
+                <ul>
+                    {% for bullet in section.bullets %}
+                    <li>{{ bullet }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </section>
+
+        <aside class="panel">
+            <div class="side-card">
+                <p class="side-title">Quick Summary</p>
+                <p>This bot turns Telegram uploads into shareable streaming and download pages. To do that, it stores link metadata, Telegram identifiers, moderation records, and short-lived web access tokens.</p>
+            </div>
+
+            <div class="side-card">
+                <p class="side-title">Important Rules</p>
+                <p>Do not upload illegal, infringing, or adult content. Links may stop working if the backing Telegram/FLOG file is removed, revoked, or expired.</p>
+            </div>
+
+            <div class="side-card">
+                <p class="side-title">Need Help?</p>
+                <p>Use the bot for the latest commands, or contact the admin inside Telegram if you need moderation or privacy support.</p>
+                <div class="side-actions">
+                    {% if bot_join_url %}
+                    <a class="primary" href="{{ bot_join_url }}">Open the Bot</a>
+                    {% endif %}
+                    <a href="{{ privacy_url }}">Open Privacy Policy</a>
+                    <a href="{{ legal_url }}">Open Legal & Terms</a>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <p class="footnote">These pages summarize how FileStreamBot currently works in this codebase. If the bot configuration changes, the policy text should be updated too.</p>
+</div>
+</body>
+</html>

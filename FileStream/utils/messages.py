@@ -36,6 +36,7 @@ Links stay active as long as the original file exists. Adult content isn't allow
 • <code>/start</code> — Welcome screen 👋
 • <code>/help</code> — You're here! 📖
 • <code>/about</code> — About this bot ℹ️
+• <code>/legal</code> — Privacy & terms ⚖️
 • <code>/files</code> — Browse your uploads 📂
 • <code>/folders</code> — Manage your folders 📁
 • <code>/donation</code> — Support the bot with Stars ⭐
