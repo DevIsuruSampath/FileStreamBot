@@ -3,80 +3,55 @@ from FileStream.config import Telegram
 class LANG(object):
 
     START_TEXT = """
-<b>Hey {}! 👋</b>
+<b>Hello {}!</b>
 
-<i>I'm here to make sharing files effortless. ⚡️</i>
+Send me any file and I'll create a share link for it.
 
-<b>✨ Just send me any file and I'll give you:</b>
-• 🎬 A streaming link — watch instantly
-• ⬇️ A download link — save anywhere
-• 📁 A folder link — share multiple files at once
+<b>You can use me for:</b>
+• Streaming video and audio
+• Direct file downloads
+• Folder sharing
 
-<b>💡 Pro tip:</b> Forward messages from channels directly to me!
+Type <code>/help</code> if you need the command list.
 
-<b>⚡️ It takes 3 seconds:</b>
-1️⃣ Send a file
-2️⃣ Tap the buttons I send back
-3️⃣ Share your link anywhere
-
-<b>🛡️ A quick note:</b>
-Links stay active as long as the original file exists. Adult content isn't allowed here — let's keep it clean. ✨
-
-<b>❓ Need help?</b> Tap the button below or type <code>/help</code>
-
-<i>Made with ❤️ by</i> @{}
+@{}
 """
 
     HELP_TEXT = """
-<b>📚 How it works</b>
+<b>Help</b>
 
-<i>Think of me as your personal file transformer — send anything, get shareable links instantly. ⚡️</i>
+Send or forward a file to get a public link instantly.
 
-<b>🎯 For Users:</b>
-• <code>/start</code> — Welcome screen 👋
-• <code>/help</code> — You're here! 📖
-• <code>/about</code> — About this bot ℹ️
-• <code>/legal</code> — Privacy & terms ⚖️
-• <code>/files</code> — Browse your uploads 📂
-• <code>/folders</code> — Manage your folders 📁
-• <code>/donation</code> — Support the bot with Stars ⭐
-• <code>/folder</code> — Start folder mode 📦
-• <code>/done</code> — Finish folder mode ✅
-• <code>/cancel</code> — Cancel folder mode ❌
-• <code>/id</code> — Show your Telegram ID 🆔
+<b>Commands</b>
+• <code>/start</code> — Start the bot
+• <code>/about</code> — About this bot
+• <code>/legal</code> — Privacy and terms
+• <code>/files</code> — Your files
+• <code>/folders</code> — Your folders
+• <code>/folder</code> — Start folder mode
+• <code>/done</code> — Finish folder mode
+• <code>/cancel</code> — Cancel folder mode
+• <code>/donation</code> — Support the bot
+• <code>/id</code> — Show your Telegram ID
 
-<b>🔥 Power Moves:</b>
-• Send or forward files — get a share link instantly 🔗
-• Forward from channels — instant processing ⚡️
+<b>Note</b>
+• Forward channel files directly to me
+• Adult/NSFW content is not allowed
 
-<b>🛠️ Admins:</b>
-• <code>/admin</code> — Show admin commands 🔐
-
-<b>🚫️ What's not allowed:</b>
-Adult/NSFW content is strictly prohibited. Let's keep this space safe for everyone. ✨
-
-<b>❓ Questions?</b>
-<a href='tg://user?id={}'>Message the admin</a> — happy to help! 💬
+<a href='tg://user?id={}'>Contact admin</a>
 """
 
     ABOUT_TEXT = """
-<b>🤖 Meet {}</b>
+<b>{}</b>
 
-<i>Fast, reliable, and built for creators like you. ⚡️</i>
+A simple Telegram bot for turning files into share links.
 
-<b>📦 What I do:</b>
-Transform Telegram files into streaming + download links — no waiting, no compression, no hassle.
+<b>Features</b>
+• Streaming
+• Direct downloads
+• Folder sharing
 
-<b>✨ Features:</b>
-• Instant streaming (video & audio) 🎬
-• Direct downloads ⬇️
-• Folder sharing 📁
-• Resume playback support ▶️
-• NSFW protection & reporting 🛡️
-
-<b>⚙️ Version:</b> <code>{}</code>
-
-<i>Built with ❤️ for the Telegram community</i>
+<b>Version:</b> <code>{}</code>
 """
 
     STREAM_TEXT = """
