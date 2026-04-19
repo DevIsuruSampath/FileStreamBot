@@ -6,7 +6,7 @@ from FileStream import __version__
 from FileStream.bot import FileStream
 from FileStream.config import Telegram, Server
 from FileStream.utils.translation import LANG, BUTTON
-from FileStream.utils.bot_utils import gen_link, gen_file_list_button, get_public_file_context
+from FileStream.utils.bot_utils import gen_link, gen_file_list_button, get_public_file_context, handle_force_sub_retry
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.file_cleanup import delete_file_entry
@@ -41,7 +41,7 @@ def _is_owner(file_info: dict, user_id: int) -> bool:
 
 #---------------------[ START CMD ]---------------------#
 @FileStream.on_callback_query(
-    filters.regex(r"^(home|help|about|support|N/A|close|msgdelete_|msgdelyes_|msgdelpvt_|msgdelpvtyes_|mainstream_|userfiles_|myfile_|sendfile_)")
+    filters.regex(r"^(home|help|about|support|forcesub_retry|N/A|close|msgdelete_|msgdelyes_|msgdelpvt_|msgdelpvtyes_|mainstream_|userfiles_|myfile_|sendfile_)")
 )
 async def cb_data(bot, update: CallbackQuery):
     try:
@@ -64,6 +64,8 @@ async def cb_data(bot, update: CallbackQuery):
             reply_markup=BUTTON.start_buttons(bot),
             parse_mode=ParseMode.HTML
         )
+    elif usr_cmd[0] == "forcesub" and len(usr_cmd) > 1 and usr_cmd[1] == "retry":
+        await handle_force_sub_retry(bot, update)
     elif usr_cmd[0] == "help":
         await edit_message(
             update,

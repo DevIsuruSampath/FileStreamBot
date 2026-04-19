@@ -4,6 +4,7 @@ import math
 import html
 import logging
 import os
+import time
 from typing import Union
 from pyrogram.errors import UserNotParticipant, FloodWait
 from pyrogram.enums.parse_mode import ParseMode
@@ -20,6 +21,8 @@ from FileStream.utils.flog_sync import reconcile_flog_storage
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 FILE_LIST_PAGE_SIZE = 10
+_FORCE_SUB_PROMPTS: dict[int, dict[str, object]] = {}
+FORCE_SUB_PROMPT_TTL = 600
 
 
 def resolve_media_source(value: str | None) -> str | None:
@@ -101,67 +104,219 @@ async def get_invite_link(bot, chat_id: Union[str, int]):
             print(f"Failed to create invite link: {e}")
             return None
 
+
+def _resolve_force_sub_chat() -> Union[str, int, None]:
+    if Telegram.FORCE_SUB_ID:
+        fsid = str(Telegram.FORCE_SUB_ID).lstrip("@").strip()
+        if fsid.startswith("-100") and fsid.lstrip("-").isdigit():
+            return int(fsid)
+        if fsid.lstrip("-").isdigit():
+            return int(fsid)
+        if fsid:
+            return fsid
+
+    channel = str(Telegram.UPDATES_CHANNEL or "").lstrip("@").strip()
+    return channel or None
+
+
+async def _build_force_sub_join_url(bot, channel_chat_id: Union[str, int, None]) -> str | None:
+    if not channel_chat_id:
+        return None
+
+    invite_link = await get_invite_link(bot, chat_id=channel_chat_id)
+    if invite_link and getattr(invite_link, "invite_link", None):
+        return invite_link.invite_link
+
+    if isinstance(channel_chat_id, str) and channel_chat_id and not channel_chat_id.lstrip("-").isdigit():
+        return f"https://t.me/{channel_chat_id.lstrip('@')}"
+
+    channel = str(Telegram.UPDATES_CHANNEL or "").lstrip("@").strip()
+    if channel and not channel.lstrip("-").isdigit():
+        return f"https://t.me/{channel}"
+
+    return None
+
+
+def _force_sub_markup(join_url: str | None):
+    rows = []
+    if join_url:
+        rows.append([InlineKeyboardButton("🔔 Join Our Channel", url=join_url)])
+    rows.append([
+        InlineKeyboardButton("✅ Try Again", callback_data="forcesub_retry"),
+        InlineKeyboardButton("❌ Close", callback_data="close"),
+    ])
+    return InlineKeyboardMarkup(rows)
+
+
+def _get_force_sub_prompt(user_id: int) -> dict[str, object] | None:
+    prompt = _FORCE_SUB_PROMPTS.get(int(user_id))
+    if not prompt:
+        return None
+    if float(prompt.get("expires_at", 0)) <= time.time():
+        _FORCE_SUB_PROMPTS.pop(int(user_id), None)
+        return None
+    return prompt
+
+
+def _store_force_sub_prompt(user_id: int, sent_message: Message) -> None:
+    _FORCE_SUB_PROMPTS[int(user_id)] = {
+        "chat_id": int(sent_message.chat.id),
+        "message_id": int(sent_message.id),
+        "kind": "photo" if getattr(sent_message, "photo", None) else "text",
+        "expires_at": time.time() + FORCE_SUB_PROMPT_TTL,
+    }
+
+
+def clear_force_sub_prompt(user_id: int) -> None:
+    _FORCE_SUB_PROMPTS.pop(int(user_id), None)
+
+
+async def _edit_force_sub_prompt(bot, prompt: dict[str, object], text: str, reply_markup) -> bool:
+    try:
+        chat_id = int(prompt["chat_id"])
+        message_id = int(prompt["message_id"])
+        if prompt.get("kind") == "photo":
+            await bot.edit_message_caption(
+                chat_id=chat_id,
+                message_id=message_id,
+                caption=text,
+                parse_mode=ParseMode.HTML,
+                reply_markup=reply_markup,
+            )
+        else:
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=text,
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+                reply_markup=reply_markup,
+            )
+        prompt["expires_at"] = time.time() + FORCE_SUB_PROMPT_TTL
+        return True
+    except Exception:
+        return False
+
+
+async def _send_or_refresh_force_sub_prompt(bot, message: Message, text: str, reply_markup):
+    user_id = int(message.from_user.id)
+    prompt = _get_force_sub_prompt(user_id)
+    if prompt and await _edit_force_sub_prompt(bot, prompt, text, reply_markup):
+        return
+
+    sent = await reply_with_optional_photo(
+        message,
+        Telegram.VERIFY_PIC,
+        text,
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.HTML,
+    )
+    if sent:
+        _store_force_sub_prompt(user_id, sent)
+
+
+async def _check_force_sub_membership(bot, user_id: int) -> str:
+    channel_chat_id = _resolve_force_sub_chat()
+    if not channel_chat_id:
+        return "joined"
+    try:
+        user = await bot.get_chat_member(chat_id=channel_chat_id, user_id=user_id)
+        if str(getattr(user, "status", "")).upper() == "BANNED":
+            return "banned"
+        return "joined"
+    except UserNotParticipant:
+        return "missing"
+    except Exception:
+        return "error"
+
 async def is_user_joined(bot, message: Message):
     if not getattr(message, "from_user", None):
         return False
-    if Telegram.FORCE_SUB_ID:
-        # Strip @ if provided
-        fsid = str(Telegram.FORCE_SUB_ID).lstrip("@").strip()
-        if fsid.startswith("-100") and fsid.lstrip("-").isdigit():
-            channel_chat_id = int(fsid)
-        elif fsid.lstrip('-').isdigit():
-            channel_chat_id = int(fsid)
-        else:
-            channel_chat_id = fsid
-    else:
-        return 200
-    try:
-        user = await bot.get_chat_member(chat_id=channel_chat_id, user_id=message.from_user.id)
-        if user.status == "BANNED":
-            await message.reply_text(
-                text=LANG.BAN_TEXT.format(Telegram.OWNER_ID),
-                parse_mode=ParseMode.MARKDOWN,
-                disable_web_page_preview=True
-            )
-            return False
-    except UserNotParticipant:
-        invite_link = await get_invite_link(bot, chat_id=channel_chat_id)
-        join_markup = None
-        join_url = None
-        if invite_link and getattr(invite_link, "invite_link", None):
-            join_url = invite_link.invite_link
-        else:
-            # Fallback to public channel link if available
-            if isinstance(channel_chat_id, str) and channel_chat_id and not channel_chat_id.lstrip("-").isdigit():
-                join_url = f"https://t.me/{channel_chat_id.lstrip('@')}"
-            elif Telegram.UPDATES_CHANNEL:
-                join_url = f"https://t.me/{str(Telegram.UPDATES_CHANNEL).lstrip('@')}"
-        if join_url:
-            join_markup = InlineKeyboardMarkup(
-                [[InlineKeyboardButton("🔔 Join Our Channel", url=join_url)]]
-            )
+    status = await _check_force_sub_membership(bot, message.from_user.id)
+    if status == "joined":
+        clear_force_sub_prompt(message.from_user.id)
+        return True
 
-        ver = await reply_with_optional_photo(
-            message,
-            Telegram.VERIFY_PIC,
-            "<i>Jᴏɪɴ ᴍʏ ᴜᴘᴅᴀᴛᴇ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴜsᴇ ᴍᴇ 🔐</i>",
-            reply_markup=join_markup,
-            parse_mode=ParseMode.HTML,
+    if status == "banned":
+        await message.reply_text(
+            text=LANG.BAN_TEXT.format(Telegram.OWNER_ID),
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=True
         )
-        await asyncio.sleep(30)
+        return False
+
+    channel_chat_id = _resolve_force_sub_chat()
+    join_url = await _build_force_sub_join_url(bot, channel_chat_id)
+    reply_markup = _force_sub_markup(join_url)
+
+    if status == "missing":
+        await _send_or_refresh_force_sub_prompt(
+            bot,
+            message,
+            LANG.FORCE_SUB_TEXT,
+            reply_markup,
+        )
+        return False
+
+    await _send_or_refresh_force_sub_prompt(
+        bot,
+        message,
+        LANG.FORCE_SUB_ERROR,
+        reply_markup,
+    )
+    return False
+
+
+async def handle_force_sub_retry(bot, query) -> None:
+    if not getattr(query, "from_user", None):
+        await query.answer("Try again from your account.", show_alert=True)
+        return
+
+    status = await _check_force_sub_membership(bot, query.from_user.id)
+    if status == "joined":
+        clear_force_sub_prompt(query.from_user.id)
+        success_markup = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("❌ Close", callback_data="close")]]
+        )
         try:
-            await ver.delete()
-            await message.delete()
+            if getattr(query.message, "photo", None) or getattr(query.message, "caption", None):
+                await query.message.edit_caption(
+                    caption=LANG.FORCE_SUB_SUCCESS,
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=success_markup,
+                )
+            else:
+                await query.message.edit_text(
+                    text=LANG.FORCE_SUB_SUCCESS,
+                    parse_mode=ParseMode.HTML,
+                    disable_web_page_preview=True,
+                    reply_markup=success_markup,
+                )
         except Exception:
             pass
-        return False
+        await query.answer("Join confirmed. Send your file or command again.", show_alert=True)
+        return
+
+    channel_chat_id = _resolve_force_sub_chat()
+    join_url = await _build_force_sub_join_url(bot, channel_chat_id)
+    retry_markup = _force_sub_markup(join_url)
+    try:
+        if getattr(query.message, "photo", None) or getattr(query.message, "caption", None):
+            await query.message.edit_caption(
+                caption=LANG.FORCE_SUB_STILL_REQUIRED,
+                parse_mode=ParseMode.HTML,
+                reply_markup=retry_markup,
+            )
+        else:
+            await query.message.edit_text(
+                text=LANG.FORCE_SUB_STILL_REQUIRED,
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+                reply_markup=retry_markup,
+            )
     except Exception:
-        await message.reply_text(
-            text = f"<i>Sᴏᴍᴇᴛʜɪɴɢ ᴡʀᴏɴɢ ᴄᴏɴᴛᴀᴄᴛ ᴍʏ ᴅᴇᴠᴇʟᴏᴘᴇʀ</i> <b><a href='https://t.me/{Telegram.UPDATES_CHANNEL}'>[ ᴄʟɪᴄᴋ ʜᴇʀᴇ ]</a></b>",
-            parse_mode=ParseMode.HTML,
-            disable_web_page_preview=True)
-        return False
-    return True
+        pass
+    await query.answer("Join the update channel first, then tap Try Again.", show_alert=True)
 
 #---------------------[ PRIVATE GEN LINK + CALLBACK ]---------------------#
 

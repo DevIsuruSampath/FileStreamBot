@@ -105,6 +105,24 @@ Transform Telegram files into streaming + download links — no waiting, no comp
 """
 
     BAN_TEXT = "<b>🚫️ Access Restricted</b>\n\n<i>Your account has been restricted from using this bot.</i>\n\n<b>❓ Think this is a mistake?</b>\n<a href='tg://user?id={}'>Contact Admin 💬</a>"
+    FORCE_SUB_TEXT = """<b>🔐 Join our update channel to use this bot</b>
+
+<i>Join the channel below, then tap <b>Try Again</b>.</i>
+
+<b>Why this is required:</b>
+• Get bot updates and notices 📢
+• Keep access active ✅
+• Receive important changes quickly ⚡️
+"""
+    FORCE_SUB_SUCCESS = """<b>✅ Join confirmed</b>
+
+<i>You can use the bot now. Send your file or command again.</i>"""
+    FORCE_SUB_STILL_REQUIRED = """<b>⚠️ Join required</b>
+
+<i>Please join the update channel first, then tap <b>Try Again</b>.</i>"""
+    FORCE_SUB_ERROR = """<b>😔 Couldn't verify your channel status</b>
+
+<i>Please join the update channel and try again in a moment.</i>"""
 
     # Folder Mode Messages
     FOLDER_START = """<b>📁 Folder Mode Activated ⚡️</b>
