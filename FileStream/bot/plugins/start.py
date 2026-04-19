@@ -153,7 +153,7 @@ async def legal_handler(bot, message):
         return
     await reply_with_optional_photo(
         message,
-        Telegram.START_PIC,
+        Telegram.LEGAL_PIC,
         build_bot_legal_text(bot),
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,

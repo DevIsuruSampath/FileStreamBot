@@ -135,6 +135,7 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `FILE_PIC`: Image for `/files` command. Supports an HTTP URL, Telegram `file_id`, or a local path like `images/files.png`.
 - `FOLDERS_PIC`: Image for `/folders` command. Supports an HTTP URL, Telegram `file_id`, or a local path like `images/folders.png`.
 - `START_PIC`: Image for `/start` command. Supports an HTTP URL, Telegram `file_id`, or a local path like `images/start.png`.
+- `LEGAL_PIC`: Image for `/legal` and `/privacy`. Defaults to `START_PIC` if not set.
 - `VERIFY_PIC`: Image for force subscribe verification. Supports an HTTP URL, Telegram `file_id`, or a local path like `images/verify.png`.
 - `WEB_ADS_ENABLED`: Set to `True`/`False` to globally enable or disable web ad slots and social bar scripts.
 - `WEB_ADS_DESKTOP_TOP_BANNER_KEY`, `WEB_ADS_DESKTOP_TOP_BANNER_INVOKE_URL`, `WEB_ADS_DESKTOP_TOP_BANNER_WIDTH`, `WEB_ADS_DESKTOP_TOP_BANNER_HEIGHT`: Desktop top banner slot config. Defaults keep the current `728x90` placement.
