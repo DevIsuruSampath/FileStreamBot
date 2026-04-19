@@ -365,7 +365,7 @@ async def handle_force_sub_retry(bot, query) -> None:
                 )
         except Exception:
             pass
-        await query.answer("Join confirmed. Send your file or command again.", show_alert=True)
+        await query.answer("Access unlocked. You can use the bot now.", show_alert=True)
         return
 
     channel_chat_id = _resolve_force_sub_chat()
@@ -387,7 +387,7 @@ async def handle_force_sub_retry(bot, query) -> None:
             )
     except Exception:
         pass
-    await query.answer("Join the update channel first, then tap Try Again.", show_alert=True)
+    await query.answer("Join the channel first, then press Try Again.", show_alert=True)
 
 #---------------------[ PRIVATE GEN LINK + CALLBACK ]---------------------#
 
