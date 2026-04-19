@@ -67,13 +67,15 @@ A Telegram bot for turning files into clean public links.
 <b>📄 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
 <b>🏷️ Category:</b> <code>{}</code>
-<b>⏰ Expires:</b> <code>{}</code>
+<b>🗂 Storage:</b> <code>{}</code>
+<b>⏳ Time Left:</b> <code>{}</code>
+<b>📅 Expires At:</b> <code>{}</code>
 <b>🤖 Bot:</b> <code>@{}</code>
 
 <b>🔗 Public Link:</b>
 <code>{}</code>
 
-<i>Open this page for the player, fast direct download, or reopen the file in Telegram.</i>
+<i>Open this page to watch, download fast, or open it again in @{}</i>
 """
 
     STREAM_TEXT_X = """
@@ -82,13 +84,15 @@ A Telegram bot for turning files into clean public links.
 <b>📄 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
 <b>🏷️ Category:</b> <code>{}</code>
-<b>⏰ Expires:</b> <code>{}</code>
+<b>🗂 Storage:</b> <code>{}</code>
+<b>⏳ Time Left:</b> <code>{}</code>
+<b>📅 Expires At:</b> <code>{}</code>
 <b>🤖 Bot:</b> <code>@{}</code>
 
 <b>🔗 Public Link:</b>
 <code>{}</code>
 
-<i>Open this page for fast direct download or reopen the file in Telegram.</i>
+<i>Open this page for fast direct download or open it again in @{}</i>
 """
 
     BAN_TEXT = "<b>🚫️ Access Restricted</b>\n\n<i>Your account has been restricted from using this bot.</i>\n\n<b>❓ Think this is a mistake?</b>\n<a href='tg://user?id={}'>Contact Admin 💬</a>"

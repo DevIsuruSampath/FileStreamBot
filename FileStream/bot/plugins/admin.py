@@ -18,7 +18,7 @@ from FileStream.utils.broadcast_helper import send_msg
 from FileStream.utils.database import Database
 from FileStream.bot import FileStream
 from FileStream.server.exceptions import FileNotFound
-from FileStream.config import Telegram
+from FileStream.config import Server, Telegram
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.speedtest import run_speedtest, format_speedtest, MSG_SPEEDTEST_START, MSG_SPEEDTEST_ERROR
 from FileStream.utils.file_cleanup import delete_file_entry
@@ -180,6 +180,7 @@ async def _build_admin_panel_text(user_id: int) -> str:
         f"<b>Your Upload Storage:</b> <code>{effective_storage_mode.upper()}</code>",
         f"<b>Admin Storage Users:</b> <code>{len(admin_flog_users)}</code>",
         f"<b>Storage Channels:</b> <code>main={configured_storage.get('main') or 'not set'}</code> | <code>admin={configured_storage.get('admin') or 'not set'}</code>",
+        f"<b>Policy:</b> <code>MAIN={int(Server.PUBLIC_FILE_EXPIRE_HOURS or 0)}h</code> | <code>ADMIN=permanent</code>",
         f"<b>Assigned Users:</b> <code>{html.escape(_format_admin_storage_users(admin_flog_users))}</code>",
         "",
         "<i>Buttons below change your own upload storage. Use /flogstorage admin &lt;user_id&gt; to assign another user.</i>",
@@ -486,6 +487,7 @@ async def admin_panel_callback(c: Client, query: CallbackQuery):
                 (
                     f"Your Upload Storage: {current_mode.upper()}\n"
                     f"Default: {_default_storage_label(configured_storage)}\n"
+                    f"Policy: MAIN={int(Server.PUBLIC_FILE_EXPIRE_HOURS or 0)}h | ADMIN=permanent\n"
                     f"Selected Users: {len(selected_users)}\n"
                     f"Main: {configured_storage.get('main') or 'not set'}\n"
                     f"Admin: {configured_storage.get('admin') or 'not set'}"
@@ -637,6 +639,7 @@ async def flogstorage_toggle(c: Client, m: Message):
                 f"**Your Upload Storage:** `{current_mode.upper()}`\n"
                 f"**Default Storage:** `{_default_storage_label(configured_storage)}`\n"
                 f"**Admin Storage Users:** `{len(admin_storage_users)}`\n"
+                f"**Policy:** `MAIN={int(Server.PUBLIC_FILE_EXPIRE_HOURS or 0)}h | ADMIN=permanent`\n"
                 f"**Main:** `{configured_storage.get('main') or 'not set'}`\n"
                 f"**Admin:** `{configured_storage.get('admin') or 'not set'}`\n"
                 "Usage:\n"
@@ -665,6 +668,7 @@ async def flogstorage_toggle(c: Client, m: Message):
                 f"**User:** `{target_user_id}`\n"
                 f"**Upload Storage:** `{target_mode.upper()}`\n"
                 f"**Selected For Admin Storage:** `{'YES' if selected else 'NO'}`\n"
+                f"**Policy:** `MAIN={int(Server.PUBLIC_FILE_EXPIRE_HOURS or 0)}h | ADMIN=permanent`\n"
                 f"**Default Storage:** `{_default_storage_label(configured_storage)}`\n"
                 f"**Main:** `{configured_storage.get('main') or 'not set'}`\n"
                 f"**Admin:** `{configured_storage.get('admin') or 'not set'}`"

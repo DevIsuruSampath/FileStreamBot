@@ -9,6 +9,7 @@ from bson.errors import InvalidId
 from FileStream.config import Server, WebAds
 from FileStream.server.exceptions import FileNotFound
 from FileStream.utils.category import detect_category
+from FileStream.utils.flog_channels import resolve_file_flog_mode
 from FileStream.utils.runtime_cache import (
     cache_file_info,
     cache_file_reference,
@@ -620,18 +621,15 @@ class Database:
         current = await self.get_active_public_link_for_target("file", target_id)
         file_name = file_info.get("file_name") or "file"
         file_type = file_info.get("mime_type") or file_info.get("category") or ""
-        default_expiry = None
-        if int(Server.PUBLIC_FILE_EXPIRE_HOURS or 0) > 0:
-            default_expiry = time.time() + int(Server.PUBLIC_FILE_EXPIRE_HOURS) * 3600
+        default_expiry = await self._default_public_file_expiry(file_info)
         if current:
             updates = {"updated_at": time.time(), "file_name": file_name, "file_type": file_type}
-            if current.get("expires_at") is None and default_expiry is not None:
+            if current.get("expires_at") != default_expiry:
                 updates["expires_at"] = default_expiry
             await self.public_links.update_one({"_id": str(current["_id"])}, {"$set": updates})
             current["file_name"] = file_name
             current["file_type"] = file_type
-            if current.get("expires_at") is None and default_expiry is not None:
-                current["expires_at"] = default_expiry
+            current["expires_at"] = default_expiry
             return current
         return await self.create_public_link(
             "file",
@@ -640,6 +638,31 @@ class Database:
             file_type=file_type,
             expires_at=default_expiry,
         )
+
+    async def _default_public_file_expiry(self, file_info: dict) -> float | None:
+        storage_mode = resolve_file_flog_mode(file_info)
+        if storage_mode != "admin":
+            try:
+                if file_info.get("flog_channel_id") in (None, ""):
+                    raw_user_id = file_info.get("user_id")
+                    if raw_user_id not in (None, "") and await self.is_admin_flog_user(int(raw_user_id)):
+                        storage_mode = "admin"
+            except Exception:
+                pass
+        if storage_mode == "admin":
+            return None
+
+        ttl_hours = int(Server.PUBLIC_FILE_EXPIRE_HOURS or 0)
+        if ttl_hours <= 0:
+            return None
+
+        base_time = file_info.get("time")
+        try:
+            base_timestamp = float(base_time)
+        except Exception:
+            base_timestamp = time.time()
+
+        return base_timestamp + ttl_hours * 3600
 
     async def ensure_public_link_for_folder(self, folder: dict) -> dict:
         if not folder:

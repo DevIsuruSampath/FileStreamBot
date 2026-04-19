@@ -6,7 +6,14 @@ from FileStream import __version__
 from FileStream.bot import FileStream
 from FileStream.config import Telegram, Server
 from FileStream.utils.translation import LANG, BUTTON
-from FileStream.utils.bot_utils import gen_link, gen_file_list_button, get_public_file_context, handle_force_sub_retry
+from FileStream.utils.bot_utils import (
+    build_forward_share_text,
+    describe_public_link_expiry,
+    gen_link,
+    gen_file_list_button,
+    get_public_file_context,
+    handle_force_sub_retry,
+)
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.file_cleanup import delete_file_entry
@@ -243,13 +250,17 @@ async def gen_file_menu(_id, file_list_no, update: CallbackQuery):
     audio_ext = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".wav", ".opus", ".oga"}
     is_streamable = file_type in ("Video", "Audio") or ext in video_ext or ext in audio_ext
 
-    _, _, public_url = await get_public_file_context(myfile_info)
-    share_link = build_telegram_share_link(public_url, text=myfile_info.get("file_name") or "file")
+    _, link_doc, public_url = await get_public_file_context(myfile_info)
+    expiry_info = describe_public_link_expiry(myfile_info, link_doc)
+    share_link = build_telegram_share_link(
+        public_url,
+        text=build_forward_share_text(myfile_info.get("file_name") or "file", get_bot_username(FileStream), expiry_info),
+    )
 
     MYFILES_BUTTONS = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("Open", url=public_url)],
-            [InlineKeyboardButton("📤 Forward", url=share_link), InlineKeyboardButton("Open in Bot", url=public_url)],
+            [InlineKeyboardButton("📤 Share Link", url=share_link), InlineKeyboardButton("Open in Bot", url=public_url)],
             [InlineKeyboardButton("📥 Get File", callback_data=f"sendfile_{myfile_info['_id']}"),
              InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelete_{myfile_info['_id']}_{file_list_no}")],
             [InlineKeyboardButton("⬅️ Back", callback_data="userfiles_{}".format(file_list_no))]

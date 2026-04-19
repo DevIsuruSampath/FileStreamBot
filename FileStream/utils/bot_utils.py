@@ -19,6 +19,7 @@ from FileStream.bot import FileStream
 from FileStream.utils.public_links import build_public_file_url, build_public_folder_url, build_telegram_share_link
 from FileStream.utils.flog_sync import reconcile_flog_storage
 from FileStream.utils.client_identity import get_bot_username
+from FileStream.utils.flog_channels import resolve_file_flog_mode
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -92,6 +93,74 @@ async def get_public_folder_context(folder_ref) -> tuple[dict, dict, str]:
     folder = folder_ref if isinstance(folder_ref, dict) else await db.get_folder(folder_ref)
     link_doc = await db.ensure_public_link_for_folder(folder)
     return folder, link_doc, build_public_folder_url(link_doc["public_id"])
+
+
+def format_expiry_countdown(total_seconds: float | int) -> str:
+    try:
+        remaining = max(int(total_seconds), 0)
+    except Exception:
+        return "Unknown"
+
+    if remaining <= 0:
+        return "Expired"
+
+    days, remainder = divmod(remaining, 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, _ = divmod(remainder, 60)
+
+    parts: list[str] = []
+    if days:
+        parts.append(f"{days}d")
+    if hours:
+        parts.append(f"{hours}h")
+    if minutes or not parts:
+        parts.append(f"{minutes}m")
+    return " ".join(parts[:2]) + " left"
+
+
+def describe_public_link_expiry(file_info: dict, link_doc: dict) -> dict[str, str | bool]:
+    storage_mode = resolve_file_flog_mode(file_info)
+    ttl_hours = int(Server.PUBLIC_FILE_EXPIRE_HOURS or 0)
+    expires_at = link_doc.get("expires_at")
+
+    if storage_mode == "admin" or expires_at is None:
+        return {
+            "storage_label": "ADMIN (Permanent)",
+            "countdown_text": "Never expires",
+            "absolute_text": "Permanent",
+            "share_text": "♾ Permanent link",
+            "is_permanent": True,
+        }
+
+    expires_at_value = float(expires_at)
+    remaining = expires_at_value - time.time()
+    absolute_text = datetime.datetime.utcfromtimestamp(expires_at_value).strftime("%Y-%m-%d %H:%M UTC")
+    countdown_text = format_expiry_countdown(remaining)
+    main_label = f"MAIN ({ttl_hours}h)" if ttl_hours > 0 else "MAIN"
+    if remaining <= 0:
+        share_text = "⏳ Link expired"
+    else:
+        share_text = f"⏳ Available for {format_expiry_countdown(remaining).replace(' left', '')}"
+
+    return {
+        "storage_label": main_label,
+        "countdown_text": countdown_text,
+        "absolute_text": absolute_text,
+        "share_text": share_text,
+        "is_permanent": False,
+    }
+
+
+def build_forward_share_text(file_name: str, bot_username: str | None, expiry_info: dict[str, str | bool]) -> str:
+    normalized_bot = str(bot_username or "").strip().lstrip("@")
+    lines = [
+        "📥 Fast direct download link",
+        f"📄 {file_name or 'file'}",
+        str(expiry_info.get("share_text") or "⏳ Limited-time link"),
+    ]
+    if normalized_bot:
+        lines.append(f"🤖 Open again in @{normalized_bot}")
+    return "\n".join(lines)
 
 async def get_invite_link(bot, chat_id: Union[str, int]):
     while True:
@@ -339,14 +408,11 @@ async def gen_link(_id, bot=None):
     safe_public_url = html.escape(public_url)
     bot_username = get_bot_username(bot)
     safe_bot_username = html.escape(bot_username or "FileStreamBot")
-    share_link = build_telegram_share_link(public_url, text=file_name)
-    expires_at = link_doc.get("expires_at")
-    if expires_at is not None:
-        expires_text = datetime.datetime.utcfromtimestamp(float(expires_at)).strftime("%Y-%m-%d %H:%M UTC")
-    elif int(Server.PUBLIC_FILE_EXPIRE_HOURS or 0) > 0:
-        expires_text = f"in {int(Server.PUBLIC_FILE_EXPIRE_HOURS)} hours"
-    else:
-        expires_text = "Never"
+    expiry_info = describe_public_link_expiry(file_info, link_doc)
+    share_link = build_telegram_share_link(
+        public_url,
+        text=build_forward_share_text(file_name, bot_username, expiry_info),
+    )
     if len(safe_name) > 200:
         safe_name = safe_name[:200] + "…"
 
@@ -355,14 +421,17 @@ async def gen_link(_id, bot=None):
             safe_name,
             file_size,
             safe_category,
-            html.escape(expires_text),
+            html.escape(str(expiry_info["storage_label"])),
+            html.escape(str(expiry_info["countdown_text"])),
+            html.escape(str(expiry_info["absolute_text"])),
             safe_bot_username,
             safe_public_url,
+            safe_bot_username,
         )
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("Open", url=public_url)],
-                [InlineKeyboardButton("📤 Forward", url=share_link), InlineKeyboardButton("Open in Bot", url=public_url)],
+                [InlineKeyboardButton("📤 Share Link", url=share_link), InlineKeyboardButton("Open in Bot", url=public_url)],
                 [InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelpvt_{_id}")],
                 [InlineKeyboardButton("❌ Close", callback_data="close")]
             ]
@@ -372,14 +441,17 @@ async def gen_link(_id, bot=None):
             safe_name,
             file_size,
             safe_category,
-            html.escape(expires_text),
+            html.escape(str(expiry_info["storage_label"])),
+            html.escape(str(expiry_info["countdown_text"])),
+            html.escape(str(expiry_info["absolute_text"])),
             safe_bot_username,
             safe_public_url,
+            safe_bot_username,
         )
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("Open", url=public_url)],
-                [InlineKeyboardButton("📤 Forward", url=share_link), InlineKeyboardButton("Open in Bot", url=public_url)],
+                [InlineKeyboardButton("📤 Share Link", url=share_link), InlineKeyboardButton("Open in Bot", url=public_url)],
                 [InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelpvt_{_id}")],
                 [InlineKeyboardButton("❌ Close", callback_data="close")]
             ]
@@ -405,13 +477,7 @@ async def gen_linkx(m:Message , _id, bot=None):
     safe_public_url = html.escape(public_url)
     bot_username = get_bot_username(bot)
     safe_bot_username = html.escape(bot_username or "FileStreamBot")
-    expires_at = link_doc.get("expires_at")
-    if expires_at is not None:
-        expires_text = datetime.datetime.utcfromtimestamp(float(expires_at)).strftime("%Y-%m-%d %H:%M UTC")
-    elif int(Server.PUBLIC_FILE_EXPIRE_HOURS or 0) > 0:
-        expires_text = f"in {int(Server.PUBLIC_FILE_EXPIRE_HOURS)} hours"
-    else:
-        expires_text = "Never"
+    expiry_info = describe_public_link_expiry(file_info, link_doc)
     if len(safe_name) > 200:
         safe_name = safe_name[:200] + "…"
 
@@ -420,9 +486,12 @@ async def gen_linkx(m:Message , _id, bot=None):
             safe_name,
             file_size,
             safe_category,
-            html.escape(expires_text),
+            html.escape(str(expiry_info["storage_label"])),
+            html.escape(str(expiry_info["countdown_text"])),
+            html.escape(str(expiry_info["absolute_text"])),
             safe_bot_username,
             safe_public_url,
+            safe_bot_username,
         )
         reply_markup = InlineKeyboardMarkup(
             [
@@ -434,9 +503,12 @@ async def gen_linkx(m:Message , _id, bot=None):
             safe_name,
             file_size,
             safe_category,
-            html.escape(expires_text),
+            html.escape(str(expiry_info["storage_label"])),
+            html.escape(str(expiry_info["countdown_text"])),
+            html.escape(str(expiry_info["absolute_text"])),
             safe_bot_username,
             safe_public_url,
+            safe_bot_username,
         )
         reply_markup = InlineKeyboardMarkup(
             [
