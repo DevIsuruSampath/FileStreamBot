@@ -7,10 +7,11 @@ import os
 import time
 import datetime
 from typing import Union
+from FileStream import __version__
 from pyrogram.errors import UserNotParticipant, FloodWait
 from pyrogram.enums.parse_mode import ParseMode
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
-from FileStream.utils.translation import LANG
+from FileStream.utils.translation import LANG, BUTTON
 from FileStream.utils.database import Database
 from FileStream.utils.human_readable import humanbytes
 from FileStream.utils.category import detect_category
@@ -18,8 +19,9 @@ from FileStream.config import Telegram, Server
 from FileStream.bot import FileStream
 from FileStream.utils.public_links import build_public_file_url, build_public_folder_url, build_telegram_share_link
 from FileStream.utils.flog_sync import reconcile_flog_storage
-from FileStream.utils.client_identity import get_bot_username
+from FileStream.utils.client_identity import get_bot_name, get_bot_username
 from FileStream.utils.flog_channels import resolve_file_flog_mode
+from FileStream.utils.legal import build_bot_legal_text
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -80,6 +82,38 @@ async def reply_with_optional_photo(
         disable_web_page_preview=disable_web_page_preview,
         reply_markup=reply_markup,
         quote=quote,
+    )
+
+
+async def send_with_optional_photo(
+    bot,
+    chat_id: int,
+    photo: str | None,
+    text: str,
+    *,
+    parse_mode=ParseMode.HTML,
+    disable_web_page_preview: bool = True,
+    reply_markup=None,
+):
+    resolved_photo = resolve_media_source(photo)
+    if resolved_photo:
+        try:
+            return await bot.send_photo(
+                chat_id=chat_id,
+                photo=resolved_photo,
+                caption=text,
+                parse_mode=parse_mode,
+                reply_markup=reply_markup,
+            )
+        except Exception as exc:
+            logging.warning("Failed to send configured photo %r: %s", photo, exc)
+
+    return await bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        parse_mode=parse_mode,
+        disable_web_page_preview=disable_web_page_preview,
+        reply_markup=reply_markup,
     )
 
 
@@ -229,12 +263,33 @@ def _get_force_sub_prompt(user_id: int) -> dict[str, object] | None:
     return prompt
 
 
-def _store_force_sub_prompt(user_id: int, sent_message: Message) -> None:
+def _extract_force_sub_request(message: Message | None) -> dict[str, str]:
+    if not message:
+        return {}
+
+    raw_text = str(getattr(message, "text", "") or getattr(message, "caption", "") or "").strip()
+    if not raw_text.startswith("/"):
+        return {}
+
+    parts = raw_text.split(None, 1)
+    command = parts[0].split("@", 1)[0].lstrip("/").strip().lower()
+    payload = parts[1].strip() if len(parts) > 1 else ""
+
+    if command not in {"start", "help", "about", "legal", "privacy", "files"}:
+        return {}
+
+    return {"command": command, "payload": payload}
+
+
+def _store_force_sub_prompt(user_id: int, sent_message: Message, source_message: Message | None = None) -> None:
+    request = _extract_force_sub_request(source_message)
     _FORCE_SUB_PROMPTS[int(user_id)] = {
         "chat_id": int(sent_message.chat.id),
         "message_id": int(sent_message.id),
         "kind": "photo" if getattr(sent_message, "photo", None) else "text",
         "expires_at": time.time() + FORCE_SUB_PROMPT_TTL,
+        "command": request.get("command", ""),
+        "payload": request.get("payload", ""),
     }
 
 
@@ -272,8 +327,12 @@ async def _edit_force_sub_prompt(bot, prompt: dict[str, object], text: str, repl
 async def _send_or_refresh_force_sub_prompt(bot, message: Message, text: str, reply_markup):
     user_id = int(message.from_user.id)
     prompt = _get_force_sub_prompt(user_id)
-    if prompt and await _edit_force_sub_prompt(bot, prompt, text, reply_markup):
-        return
+    request = _extract_force_sub_request(message)
+    if prompt:
+        prompt["command"] = request.get("command", "")
+        prompt["payload"] = request.get("payload", "")
+        if await _edit_force_sub_prompt(bot, prompt, text, reply_markup):
+            return
 
     sent = await reply_with_optional_photo(
         message,
@@ -283,7 +342,7 @@ async def _send_or_refresh_force_sub_prompt(bot, message: Message, text: str, re
         parse_mode=ParseMode.HTML,
     )
     if sent:
-        _store_force_sub_prompt(user_id, sent)
+        _store_force_sub_prompt(user_id, sent, source_message=message)
 
 
 async def _check_force_sub_membership(bot, user_id: int) -> str:
@@ -338,6 +397,77 @@ async def is_user_joined(bot, message: Message):
     return False
 
 
+async def _resume_force_sub_command(bot, query, prompt: dict[str, object] | None) -> bool:
+    if not prompt:
+        return False
+
+    command = str(prompt.get("command") or "").strip().lower()
+    payload = str(prompt.get("payload") or "").strip()
+    chat_id = int(query.message.chat.id)
+    user = query.from_user
+
+    if command == "start" and not payload:
+        await send_with_optional_photo(
+            bot,
+            chat_id,
+            Telegram.START_PIC,
+            LANG.START_TEXT.format(user.mention, get_bot_username(bot)),
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+            reply_markup=BUTTON.start_buttons(bot),
+        )
+        return True
+
+    if command == "help":
+        await send_with_optional_photo(
+            bot,
+            chat_id,
+            Telegram.START_PIC,
+            LANG.HELP_TEXT.format(Telegram.OWNER_ID),
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+            reply_markup=BUTTON.help_buttons(bot),
+        )
+        return True
+
+    if command == "about":
+        await send_with_optional_photo(
+            bot,
+            chat_id,
+            Telegram.START_PIC,
+            LANG.ABOUT_TEXT.format(get_bot_name(bot), __version__),
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+            reply_markup=BUTTON.about_buttons(bot),
+        )
+        return True
+
+    if command in {"legal", "privacy"}:
+        await send_with_optional_photo(
+            bot,
+            chat_id,
+            Telegram.LEGAL_PIC,
+            build_bot_legal_text(bot),
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+            reply_markup=BUTTON.legal_buttons(bot),
+        )
+        return True
+
+    if command == "files":
+        file_list, total_files = await gen_file_list_button(1, user.id, bot=bot)
+        await send_with_optional_photo(
+            bot,
+            chat_id,
+            Telegram.FILE_PIC,
+            f"Total files: {total_files}",
+            reply_markup=InlineKeyboardMarkup(file_list),
+        )
+        return True
+
+    return False
+
+
 async def handle_force_sub_retry(bot, query) -> None:
     if not getattr(query, "from_user", None):
         await query.answer("Try again from your account.", show_alert=True)
@@ -345,26 +475,33 @@ async def handle_force_sub_retry(bot, query) -> None:
 
     status = await _check_force_sub_membership(bot, query.from_user.id)
     if status == "joined":
+        prompt = _get_force_sub_prompt(query.from_user.id)
         clear_force_sub_prompt(query.from_user.id)
-        success_markup = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("❌ Close", callback_data="close")]]
-        )
         try:
-            if getattr(query.message, "photo", None) or getattr(query.message, "caption", None):
-                await query.message.edit_caption(
-                    caption=LANG.FORCE_SUB_SUCCESS,
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=success_markup,
-                )
-            else:
-                await query.message.edit_text(
-                    text=LANG.FORCE_SUB_SUCCESS,
-                    parse_mode=ParseMode.HTML,
-                    disable_web_page_preview=True,
-                    reply_markup=success_markup,
-                )
+            await query.message.delete()
         except Exception:
             pass
+
+        resumed = False
+        try:
+            resumed = await _resume_force_sub_command(bot, query, prompt)
+        except Exception:
+            resumed = False
+
+        if not resumed:
+            success_markup = InlineKeyboardMarkup(
+                [[InlineKeyboardButton("❌ Close", callback_data="close")]]
+            )
+            await send_with_optional_photo(
+                bot,
+                int(query.message.chat.id),
+                Telegram.VERIFY_PIC,
+                LANG.FORCE_SUB_SUCCESS,
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+                reply_markup=success_markup,
+            )
+
         await query.answer("Access unlocked. You can use the bot now.", show_alert=True)
         return
 
