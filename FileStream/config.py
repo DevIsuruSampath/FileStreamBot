@@ -96,6 +96,7 @@ class Server:
     PORT = _int_env("PORT", 8080)
     BIND_ADDRESS = str(env.get("BIND_ADDRESS", "0.0.0.0"))
     PING_INTERVAL = _int_env("PING_INTERVAL", 1200)
+    PUBLIC_FILE_EXPIRE_HOURS = max(_int_env("PUBLIC_FILE_EXPIRE_HOURS", 24), 0)
     HAS_SSL = str(env.get("HAS_SSL", "0")).lower() in ("1", "true", "t", "yes", "y")
     NO_PORT = str(env.get("NO_PORT", "0")).lower() in ("1", "true", "t", "yes", "y")
     STREAM_CHUNK_SIZE_MB = max(1, _int_env("STREAM_CHUNK_SIZE_MB", 1))

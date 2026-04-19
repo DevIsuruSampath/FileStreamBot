@@ -55,29 +55,33 @@ A simple Telegram bot for turning files into share links.
 """
 
     STREAM_TEXT = """
-<b>✨ Your share link is ready! 💯⚡️</b>
+<b>✅ Your share link is ready</b>
 
 <b>📄 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
 <b>🏷️ Category:</b> <code>{}</code>
+<b>⏰ Expires:</b> <code>{}</code>
+<b>🤖 Bot:</b> <code>@{}</code>
 
 <b>🔗 Public Link:</b>
 <code>{}</code>
 
-<i>💡 Open this page to watch, download, or open in Telegram. ⭐️</i>
+<i>Open this page to watch, download, or reopen the file in Telegram.</i>
 """
 
     STREAM_TEXT_X = """
-<b>✨ Your share link is ready! 💯⚡️</b>
+<b>✅ Your share link is ready</b>
 
 <b>📄 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
 <b>🏷️ Category:</b> <code>{}</code>
+<b>⏰ Expires:</b> <code>{}</code>
+<b>🤖 Bot:</b> <code>@{}</code>
 
 <b>🔗 Public Link:</b>
 <code>{}</code>
 
-<i>💡 Open this page to download or open in Telegram. ⭐️</i>
+<i>Open this page to download or reopen the file in Telegram.</i>
 """
 
     BAN_TEXT = "<b>🚫️ Access Restricted</b>\n\n<i>Your account has been restricted from using this bot.</i>\n\n<b>❓ Think this is a mistake?</b>\n<a href='tg://user?id={}'>Contact Admin 💬</a>"

@@ -132,6 +132,7 @@ Create a `.env` file with the following (or set them in your cloud provider):
 - `URL_SHORTENER_TIMEOUT`: Shortener request timeout in seconds.
 - `URL_SHORTENER_FAIL_THRESHOLD`: Failures before shortener cooldown starts.
 - `URL_SHORTENER_COOLDOWN`: Cooldown duration in seconds after repeated failures.
+- `PUBLIC_FILE_EXPIRE_HOURS`: Default lifetime for newly generated public file links. Set `0` to disable automatic expiry.
 - `FILE_PIC`: Image for `/files` command. Supports an HTTP URL, Telegram `file_id`, or a local path like `images/files.png`.
 - `FOLDERS_PIC`: Image for `/folders` command. Supports an HTTP URL, Telegram `file_id`, or a local path like `images/folders.png`.
 - `START_PIC`: Image for `/start` command. Supports an HTTP URL, Telegram `file_id`, or a local path like `images/start.png`.

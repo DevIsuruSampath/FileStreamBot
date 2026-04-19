@@ -6,7 +6,7 @@ import secrets
 import motor.motor_asyncio
 from bson.objectid import ObjectId
 from bson.errors import InvalidId
-from FileStream.config import WebAds
+from FileStream.config import Server, WebAds
 from FileStream.server.exceptions import FileNotFound
 from FileStream.utils.category import detect_category
 from FileStream.utils.runtime_cache import (
@@ -512,8 +512,18 @@ class Database:
         return link
 
     async def get_active_public_link_for_target(self, target_type: str, target_id: str):
+        now = time.time()
         return await self.public_links.find_one(
-            {"type": str(target_type), "target_id": str(target_id), "revoked": {"$ne": True}},
+            {
+                "type": str(target_type),
+                "target_id": str(target_id),
+                "revoked": {"$ne": True},
+                "$or": [
+                    {"expires_at": None},
+                    {"expires_at": {"$gt": now}},
+                    {"expires_at": {"$exists": False}},
+                ],
+            },
             sort=[("created_at", pymongo.DESCENDING)],
         )
 
@@ -566,16 +576,25 @@ class Database:
         current = await self.get_active_public_link_for_target("file", target_id)
         file_name = file_info.get("file_name") or "file"
         file_type = file_info.get("mime_type") or file_info.get("category") or ""
+        default_expiry = None
+        if int(Server.PUBLIC_FILE_EXPIRE_HOURS or 0) > 0:
+            default_expiry = time.time() + int(Server.PUBLIC_FILE_EXPIRE_HOURS) * 3600
         if current:
-            await self._touch_public_link(current["_id"], file_name=file_name, file_type=file_type)
+            updates = {"updated_at": time.time(), "file_name": file_name, "file_type": file_type}
+            if current.get("expires_at") is None and default_expiry is not None:
+                updates["expires_at"] = default_expiry
+            await self.public_links.update_one({"_id": str(current["_id"])}, {"$set": updates})
             current["file_name"] = file_name
             current["file_type"] = file_type
+            if current.get("expires_at") is None and default_expiry is not None:
+                current["expires_at"] = default_expiry
             return current
         return await self.create_public_link(
             "file",
             target_id,
             file_name=file_name,
             file_type=file_type,
+            expires_at=default_expiry,
         )
 
     async def ensure_public_link_for_folder(self, folder: dict) -> dict:

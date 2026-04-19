@@ -5,6 +5,7 @@ import html
 import logging
 import os
 import time
+import datetime
 from typing import Union
 from pyrogram.errors import UserNotParticipant, FloodWait
 from pyrogram.enums.parse_mode import ParseMode
@@ -17,6 +18,7 @@ from FileStream.config import Telegram, Server
 from FileStream.bot import FileStream
 from FileStream.utils.public_links import build_public_file_url, build_public_folder_url
 from FileStream.utils.flog_sync import reconcile_flog_storage
+from FileStream.utils.client_identity import get_bot_username
 
 db = Database(Telegram.DATABASE_URL, Telegram.SESSION_NAME)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -335,25 +337,48 @@ async def gen_link(_id, bot=None):
     safe_name = html.escape(file_name)
     safe_category = html.escape(category)
     safe_public_url = html.escape(public_url)
+    bot_username = get_bot_username(bot)
+    safe_bot_username = html.escape(bot_username or "FileStreamBot")
+    expires_at = link_doc.get("expires_at")
+    if expires_at is not None:
+        expires_text = datetime.datetime.utcfromtimestamp(float(expires_at)).strftime("%Y-%m-%d %H:%M UTC")
+    elif int(Server.PUBLIC_FILE_EXPIRE_HOURS or 0) > 0:
+        expires_text = f"in {int(Server.PUBLIC_FILE_EXPIRE_HOURS)} hours"
+    else:
+        expires_text = "Never"
     if len(safe_name) > 200:
         safe_name = safe_name[:200] + "…"
 
     if is_streamable:
-        stream_text = LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_public_url)
+        stream_text = LANG.STREAM_TEXT.format(
+            safe_name,
+            file_size,
+            safe_category,
+            html.escape(expires_text),
+            safe_bot_username,
+            safe_public_url,
+        )
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("Open", url=public_url)],
-                [InlineKeyboardButton("Share", url=public_url), InlineKeyboardButton("Open in Bot", url=public_url)],
+                [InlineKeyboardButton("📤 Forward", url=public_url), InlineKeyboardButton("Open in Bot", url=public_url)],
                 [InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelpvt_{_id}")],
                 [InlineKeyboardButton("❌ Close", callback_data="close")]
             ]
         )
     else:
-        stream_text = LANG.STREAM_TEXT_X.format(safe_name, file_size, safe_category, safe_public_url)
+        stream_text = LANG.STREAM_TEXT_X.format(
+            safe_name,
+            file_size,
+            safe_category,
+            html.escape(expires_text),
+            safe_bot_username,
+            safe_public_url,
+        )
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("Open", url=public_url)],
-                [InlineKeyboardButton("Share", url=public_url), InlineKeyboardButton("Open in Bot", url=public_url)],
+                [InlineKeyboardButton("📤 Forward", url=public_url), InlineKeyboardButton("Open in Bot", url=public_url)],
                 [InlineKeyboardButton("🗑️ Revoke", callback_data=f"msgdelpvt_{_id}")],
                 [InlineKeyboardButton("❌ Close", callback_data="close")]
             ]
@@ -377,18 +402,41 @@ async def gen_linkx(m:Message , _id, bot=None):
     safe_name = html.escape(file_name)
     safe_category = html.escape(category)
     safe_public_url = html.escape(public_url)
+    bot_username = get_bot_username(bot)
+    safe_bot_username = html.escape(bot_username or "FileStreamBot")
+    expires_at = link_doc.get("expires_at")
+    if expires_at is not None:
+        expires_text = datetime.datetime.utcfromtimestamp(float(expires_at)).strftime("%Y-%m-%d %H:%M UTC")
+    elif int(Server.PUBLIC_FILE_EXPIRE_HOURS or 0) > 0:
+        expires_text = f"in {int(Server.PUBLIC_FILE_EXPIRE_HOURS)} hours"
+    else:
+        expires_text = "Never"
     if len(safe_name) > 200:
         safe_name = safe_name[:200] + "…"
 
     if is_streamable:
-        stream_text= LANG.STREAM_TEXT.format(safe_name, file_size, safe_category, safe_public_url)
+        stream_text = LANG.STREAM_TEXT.format(
+            safe_name,
+            file_size,
+            safe_category,
+            html.escape(expires_text),
+            safe_bot_username,
+            safe_public_url,
+        )
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("Open", url=public_url)]
             ]
         )
     else:
-        stream_text= LANG.STREAM_TEXT_X.format(safe_name, file_size, safe_category, safe_public_url)
+        stream_text = LANG.STREAM_TEXT_X.format(
+            safe_name,
+            file_size,
+            safe_category,
+            html.escape(expires_text),
+            safe_bot_username,
+            safe_public_url,
+        )
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("Open", url=public_url)]
