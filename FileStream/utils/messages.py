@@ -67,7 +67,6 @@ A Telegram bot for turning files into clean public links.
 <b>📄 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
 <b>🏷️ Category:</b> <code>{}</code>
-<b>🗂 Storage:</b> <code>{}</code>
 <b>⏳ Time Left:</b> <code>{}</code>
 <b>📅 Expires At:</b> <code>{}</code>
 <b>🤖 Bot:</b> <code>@{}</code>
@@ -84,7 +83,6 @@ A Telegram bot for turning files into clean public links.
 <b>📄 File:</b> <code>{}</code>
 <b>💾 Size:</b> <code>{}</code>
 <b>🏷️ Category:</b> <code>{}</code>
-<b>🗂 Storage:</b> <code>{}</code>
 <b>⏳ Time Left:</b> <code>{}</code>
 <b>📅 Expires At:</b> <code>{}</code>
 <b>🤖 Bot:</b> <code>@{}</code>
